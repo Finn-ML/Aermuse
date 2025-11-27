@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import GrainOverlay from '@/components/GrainOverlay';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import type { Contract, LandingPage, LandingPageLink } from '@shared/schema';
 import { 
   LayoutGrid, 
   FileText, 
@@ -16,24 +21,19 @@ import {
   Eye,
   Sparkles,
   Calendar,
-  DollarSign
+  DollarSign,
+  X,
+  Loader2,
+  Trash2,
+  Check
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'landing';
 
-interface Contract {
-  name: string;
-  status: 'pending' | 'signed' | 'review';
-  date: string;
-  type?: string;
-  value?: string;
-  parties?: string;
-}
-
 interface LinkItem {
-  name: string;
+  id: string;
+  title: string;
   url: string;
-  clicks: number;
   enabled: boolean;
 }
 
@@ -42,17 +42,130 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [links, setLinks] = useState<LinkItem[]>([
-    { name: 'Spotify', url: 'spotify.com/artist/miravoss', clicks: 2847, enabled: true },
-    { name: 'Apple Music', url: 'music.apple.com/miravoss', clicks: 1923, enabled: true },
-    { name: 'Instagram', url: 'instagram.com/miravoss', clicks: 3201, enabled: true },
-    { name: 'Merch Store', url: 'shop.miravoss.com', clicks: 892, enabled: true },
-    { name: 'Tour Dates', url: 'miravoss.com/tour', clicks: 1456, enabled: false }
-  ]);
+  const [showAddContract, setShowAddContract] = useState(false);
+  const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
+  
+  const { user, logout, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation('/auth');
+    }
+  }, [user, authLoading, setLocation]);
+
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
+    queryKey: ['/api/contracts'],
+    enabled: !!user,
+  });
+
+  const { data: landingPageData, isLoading: landingPageLoading } = useQuery<LandingPage & { links: LandingPageLink[] }>({
+    queryKey: ['/api/landing-page'],
+    enabled: !!user,
+  });
+
+  const createContractMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string; partnerName: string; value: string }) => {
+      const res = await apiRequest('POST', '/api/contracts', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      setShowAddContract(false);
+      setNewContract({ name: '', type: 'publishing', partnerName: '', value: '' });
+      toast({ title: "Contract added", description: "Your contract has been created." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create contract.", variant: "destructive" });
+    },
+  });
+
+  const deleteContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/contracts/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      toast({ title: "Contract deleted" });
+    },
+  });
+
+  const analyzeContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('POST', `/api/contracts/${id}/analyze`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      toast({ 
+        title: "Analysis complete", 
+        description: `Risk score: ${data.analysis.overallScore}/100` 
+      });
+    },
+  });
+
+  const signContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('POST', `/api/contracts/${id}/sign`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      toast({ title: "Contract signed", description: "Your contract is now active." });
+    },
+  });
+
+  const updateLandingPageMutation = useMutation({
+    mutationFn: async (data: Partial<LandingPage>) => {
+      const res = await apiRequest('PATCH', '/api/landing-page', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+      toast({ title: "Landing page updated" });
+    },
+  });
+
+  const createLinkMutation = useMutation({
+    mutationFn: async (data: { title: string; url: string }) => {
+      const res = await apiRequest('POST', '/api/landing-page/links', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+    },
+  });
+
+  const updateLinkMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; enabled?: boolean; title?: string; url?: string }) => {
+      const res = await apiRequest('PATCH', `/api/landing-page/links/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+    },
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/landing-page/links/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+    },
+  });
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation('/');
+  };
 
   const navItems = [
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
@@ -61,25 +174,10 @@ export default function Dashboard() {
   ];
 
   const stats = [
-    { label: 'Active Contracts', value: '12', change: '+2 this month', trend: 'up' },
-    { label: 'Fan Subscribers', value: '2,847', change: '+156 this week', trend: 'up' },
+    { label: 'Active Contracts', value: contracts.filter(c => c.status === 'active').length.toString(), change: '+2 this month', trend: 'up' },
+    { label: 'Pending Review', value: contracts.filter(c => c.status === 'pending').length.toString(), change: 'Needs attention', trend: 'up' },
     { label: 'Page Views', value: '14.2K', change: '+8.3%', trend: 'up' },
-    { label: 'Revenue', value: '$4,280', change: '+$840 this month', trend: 'up' }
-  ];
-
-  const recentContracts: Contract[] = [
-    { name: 'Publishing Agreement - Universal', status: 'pending', date: 'Nov 24, 2025' },
-    { name: 'Sync License - Netflix Series', status: 'signed', date: 'Nov 20, 2025' },
-    { name: 'Management Contract Review', status: 'review', date: 'Nov 18, 2025' }
-  ];
-
-  const allContracts: Contract[] = [
-    { name: 'Publishing Agreement - Universal', status: 'pending', date: 'Nov 24, 2025', type: 'Publishing', value: '$45,000', parties: 'Universal Music Publishing' },
-    { name: 'Sync License - Netflix Series', status: 'signed', date: 'Nov 20, 2025', type: 'Sync', value: '$12,500', parties: 'Netflix Entertainment' },
-    { name: 'Management Contract Review', status: 'review', date: 'Nov 18, 2025', type: 'Management', value: '15% rev share', parties: 'Stellar Artist Management' },
-    { name: 'Distribution Agreement - Spotify', status: 'signed', date: 'Nov 10, 2025', type: 'Distribution', value: '70/30 split', parties: 'Spotify AB' },
-    { name: 'Merchandise License', status: 'signed', date: 'Oct 28, 2025', type: 'Merchandise', value: '$8,200', parties: 'MerchWorld Inc.' },
-    { name: 'Festival Performance Contract', status: 'pending', date: 'Oct 15, 2025', type: 'Performance', value: '$25,000', parties: 'Coachella Valley Music' }
+    { label: 'Total Value', value: `$${contracts.reduce((acc, c) => acc + (parseInt(c.value?.replace(/[^0-9]/g, '') || '0')), 0).toLocaleString()}`, change: 'All contracts', trend: 'up' }
   ];
 
   const upcomingEvents = [
@@ -98,6 +196,7 @@ export default function Dashboard() {
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-[rgba(255,193,7,0.15)] text-[#B8860B]';
+      case 'active': 
       case 'signed': return 'bg-[rgba(40,167,69,0.15)] text-[#28a745]';
       case 'review': return 'bg-[rgba(102,0,51,0.1)] text-[#660033]';
       default: return '';
@@ -122,15 +221,24 @@ export default function Dashboard() {
     }
   };
 
-  const toggleLink = (index: number) => {
-    const newLinks = [...links];
-    newLinks[index].enabled = !newLinks[index].enabled;
-    setLinks(newLinks);
+  const filteredContracts = activeFilter === 'all' 
+    ? contracts 
+    : contracts.filter(c => c.status === activeFilter);
+
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const filteredContracts = activeFilter === 'all' 
-    ? allContracts 
-    : allContracts.filter(c => c.status === activeFilter);
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#660033]" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex relative">
@@ -138,16 +246,6 @@ export default function Dashboard() {
         ::selection {
           background: #660033;
           color: #F7E6CA;
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -197,11 +295,11 @@ export default function Dashboard() {
               className="w-10 h-10 rounded-xl flex items-center justify-center text-[#F7E6CA] font-bold text-sm"
               style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
             >
-              MV
+              {user.avatarInitials || user.name?.slice(0, 2).toUpperCase() || 'U'}
             </div>
             <div>
-              <div className="font-semibold text-sm">Mira Voss</div>
-              <div className="text-xs text-[rgba(102,0,51,0.5)]">Pro Plan</div>
+              <div className="font-semibold text-sm">{user.name}</div>
+              <div className="text-xs text-[rgba(102,0,51,0.5)]">{user.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}</div>
             </div>
           </div>
         </div>
@@ -218,7 +316,7 @@ export default function Dashboard() {
         >
           <div>
             <h1 className="text-2xl font-bold mb-0.5" data-testid="text-page-title">
-              {activeNav === 'dashboard' && 'Welcome back, Mira'}
+              {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'landing' && 'Landing Page'}
             </h1>
@@ -243,7 +341,7 @@ export default function Dashboard() {
                 className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[#F7E6CA] font-bold text-[13px]"
                 style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
               >
-                MV
+                {user.avatarInitials || user.name?.slice(0, 2).toUpperCase() || 'U'}
               </div>
               <ChevronDown size={16} className="text-[#660033]" />
             </button>
@@ -261,12 +359,14 @@ export default function Dashboard() {
                   <Settings size={18} />
                   Account Settings
                 </button>
-                <Link href="/">
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all" data-testid="button-signout">
-                    <LogOut size={18} />
-                    Sign Out
-                  </button>
-                </Link>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all" 
+                  data-testid="button-signout"
+                >
+                  <LogOut size={18} />
+                  Sign Out
+                </button>
               </div>
             )}
           </div>
@@ -314,45 +414,52 @@ export default function Dashboard() {
                       View All
                     </button>
                   </div>
-                  <div>
-                    {recentContracts.map((contract, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center justify-between py-4 transition-all duration-200 hover:pl-2"
-                        style={{ borderBottom: index < recentContracts.length - 1 ? '1px solid rgba(102, 0, 51, 0.08)' : 'none' }}
-                        data-testid={`row-contract-${index}`}
-                      >
-                        <div>
-                          <div className="font-medium text-sm mb-1">{contract.name}</div>
-                          <div className="text-xs text-[rgba(102,0,51,0.5)]">{contract.date}</div>
+                  
+                  {contractsLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="animate-spin text-[#660033]" size={24} />
+                    </div>
+                  ) : contracts.length === 0 ? (
+                    <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No contracts yet. Add your first contract!</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {contracts.slice(0, 3).map((contract) => (
+                        <div 
+                          key={contract.id}
+                          className="flex items-center justify-between py-4 border-b border-[rgba(102,0,51,0.06)] last:border-0"
+                        >
+                          <div>
+                            <div className="font-semibold text-[15px] mb-1">{contract.name}</div>
+                            <div className="text-[13px] text-[rgba(102,0,51,0.5)]">{formatDate(contract.createdAt)}</div>
+                          </div>
+                          <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
+                            {contract.status}
+                          </span>
                         </div>
-                        <span className={`px-3.5 py-1.5 rounded-[20px] text-xs font-semibold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
-                          {contract.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div 
                   className="rounded-[20px] p-7"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
-                  <h3 className="text-lg font-bold mb-6">Upcoming</h3>
-                  <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold">Upcoming</h3>
+                  </div>
+                  <div className="space-y-4">
                     {upcomingEvents.map((event, index) => (
                       <div 
                         key={index}
-                        className="flex items-center gap-4 py-3.5"
-                        style={{ borderBottom: index < upcomingEvents.length - 1 ? '1px solid rgba(102, 0, 51, 0.08)' : 'none' }}
-                        data-testid={`row-event-${index}`}
+                        className="flex items-center gap-4 py-4 border-b border-[rgba(102,0,51,0.06)] last:border-0"
                       >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getEventColor(event.type)}`}>
                           {getEventIcon(event.type)}
                         </div>
                         <div>
-                          <div className="font-medium text-sm">{event.title}</div>
-                          <div className="text-xs text-[rgba(102,0,51,0.5)]">{event.date}</div>
+                          <div className="font-semibold text-[15px] mb-1">{event.title}</div>
+                          <div className="text-[13px] text-[rgba(102,0,51,0.5)]">{event.date}</div>
                         </div>
                       </div>
                     ))}
@@ -365,121 +472,292 @@ export default function Dashboard() {
           {activeNav === 'contracts' && (
             <>
               <div className="flex justify-between items-center mb-8">
-                <div className="flex gap-2">
-                  {['all', 'pending', 'review', 'signed'].map((filter) => (
+                <div className="flex gap-3">
+                  {['all', 'pending', 'active', 'completed'].map((filter) => (
                     <button
                       key={filter}
                       onClick={() => setActiveFilter(filter)}
-                      className={`px-5 py-2.5 rounded-[10px] text-[13px] font-semibold transition-all duration-300 ${
-                        activeFilter === filter 
-                          ? 'bg-[#660033] text-[#F7E6CA]' 
-                          : 'bg-[rgba(255,255,255,0.5)] text-[rgba(102,0,51,0.6)] hover:bg-[#660033] hover:text-[#F7E6CA]'
+                      className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                        activeFilter === filter
+                          ? 'bg-[#660033] text-[#F7E6CA]'
+                          : 'bg-[rgba(255,255,255,0.6)] text-[rgba(102,0,51,0.7)] hover:bg-[rgba(255,255,255,0.8)]'
                       }`}
-                      data-testid={`button-filter-${filter}`}
+                      data-testid={`filter-${filter}`}
                     >
                       {filter.charAt(0).toUpperCase() + filter.slice(1)}
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-3">
-                  <button 
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-[50px] text-[13px] font-semibold transition-all duration-300"
-                    style={{ 
-                      background: 'rgba(255, 255, 255, 0.6)',
-                      border: '2px solid rgba(102, 0, 51, 0.15)'
-                    }}
-                    data-testid="button-upload-contract"
-                  >
-                    <Upload size={16} />
-                    Upload Contract
-                  </button>
-                  <button 
-                    className="flex items-center gap-2 px-6 py-3 rounded-[50px] text-[13px] font-bold uppercase tracking-[0.05em] bg-[#660033] text-[#F7E6CA] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(102,0,51,0.25)] transition-all duration-300"
-                    data-testid="button-new-contract"
-                  >
-                    <Plus size={16} />
-                    New Contract
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setShowAddContract(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                  data-testid="button-add-contract"
+                >
+                  <Plus size={18} />
+                  Add Contract
+                </button>
               </div>
 
-              <div 
-                className="rounded-[20px] overflow-hidden"
-                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-              >
-                <table className="w-full">
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid rgba(102, 0, 51, 0.1)' }}>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Contract Name</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Type</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Parties</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Value</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Status</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Date</th>
-                      <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredContracts.map((contract, index) => (
-                      <tr 
-                        key={index}
-                        className="hover:bg-[rgba(102,0,51,0.02)] transition-colors"
-                        style={{ borderBottom: '1px solid rgba(102, 0, 51, 0.06)' }}
-                        data-testid={`row-contract-table-${index}`}
-                      >
-                        <td className="px-4 py-4.5 text-sm font-medium">{contract.name}</td>
-                        <td className="px-4 py-4.5 text-sm">{contract.type}</td>
-                        <td className="px-4 py-4.5 text-sm text-[rgba(102,0,51,0.7)]">{contract.parties}</td>
-                        <td className="px-4 py-4.5 text-sm font-semibold">{contract.value}</td>
-                        <td className="px-4 py-4.5">
-                          <span className={`px-3.5 py-1.5 rounded-[20px] text-xs font-semibold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
+              {showAddContract && (
+                <div 
+                  className="rounded-[20px] p-7 mb-6"
+                  style={{ background: 'rgba(255, 255, 255, 0.8)', border: '2px solid rgba(102, 0, 51, 0.1)' }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold">New Contract</h3>
+                    <button onClick={() => setShowAddContract(false)} className="text-[rgba(102,0,51,0.5)] hover:text-[#660033]">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <input
+                      type="text"
+                      placeholder="Contract Name"
+                      value={newContract.name}
+                      onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      data-testid="input-contract-name"
+                    />
+                    <select
+                      value={newContract.type}
+                      onChange={(e) => setNewContract({ ...newContract, type: e.target.value })}
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      data-testid="select-contract-type"
+                    >
+                      <option value="publishing">Publishing</option>
+                      <option value="distribution">Distribution</option>
+                      <option value="sync_license">Sync License</option>
+                      <option value="management">Management</option>
+                      <option value="record_deal">Record Deal</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Partner Name"
+                      value={newContract.partnerName}
+                      onChange={(e) => setNewContract({ ...newContract, partnerName: e.target.value })}
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      data-testid="input-partner-name"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Contract Value"
+                      value={newContract.value}
+                      onChange={(e) => setNewContract({ ...newContract, value: e.target.value })}
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      data-testid="input-contract-value"
+                    />
+                  </div>
+                  <button
+                    onClick={() => createContractMutation.mutate(newContract)}
+                    disabled={createContractMutation.isPending || !newContract.name}
+                    className="px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50 flex items-center gap-2"
+                    data-testid="button-save-contract"
+                  >
+                    {createContractMutation.isPending && <Loader2 className="animate-spin" size={16} />}
+                    Save Contract
+                  </button>
+                </div>
+              )}
+
+              {contractsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-[#660033]" size={32} />
+                </div>
+              ) : filteredContracts.length === 0 ? (
+                <div 
+                  className="rounded-[20px] p-12 text-center"
+                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                >
+                  <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+                  <p className="text-[rgba(102,0,51,0.6)] mb-4">No contracts found. Start by adding your first contract!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredContracts.map((contract) => (
+                    <div 
+                      key={contract.id}
+                      className="rounded-[20px] p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
+                      style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                      data-testid={`contract-${contract.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-5">
+                          <div 
+                            className="w-14 h-14 rounded-xl flex items-center justify-center"
+                            style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                          >
+                            <FileText size={24} className="text-[#F7E6CA]" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-lg mb-1">{contract.name}</div>
+                            <div className="text-sm text-[rgba(102,0,51,0.5)]">
+                              {contract.partnerName || 'No partner specified'} • {contract.type?.replace('_', ' ')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {contract.value && (
+                            <div className="text-right mr-4">
+                              <div className="font-bold">{contract.value}</div>
+                              <div className="text-xs text-[rgba(102,0,51,0.5)]">Value</div>
+                            </div>
+                          )}
+                          <span className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
                             {contract.status}
                           </span>
-                        </td>
-                        <td className="px-4 py-4.5 text-sm text-[rgba(102,0,51,0.6)]">{contract.date}</td>
-                        <td className="px-4 py-4.5">
                           <div className="flex gap-2">
-                            <button 
-                              className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] transition-colors"
-                              title="View"
-                              data-testid={`button-view-contract-${index}`}
-                            >
-                              <Eye size={16} className="text-[rgba(102,0,51,0.6)]" />
-                            </button>
-                            <button 
-                              className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] transition-colors"
+                            <button
+                              onClick={() => analyzeContractMutation.mutate(contract.id)}
+                              disabled={analyzeContractMutation.isPending}
+                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
                               title="AI Analysis"
-                              data-testid={`button-analyze-contract-${index}`}
+                              data-testid={`button-analyze-${contract.id}`}
                             >
-                              <Sparkles size={16} className="text-[rgba(102,0,51,0.6)]" />
+                              <Sparkles size={18} />
+                            </button>
+                            {contract.status === 'pending' && (
+                              <button
+                                onClick={() => signContractMutation.mutate(contract.id)}
+                                disabled={signContractMutation.isPending}
+                                className="p-2.5 rounded-xl bg-[#28a745] text-white hover:bg-[#218838] transition-all"
+                                title="Sign Contract"
+                                data-testid={`button-sign-${contract.id}`}
+                              >
+                                <Check size={18} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteContractMutation.mutate(contract.id)}
+                              disabled={deleteContractMutation.isPending}
+                              className="p-2.5 rounded-xl bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)] transition-all"
+                              title="Delete"
+                              data-testid={`button-delete-${contract.id}`}
+                            >
+                              <Trash2 size={18} />
                             </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </div>
+                      {contract.aiAnalysis && (
+                        <div className="mt-4 pt-4 border-t border-[rgba(102,0,51,0.08)]">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Sparkles size={14} className="text-[#660033]" />
+                            <span className="text-sm font-semibold">AI Analysis</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                              contract.aiRiskScore === 'low' ? 'bg-[rgba(40,167,69,0.15)] text-[#28a745]' :
+                              contract.aiRiskScore === 'medium' ? 'bg-[rgba(255,193,7,0.15)] text-[#B8860B]' :
+                              'bg-[rgba(220,53,69,0.15)] text-[#dc3545]'
+                            }`}>
+                              {contract.aiRiskScore?.toUpperCase()} RISK
+                            </span>
+                          </div>
+                          <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                            {(contract.aiAnalysis as any)?.summary}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
           {activeNav === 'landing' && (
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  {landingPageStats.map((stat, index) => (
-                    <div 
-                      key={index}
-                      className="rounded-[16px] p-5"
-                      style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                      data-testid={`card-landing-stat-${index}`}
-                    >
-                      <div className="text-xs font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-2">
-                        {stat.label}
-                      </div>
-                      <div className="text-2xl font-bold">{stat.value}</div>
+            <>
+              <div className="grid grid-cols-4 gap-4 mb-8">
+                {landingPageStats.map((stat, index) => (
+                  <div 
+                    key={index}
+                    className="rounded-[16px] p-5"
+                    style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                  >
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-2">
+                      {stat.label}
                     </div>
-                  ))}
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div 
+                  className="rounded-[20px] p-7"
+                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold">Page Settings</h3>
+                    {landingPageData?.isPublished ? (
+                      <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase bg-[rgba(40,167,69,0.15)] text-[#28a745]">Published</span>
+                    ) : (
+                      <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase bg-[rgba(255,193,7,0.15)] text-[#B8860B]">Draft</span>
+                    )}
+                  </div>
+
+                  {landingPageLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="animate-spin text-[#660033]" size={24} />
+                    </div>
+                  ) : landingPageData ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Artist Name</label>
+                        <input
+                          type="text"
+                          value={landingPageData.artistName || ''}
+                          onChange={(e) => updateLandingPageMutation.mutate({ artistName: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                          data-testid="input-artist-name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Tagline</label>
+                        <input
+                          type="text"
+                          value={landingPageData.tagline || ''}
+                          onChange={(e) => updateLandingPageMutation.mutate({ tagline: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                          placeholder="Your tagline..."
+                          data-testid="input-tagline"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Bio</label>
+                        <textarea
+                          value={landingPageData.bio || ''}
+                          onChange={(e) => updateLandingPageMutation.mutate({ bio: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none min-h-[100px] resize-none"
+                          placeholder="Tell your story..."
+                          data-testid="input-bio"
+                        />
+                      </div>
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          onClick={() => updateLandingPageMutation.mutate({ isPublished: !landingPageData.isPublished })}
+                          className={`flex-1 px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+                            landingPageData.isPublished 
+                              ? 'bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)]'
+                              : 'bg-[#660033] text-[#F7E6CA] hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)]'
+                          }`}
+                          data-testid="button-toggle-publish"
+                        >
+                          {landingPageData.isPublished ? 'Unpublish' : 'Publish Page'}
+                        </button>
+                        {landingPageData.isPublished && (
+                          <a
+                            href={`/artist/${landingPageData.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-6 py-3 rounded-xl font-semibold text-sm bg-[rgba(102,0,51,0.1)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-2"
+                            data-testid="link-view-page"
+                          >
+                            <ExternalLink size={16} />
+                            View Page
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div 
@@ -487,121 +765,58 @@ export default function Dashboard() {
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Manage Links</h3>
+                    <h3 className="text-lg font-bold">Your Links</h3>
                     <button 
-                      className="flex items-center gap-2 px-4 py-2 rounded-[50px] text-sm font-semibold bg-[#660033] text-[#F7E6CA] hover:-translate-y-0.5 transition-all"
+                      onClick={() => createLinkMutation.mutate({ title: 'New Link', url: 'https://example.com' })}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#660033]"
                       data-testid="button-add-link"
                     >
-                      <Plus size={14} />
+                      <Plus size={16} />
                       Add Link
                     </button>
                   </div>
-                  <div>
-                    {links.map((link, index) => (
-                      <div 
-                        key={index}
-                        className={`flex items-center justify-between px-6 py-5 rounded-2xl mb-3 transition-all duration-300 hover:translate-x-1 ${link.enabled ? '' : 'opacity-50'}`}
-                        style={{ background: 'rgba(255, 255, 255, 0.5)' }}
-                        data-testid={`row-link-${index}`}
-                      >
-                        <div className="flex-1">
-                          <div className="font-semibold text-sm mb-1">{link.name}</div>
-                          <div className="text-xs text-[rgba(102,0,51,0.5)] flex items-center gap-1">
-                            {link.url}
-                            <ExternalLink size={10} />
-                          </div>
-                        </div>
-                        <div className="text-sm font-medium text-[rgba(102,0,51,0.6)] mr-6">
-                          {link.clicks.toLocaleString()} clicks
-                        </div>
-                        <button
-                          onClick={() => toggleLink(index)}
-                          className={`relative w-12 h-[26px] rounded-[13px] cursor-pointer transition-all duration-300 ${link.enabled ? 'bg-[#660033]' : 'bg-[rgba(102,0,51,0.2)]'}`}
-                          data-testid={`toggle-link-${index}`}
-                        >
-                          <div 
-                            className="absolute top-[3px] w-5 h-5 bg-white rounded-full transition-all duration-300"
-                            style={{ left: link.enabled ? '25px' : '3px' }}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <div 
-                  className="rounded-3xl p-10 text-[#F7E6CA] relative overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
-                >
-                  <div 
-                    className="absolute"
-                    style={{
-                      top: '-50%',
-                      right: '-50%',
-                      width: '100%',
-                      height: '100%',
-                      background: 'radial-gradient(circle, rgba(247, 230, 202, 0.1) 0%, transparent 60%)'
-                    }}
-                  />
-                  <div className="relative z-10">
-                    <div className="text-center mb-8">
-                      <div 
-                        className="w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center text-3xl font-light"
-                        style={{ 
-                          background: 'rgba(247, 230, 202, 0.2)',
-                          border: '2px solid rgba(247, 230, 202, 0.3)'
-                        }}
-                      >
-                        MV
-                      </div>
-                      <h2 className="text-2xl font-bold mb-2">Mira Voss</h2>
-                      <p className="text-sm opacity-80">Electronic Producer</p>
+                  {landingPageLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="animate-spin text-[#660033]" size={24} />
                     </div>
-
+                  ) : landingPageData?.links?.length === 0 ? (
+                    <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No links yet. Add your first link!</p>
+                  ) : (
                     <div className="space-y-3">
-                      {links.filter(l => l.enabled).slice(0, 3).map((link, index) => (
+                      {landingPageData?.links?.map((link) => (
                         <div 
-                          key={index}
-                          className="px-6 py-4 rounded-xl text-center font-semibold text-sm transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
-                          style={{ 
-                            background: 'rgba(247, 230, 202, 0.15)',
-                            border: '1px solid rgba(247, 230, 202, 0.2)'
-                          }}
+                          key={link.id}
+                          className="flex items-center justify-between p-4 rounded-xl"
+                          style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                         >
-                          {link.name}
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm mb-0.5">{link.title}</div>
+                            <div className="text-xs text-[rgba(102,0,51,0.5)]">{link.url}</div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => updateLinkMutation.mutate({ id: link.id, enabled: !link.enabled })}
+                              className={`w-12 h-6 rounded-full transition-all ${link.enabled ? 'bg-[#660033]' : 'bg-[rgba(102,0,51,0.2)]'}`}
+                              data-testid={`toggle-link-${link.id}`}
+                            >
+                              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${link.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                            </button>
+                            <button
+                              onClick={() => deleteLinkMutation.mutate(link.id)}
+                              className="p-1.5 rounded-lg text-[rgba(102,0,51,0.4)] hover:text-[#dc3545] hover:bg-[rgba(220,53,69,0.1)] transition-all"
+                              data-testid={`delete-link-${link.id}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
-
-                    <div className="text-center mt-8 text-xs opacity-60">
-                      aermuse.link/miravoss
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button 
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5"
-                    style={{ 
-                      background: 'rgba(255, 255, 255, 0.6)',
-                      border: '2px solid rgba(102, 0, 51, 0.15)'
-                    }}
-                    data-testid="button-preview-page"
-                  >
-                    <Eye size={16} />
-                    Preview
-                  </button>
-                  <button 
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-sm font-bold uppercase tracking-[0.05em] bg-[#660033] text-[#F7E6CA] hover:-translate-y-0.5 transition-all"
-                    data-testid="button-publish-page"
-                  >
-                    Publish Changes
-                  </button>
+                  )}
                 </div>
               </div>
-            </div>
+            </>
           )}
         </main>
       </div>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import ShaderAnimation from '@/components/ShaderAnimation';
 import GrainOverlay from '@/components/GrainOverlay';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -15,10 +17,21 @@ export default function Auth() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { user, login, register } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      setLocation('/dashboard');
+    }
+  }, [user, setLocation]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -27,9 +40,57 @@ export default function Auth() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submission:', activeTab, formData);
+    setIsSubmitting(true);
+
+    try {
+      if (activeTab === 'login') {
+        await login(formData.email, formData.password);
+        toast({
+          title: "Welcome back!",
+          description: "You've been signed in successfully.",
+        });
+      } else {
+        if (formData.password !== formData.confirmPassword) {
+          toast({
+            title: "Error",
+            description: "Passwords don't match.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        if (!termsAccepted) {
+          toast({
+            title: "Error",
+            description: "Please accept the terms and conditions.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        await register({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          artistName: formData.name,
+        });
+        toast({
+          title: "Account created!",
+          description: "Welcome to Aermuse.",
+        });
+      }
+      setLocation('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -38,16 +99,6 @@ export default function Auth() {
         ::selection {
           background: #660033;
           color: #F7E6CA;
-        }
-        
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
         }
         
         .input-field {
@@ -87,11 +138,20 @@ export default function Auth() {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           border-radius: 50px;
           width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
           transform: translateY(-2px);
           box-shadow: 0 20px 40px rgba(102, 0, 51, 0.3);
+        }
+        
+        .btn-primary:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
         }
         
         .tab-btn {
@@ -217,6 +277,7 @@ export default function Auth() {
                 value={formData.email}
                 onChange={handleInputChange}
                 className="input-field"
+                required
                 data-testid="input-email"
               />
             </div>
@@ -229,10 +290,12 @@ export default function Auth() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleInputChange}
                   className="input-field pr-14"
+                  required
+                  minLength={6}
                   data-testid="input-password"
                 />
                 <button 
@@ -260,7 +323,7 @@ export default function Auth() {
               <input
                 type="password"
                 name="confirmPassword"
-                placeholder="••••••••••••"
+                placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 className="input-field"
@@ -296,7 +359,13 @@ export default function Auth() {
               )}
             </div>
 
-            <button type="submit" className="btn-primary" data-testid="button-submit">
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={isSubmitting}
+              data-testid="button-submit"
+            >
+              {isSubmitting && <Loader2 className="animate-spin" size={18} />}
               {activeTab === 'login' ? 'Sign In' : 'Create Account'}
             </button>
 

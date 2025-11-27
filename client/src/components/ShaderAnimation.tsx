@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 interface ShaderAnimationProps {
@@ -16,11 +16,26 @@ interface SceneRef {
   animationId: number;
 }
 
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+  } catch (e) {
+    return false;
+  }
+}
+
 export default function ShaderAnimation({ variant = 'landing' }: ShaderAnimationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneRef | null>(null);
+  const [webglSupported, setWebglSupported] = useState(true);
 
   useEffect(() => {
+    if (!isWebGLAvailable()) {
+      setWebglSupported(false);
+      return;
+    }
+    
     if (!containerRef.current) return;
 
     const container = containerRef.current;
@@ -163,6 +178,19 @@ export default function ShaderAnimation({ variant = 'landing' }: ShaderAnimation
       }
     };
   }, [variant]);
+
+  if (!webglSupported) {
+    return (
+      <div 
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          background: variant === 'landing' 
+            ? 'linear-gradient(135deg, #660033 0%, #8B0045 40%, #4A0026 100%)'
+            : 'linear-gradient(135deg, #4A0026 0%, #660033 50%, #8B0045 100%)'
+        }}
+      />
+    );
+  }
 
   return (
     <div
