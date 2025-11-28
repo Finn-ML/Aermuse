@@ -41,12 +41,12 @@ development_status:
   # 6 stories, 17 points
   # ============================================
   epic-1: contexted
-  1-1-upgrade-password-hashing-to-bcrypt: drafted
-  1-2-password-reset-flow: drafted
-  1-3-email-verification-for-new-accounts: drafted
-  1-4-change-password-from-settings: drafted
-  1-5-account-deletion: drafted
-  1-6-admin-role-system: drafted
+  1-1-upgrade-password-hashing-to-bcrypt: ready-for-dev
+  1-2-password-reset-flow: ready-for-dev
+  1-3-email-verification-for-new-accounts: ready-for-dev
+  1-4-change-password-from-settings: ready-for-dev
+  1-5-account-deletion: ready-for-dev
+  1-6-admin-role-system: ready-for-dev
   epic-1-retrospective: optional
 
   # ============================================
@@ -54,13 +54,13 @@ development_status:
   # 7 stories, 24 points
   # ============================================
   epic-2: contexted
-  2-1-contract-file-upload: drafted
-  2-2-text-extraction-from-documents: drafted
-  2-3-openai-gpt4-integration: drafted
-  2-4-ai-contract-summary-generation: drafted
-  2-5-fairness-analysis-and-clause-flagging: drafted
-  2-6-legal-disclaimer: drafted
-  2-7-analysis-history-and-re-analysis: drafted
+  2-1-contract-file-upload: ready-for-dev
+  2-2-text-extraction-from-documents: ready-for-dev
+  2-3-openai-gpt4-integration: ready-for-dev
+  2-4-ai-contract-summary-generation: ready-for-dev
+  2-5-fairness-analysis-and-clause-flagging: ready-for-dev
+  2-6-legal-disclaimer: ready-for-dev
+  2-7-analysis-history-and-re-analysis: ready-for-dev
   epic-2-retrospective: optional
 
   # ============================================
@@ -68,16 +68,16 @@ development_status:
   # 10 stories, 30 points
   # ============================================
   epic-3: contexted
-  3-1-template-data-model-and-storage: drafted
-  3-2-artist-agreement-template: drafted
-  3-3-license-agreement-template: drafted
-  3-4-tour-agreement-template: drafted
-  3-5-sample-agreement-template: drafted
-  3-6-work-for-hire-agreement-template: drafted
-  3-7-template-selection-ui: drafted
-  3-8-template-fill-in-form: drafted
-  3-9-contract-preview-and-editing: drafted
-  3-10-admin-template-management: drafted
+  3-1-template-data-model-and-storage: ready-for-dev
+  3-2-artist-agreement-template: ready-for-dev
+  3-3-license-agreement-template: ready-for-dev
+  3-4-tour-agreement-template: ready-for-dev
+  3-5-sample-agreement-template: ready-for-dev
+  3-6-work-for-hire-agreement-template: ready-for-dev
+  3-7-template-selection-ui: ready-for-dev
+  3-8-template-fill-in-form: ready-for-dev
+  3-9-contract-preview-and-editing: ready-for-dev
+  3-10-admin-template-management: ready-for-dev
   epic-3-retrospective: optional
 
   # ============================================
@@ -85,16 +85,16 @@ development_status:
   # 10 stories, 36 points
   # ============================================
   epic-4: contexted
-  4-1-docuseal-integration-service: drafted
-  4-2-signature-request-data-model: drafted
-  4-3-add-signatories-ui: drafted
-  4-4-signature-request-api: drafted
-  4-5-webhook-handler: drafted
-  4-6-email-notifications: drafted
-  4-7-signature-status-tracking-ui: drafted
-  4-8-awaiting-signature-dashboard: drafted
-  4-9-signed-document-storage: drafted
-  4-10-decline-and-cancellation: drafted
+  4-1-docuseal-integration-service: ready-for-dev
+  4-2-signature-request-data-model: ready-for-dev
+  4-3-add-signatories-ui: ready-for-dev
+  4-4-signature-request-api: ready-for-dev
+  4-5-webhook-handler: ready-for-dev
+  4-6-email-notifications: ready-for-dev
+  4-7-signature-status-tracking-ui: ready-for-dev
+  4-8-awaiting-signature-dashboard: ready-for-dev
+  4-9-signed-document-storage: ready-for-dev
+  4-10-decline-and-cancellation: ready-for-dev
   epic-4-retrospective: optional
 
   # ============================================
@@ -102,16 +102,16 @@ development_status:
   # 10 stories, 26 points
   # ============================================
   epic-5: contexted
-  5-1-stripe-integration-setup: drafted
-  5-2-subscription-data-model: drafted
-  5-3-pricing-page: drafted
-  5-4-stripe-checkout-flow: drafted
-  5-5-stripe-webhook-handler: drafted
-  5-6-billing-dashboard: drafted
-  5-7-stripe-customer-portal: drafted
-  5-8-subscription-paywall: drafted
-  5-9-subscription-cancellation-handling: drafted
-  5-10-invoice-generation: drafted
+  5-1-stripe-integration-setup: ready-for-dev
+  5-2-subscription-data-model: ready-for-dev
+  5-3-pricing-page: ready-for-dev
+  5-4-stripe-checkout-flow: ready-for-dev
+  5-5-stripe-webhook-handler: ready-for-dev
+  5-6-billing-dashboard: ready-for-dev
+  5-7-stripe-customer-portal: ready-for-dev
+  5-8-subscription-paywall: ready-for-dev
+  5-9-subscription-cancellation-handling: ready-for-dev
+  5-10-invoice-generation: ready-for-dev
   epic-5-retrospective: optional
 
   # ============================================
@@ -119,15 +119,15 @@ development_status:
   # 9 stories, 37 points
   # ============================================
   epic-6: contexted
-  6-1-admin-layout-and-navigation: drafted
-  6-2-admin-overview-dashboard: drafted
-  6-3-user-management: drafted
-  6-4-contract-overview-admin: drafted
-  6-5-template-catalogue-management: drafted
-  6-6-subscription-metrics: drafted
-  6-7-platform-usage-statistics: drafted
-  6-8-system-configuration: drafted
-  6-9-admin-activity-log: drafted
+  6-1-admin-layout-and-navigation: ready-for-dev
+  6-2-admin-overview-dashboard: ready-for-dev
+  6-3-user-management: ready-for-dev
+  6-4-contract-overview-admin: ready-for-dev
+  6-5-template-catalogue-management: ready-for-dev
+  6-6-subscription-metrics: ready-for-dev
+  6-7-platform-usage-statistics: ready-for-dev
+  6-8-system-configuration: ready-for-dev
+  6-9-admin-activity-log: ready-for-dev
   epic-6-retrospective: optional
 
   # ============================================
@@ -135,12 +135,12 @@ development_status:
   # 6 stories, 12 points
   # ============================================
   epic-7: contexted
-  7-1-proposal-data-model: drafted
-  7-2-send-proposal-button: drafted
-  7-3-proposal-submission-form: drafted
-  7-4-proposal-notification: drafted
-  7-5-proposal-management-dashboard: drafted
-  7-6-proposal-to-contract-flow: drafted
+  7-1-proposal-data-model: ready-for-dev
+  7-2-send-proposal-button: ready-for-dev
+  7-3-proposal-submission-form: ready-for-dev
+  7-4-proposal-notification: ready-for-dev
+  7-5-proposal-management-dashboard: ready-for-dev
+  7-6-proposal-to-contract-flow: ready-for-dev
   epic-7-retrospective: optional
 
   # ============================================
@@ -148,10 +148,10 @@ development_status:
   # 6 stories, 21 points
   # ============================================
   epic-8: contexted
-  8-1-contract-search: drafted
-  8-2-advanced-filtering: drafted
-  8-3-folder-organization: drafted
-  8-4-pdf-export: drafted
-  8-5-version-history: drafted
-  8-6-contract-sorting: drafted
+  8-1-contract-search: ready-for-dev
+  8-2-advanced-filtering: ready-for-dev
+  8-3-folder-organization: ready-for-dev
+  8-4-pdf-export: ready-for-dev
+  8-5-version-history: ready-for-dev
+  8-6-contract-sorting: ready-for-dev
   epic-8-retrospective: optional
