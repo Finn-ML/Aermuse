@@ -147,11 +147,11 @@ development_status:
   # EPIC 8: Contract Storage & Search (P1)
   # 6 stories, 21 points
   # ============================================
-  epic-8: backlog
-  8-1-contract-search: backlog
-  8-2-advanced-filtering: backlog
-  8-3-folder-organization: backlog
-  8-4-pdf-export: backlog
-  8-5-version-history: backlog
-  8-6-contract-sorting: backlog
+  epic-8: contexted
+  8-1-contract-search: drafted
+  8-2-advanced-filtering: drafted
+  8-3-folder-organization: drafted
+  8-4-pdf-export: drafted
+  8-5-version-history: drafted
+  8-6-contract-sorting: drafted
   epic-8-retrospective: optional
