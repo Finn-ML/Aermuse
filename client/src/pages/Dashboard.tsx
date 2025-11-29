@@ -7,6 +7,7 @@ import { ChangePasswordForm } from '@/components/ChangePasswordForm';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ContractUpload } from '@/components/contracts/ContractUpload';
 import { TemplateGallery } from '@/components/templates/TemplateGallery';
+import { TemplateForm } from '@/components/templates/TemplateForm';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -748,16 +750,29 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'templates' && (
-            <TemplateGallery
-              onSelectTemplate={(template) => {
-                // Navigate to fill-in form (Story 3.8)
-                // For now, show a toast that template was selected
-                toast({
-                  title: 'Template Selected',
-                  description: `You selected "${template.name}". Fill-in form coming soon!`,
-                });
-              }}
-            />
+            selectedTemplate ? (
+              <TemplateForm
+                template={selectedTemplate}
+                onBack={() => setSelectedTemplate(null)}
+                onPreview={(formData) => {
+                  // Save form data and navigate to preview (Story 3.9)
+                  localStorage.setItem(
+                    `template-preview-${selectedTemplate.id}`,
+                    JSON.stringify(formData)
+                  );
+                  toast({
+                    title: 'Form Saved',
+                    description: 'Contract preview coming soon in Story 3.9!',
+                  });
+                }}
+              />
+            ) : (
+              <TemplateGallery
+                onSelectTemplate={(template) => {
+                  setSelectedTemplate(template);
+                }}
+              />
+            )
           )}
 
           {activeNav === 'landing' && (
