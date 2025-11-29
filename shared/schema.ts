@@ -49,6 +49,8 @@ export const contracts = pgTable("contracts", {
   extractedText: text("extracted_text"), // Text extracted from PDF/DOCX
   aiAnalysis: jsonb("ai_analysis"),
   aiRiskScore: text("ai_risk_score"),
+  analyzedAt: timestamp("analyzed_at"), // When AI analysis was performed
+  analysisVersion: integer("analysis_version").default(0), // Version counter for re-analysis
   signedAt: timestamp("signed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

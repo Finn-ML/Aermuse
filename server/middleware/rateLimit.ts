@@ -27,12 +27,27 @@ export const apiLimiter = rateLimit({
 
 /**
  * Rate limiter for AI analysis endpoints.
- * Allows 10 requests per hour per IP address (expensive operations).
+ * Allows 10 requests per hour per user (expensive operations).
  */
 export const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
-  message: { error: 'AI analysis rate limit reached. Please try again later.' },
+  message: {
+    error: 'AI analysis limit reached. You can analyze up to 10 contracts per hour.',
+    code: 'AI_RATE_LIMIT'
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req: any) => {
+    // Rate limit by user ID, not IP
+    return req.session?.userId || req.ip;
+  },
+  handler: (req: any, res: any) => {
+    console.log(`[AI] Rate limit hit for user ${req.session?.userId}`);
+    res.status(429).json({
+      error: 'AI analysis limit reached. You can analyze up to 10 contracts per hour.',
+      code: 'AI_RATE_LIMIT',
+      retryAfter: res.getHeader('Retry-After')
+    });
+  }
 });

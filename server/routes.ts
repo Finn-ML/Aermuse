@@ -4,14 +4,15 @@ import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
-import { authLimiter } from "./middleware/rateLimit";
+import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
 import { requireAdmin } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType } from "./services/fileStorage";
-import { extractText } from "./services/extraction";
+import { extractText, truncateForAI } from "./services/extraction";
+import { analyzeContract, OpenAIError } from "./services/openai";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -503,8 +504,8 @@ export async function registerRoutes(
     }
   });
 
-  // AI Contract Analysis (simulated)
-  app.post("/api/contracts/:id/analyze", async (req: Request, res: Response) => {
+  // AI Contract Analysis (GPT-4)
+  app.post("/api/contracts/:id/analyze", aiLimiter, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -516,39 +517,78 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // Simulated AI analysis results
+      if (!contract.extractedText) {
+        return res.status(400).json({
+          error: 'No text available for analysis. Please upload a text-based document.'
+        });
+      }
+
+      // Update status to analyzing
+      await storage.updateContract(contract.id, { status: 'analyzing' });
+
+      // Truncate if needed
+      const { text, truncated, originalLength } = truncateForAI(contract.extractedText);
+
+      if (truncated) {
+        console.log(`[AI] Contract ${contract.id} truncated: ${originalLength} → ${text.length} chars`);
+      }
+
+      // Perform analysis
+      const result = await analyzeContract(text);
+
+      // Add metadata to analysis
       const analysis = {
-        summary: "This contract outlines terms for exclusive distribution rights with standard industry provisions.",
-        keyTerms: [
-          { term: "Exclusivity Period", value: "3 years", risk: "medium" },
-          { term: "Revenue Split", value: "70/30 in artist's favor", risk: "low" },
-          { term: "Territory", value: "Worldwide", risk: "low" },
-          { term: "Termination Clause", value: "90 days notice required", risk: "medium" },
-        ],
-        redFlags: [
-          "The exclusivity period is longer than industry standard (2 years)",
-          "No performance minimum requirements specified",
-        ],
-        recommendations: [
-          "Negotiate for a shorter exclusivity period of 2 years",
-          "Add minimum performance thresholds for the distributor",
-          "Include a break clause at 18 months if targets aren't met",
-        ],
-        overallScore: 72,
-        analyzedAt: new Date().toISOString(),
+        ...result.analysis,
+        metadata: {
+          modelVersion: result.model,
+          analyzedAt: new Date().toISOString(),
+          processingTime: result.processingTime,
+          tokenCount: result.usage.totalTokens,
+          truncated
+        }
       };
 
-      const riskScore = analysis.overallScore >= 80 ? "low" : analysis.overallScore >= 60 ? "medium" : "high";
+      // Determine risk score from analysis
+      const overallScore = result.analysis.riskAssessment?.overallScore || 50;
+      const riskScore = overallScore >= 80 ? "low" : overallScore >= 60 ? "medium" : "high";
 
-      const updatedContract = await storage.updateContract(req.params.id, {
+      // Save analysis to contract
+      const updatedContract = await storage.updateContract(contract.id, {
         aiAnalysis: analysis,
         aiRiskScore: riskScore,
+        analyzedAt: new Date(),
+        analysisVersion: (contract.analysisVersion || 0) + 1,
+        status: 'analyzed'
       });
 
-      res.json({ contract: updatedContract, analysis });
+      console.log(`[AI] Contract ${contract.id} analyzed: ${result.usage.totalTokens} tokens`);
+
+      res.json({
+        contract: updatedContract,
+        analysis,
+        usage: result.usage
+      });
     } catch (error) {
       console.error("Analyze contract error:", error);
-      res.status(500).json({ error: "Failed to analyze contract" });
+
+      // Reset status on failure
+      try {
+        await storage.updateContract(req.params.id, { status: 'uploaded' });
+      } catch (e) {
+        // Ignore status reset errors
+      }
+
+      if (error instanceof OpenAIError) {
+        return res.status(500).json({
+          error: error.message,
+          code: error.code
+        });
+      }
+
+      res.status(500).json({
+        error: 'AI analysis failed. Please try again.',
+        code: 'ANALYSIS_FAILED'
+      });
     }
   });
 
