@@ -1,47 +1,25 @@
-# Story 3.2: Artist Agreement Template
+/**
+ * Artist Collaboration Agreement Template
+ * Epic 3: Contract Templates System
+ *
+ * The most commonly used template for collaborations between artists, producers, and creatives.
+ */
 
-## Story Overview
+import type { TemplateContent, TemplateField, OptionalClause } from "../../../shared/types/templates";
 
-| Field | Value |
-|-------|-------|
-| **Story ID** | 3.2 |
-| **Epic** | Epic 3: Contract Templates |
-| **Title** | Artist Agreement Template |
-| **Priority** | P1 - High |
-| **Story Points** | 3 |
-| **Status** | Done |
+export interface TemplateDefinition {
+  name: string;
+  description: string;
+  category: 'artist' | 'licensing' | 'touring' | 'production' | 'business';
+  isActive: boolean;
+  sortOrder: number;
+  version: number;
+  fields: TemplateField[];
+  optionalClauses: OptionalClause[];
+  content: TemplateContent;
+}
 
-## User Story
-
-**As an** artist entering a collaboration
-**I want** to use an Artist Agreement template
-**So that** both parties are protected
-
-## Context
-
-The Artist Agreement is the most commonly used template, covering collaborations between artists, producers, and other creatives. It defines revenue splits, credits, rights, and termination terms.
-
-**Dependencies:**
-- Story 3.1 (Data Model) must be completed first
-
-## Acceptance Criteria
-
-- [ ] **AC-1:** Artist Agreement template created in database
-- [ ] **AC-2:** Template covers: parties, scope, revenue, rights, credits, term
-- [ ] **AC-3:** All required fields defined with proper types
-- [ ] **AC-4:** Optional clauses: Exclusivity, Credit Requirements, Termination Rights
-- [ ] **AC-5:** Preview renders correctly with sample data
-- [ ] **AC-6:** Professional legal-style formatting
-
-## Technical Requirements
-
-### Template Definition
-
-```typescript
-// server/data/templates/artist-agreement.ts
-import { ContractTemplate, TemplateContent, TemplateField, OptionalClause } from '../../shared/types/templates';
-
-export const artistAgreementTemplate: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> = {
+export const artistAgreementTemplate: TemplateDefinition = {
   name: 'Artist Collaboration Agreement',
   description: 'For collaborations between artists, producers, or other creatives. Covers revenue splits, credits, and rights.',
   category: 'artist',
@@ -266,7 +244,7 @@ Project Title: {{project_title}}
 
 Description: {{project_description}}
 
-The collaboration shall commence on {{effective_date}}${`{{#if delivery_date}}`} and the deliverables are expected to be completed by {{delivery_date}}${`{{/if}}`}.`
+The collaboration shall commence on {{effective_date}} with deliverables expected to be completed by {{delivery_date}}.`
       },
       {
         id: 'revenue',
@@ -276,7 +254,7 @@ The collaboration shall commence on {{effective_date}}${`{{#if delivery_date}}`}
 Party A: {{party_a_split}}%
 Party B: {{party_b_split}}%
 
-${`{{#if advance_amount}}`}Party A agrees to pay Party B an advance of {{advance_amount}} upon execution of this Agreement. This advance shall be recoupable from Party B's share of revenues.${`{{/if}}`}
+Any advance payment of {{advance_amount}} shall be recoupable from the receiving Party's share of revenues.
 
 Each Party shall be responsible for their own taxes on income received under this Agreement.`
       },
@@ -353,69 +331,11 @@ Date: _______________`
     ]
   }
 };
-```
 
-### Seed Script
-
-```typescript
-// server/scripts/seed-templates.ts
-import { db } from '../db';
-import { contractTemplates } from '../../shared/schema';
-import { artistAgreementTemplate } from '../data/templates/artist-agreement';
-
-export async function seedTemplates(): Promise<void> {
-  console.log('[SEED] Seeding contract templates...');
-
-  // Check if template already exists
-  const existing = await db.query.contractTemplates.findFirst({
-    where: eq(contractTemplates.name, artistAgreementTemplate.name)
-  });
-
-  if (existing) {
-    console.log('[SEED] Artist Agreement template already exists');
-    return;
-  }
-
-  await db.insert(contractTemplates).values(artistAgreementTemplate);
-  console.log('[SEED] Artist Agreement template created');
-}
-```
-
-## Definition of Done
-
-- [ ] Template definition created in code
-- [ ] Template seeded to database
-- [ ] All 9 sections render correctly
-- [ ] All fields have proper validation
-- [ ] Optional clauses toggle sections on/off
-- [ ] Revenue splits validate to 100%
-- [ ] Sample data renders professional output
-
-## Testing Checklist
-
-### Unit Tests
-
-- [ ] All required fields defined
-- [ ] Field validations work (min/max, patterns)
-- [ ] Revenue split adds to 100%
-- [ ] Optional sections filter correctly
-
-### Integration Tests
-
-- [ ] Template seeds successfully
-- [ ] Template retrieved with full content
-- [ ] Render with sample data produces valid HTML
-
-### Manual Testing
-
-- [ ] Review template language with legal placeholder
-- [ ] Verify professional formatting
-- [ ] Check all variables substitute correctly
-
-## Sample Data for Testing
-
-```typescript
-const sampleData = {
+/**
+ * Sample data for testing template rendering
+ */
+export const artistAgreementSampleData = {
   fields: {
     party_a_name: 'Jane Smith p/k/a "J. Melody"',
     party_a_address: '123 Music Lane, London, UK',
@@ -438,93 +358,3 @@ const sampleData = {
   },
   enabledClauses: ['credit_requirements', 'termination']
 };
-```
-
-## Related Documents
-
-- [Epic 3 Tech Spec](./tech-spec-epic-3.md)
-- [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
-
----
-
-## Tasks/Subtasks
-
-- [x] **Task 1: Create template definition file**
-  - [x] Create server/data/templates/artist-agreement.ts
-  - [x] Define all party fields (Party A and B)
-  - [x] Define project fields
-  - [x] Define financial terms fields
-  - [x] Define dates and territory fields
-
-- [x] **Task 2: Define optional clauses**
-  - [x] Add exclusivity clause with period field
-  - [x] Add credit requirements clause with credit name fields
-  - [x] Add termination clause with notice period field
-
-- [x] **Task 3: Create template content sections**
-  - [x] Write parties section
-  - [x] Write project scope section
-  - [x] Write revenue sharing section
-  - [x] Write IP rights section
-  - [x] Write optional exclusivity section
-  - [x] Write optional credits section
-  - [x] Write optional termination section
-  - [x] Write general provisions section
-  - [x] Write signatures section
-
-- [x] **Task 4: Create seed script**
-  - [x] Create server/scripts/seed-templates.ts
-  - [x] Implement seedTemplates function
-  - [x] Check for existing template before insert
-  - [x] Export for use in startup
-
-- [x] **Task 5: Write tests**
-  - [x] Unit tests for field validations
-  - [x] Test revenue split validates to 100%
-  - [ ] Integration test for template seeding (pending DB)
-  - [x] Render test with sample data
-
----
-
-## Dev Agent Record
-
-### Debug Log
-<!-- Automatically updated by dev agent during implementation -->
-
-### Completion Notes
-
-**Implementation Summary:**
-- Created Artist Collaboration Agreement template with 15 fields across 5 groups
-- Defined 3 optional clauses: Exclusivity, Credit Requirements, Termination Rights
-- Created 9 content sections with proper variable placeholders
-- Implemented seed script with idempotent insert and version-based updates
-- Created 25 unit tests covering structure, validation, and rendering
-
-**Decisions Made:**
-- Credit Requirements and Termination clauses enabled by default (common use case)
-- Exclusivity clause disabled by default (less common)
-- Territory uses select dropdown with 5 options including custom
-- Revenue splits validate 0-100 range (validation of sum to 100 is UI concern)
-
-**Follow-ups:**
-- Run seed script when DATABASE_URL is provisioned
-- Remaining templates (3-3 through 3-6) follow same pattern
-
----
-
-## File List
-
-| Action | File Path |
-|--------|-----------|
-| Created | server/data/templates/artist-agreement.ts |
-| Created | server/data/templates/index.ts |
-| Created | server/scripts/seed-templates.ts |
-| Created | server/data/templates/__tests__/artist-agreement.test.ts |
-
----
-
-## Change Log
-
-| Date | Change | Author |
-|------|--------|--------|
-| 2025-11-29 | Implemented Artist Agreement template, seed script, and 25 tests | Dev Agent |
