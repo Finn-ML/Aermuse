@@ -9,7 +9,7 @@
 | **Title** | Contract Search |
 | **Priority** | P1 - High |
 | **Story Points** | 3 |
-| **Status** | Drafted |
+| **Status** | Ready for Dev |
 
 ## User Story
 
@@ -426,6 +426,9 @@ CREATE INDEX idx_contracts_title_trgm ON contracts USING gin(title gin_trgm_ops)
 ---
 
 ## Dev Agent Record
+
+### Context Reference
+- docs/sprint-artifacts/8-1-contract-search.context.xml
 
 ### Debug Log
 <!-- Automatically updated by dev agent during implementation -->

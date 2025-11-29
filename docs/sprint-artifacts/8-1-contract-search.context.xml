@@ -1,0 +1,104 @@
+<story-context id="8-1-contract-search" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>8.1</storyId>
+    <title>Contract Search</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-1-contract-search.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to search my contracts</iWant>
+    <soThat>I can find specific agreements quickly</soThat>
+    <tasks>
+      <task id="1">Create ContractSearchBar component with debounce (300ms) and clear button</task>
+      <task id="2">Create HighlightText utility component with regex escaping</task>
+      <task id="3">Update Contracts page with search integration, loading state, NoResultsState</task>
+      <task id="4">Implement search API endpoint with ILIKE on name, partnerName, content</task>
+      <task id="5">Add database search indexes (optional - pg_trgm for ILIKE)</task>
+      <task id="6">Integrate highlighting in contract list</task>
+      <task id="7">Testing and validation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-1">Search input on contracts page</ac>
+    <ac id="AC-2">Search by contract title (name field)</ac>
+    <ac id="AC-3">Search by party name (partnerName field)</ac>
+    <ac id="AC-4">Search by contract content (if indexed) - stretch</ac>
+    <ac id="AC-5">Real-time search results (debounced 300ms)</ac>
+    <ac id="AC-6">Highlight matching terms in results</ac>
+    <ac id="AC-7">No results state with suggestions</ac>
+    <ac id="AC-8">Clear search button</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture" section="Epic-to-Architecture Mapping" snippet="EPIC-008 Storage: existing routes enhanced, folders/versions tables"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-8.md" title="Epic 8 Tech Spec" section="API Design" snippet="GET /api/contracts?search=&amp;status=&amp;type= for search/filter"/>
+      <doc path="docs/epics/epic-8-contract-storage-search.md" title="Epic 8" section="Story 8.1" snippet="Search contracts by multiple fields, real-time results, highlight matches"/>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" kind="schema" symbol="contracts" lines="33-63" reason="Contracts table definition with name, partnerName, type, status fields to search"/>
+      <file path="server/routes.ts" kind="routes" symbol="GET /api/contracts" lines="383-396" reason="Existing contracts list endpoint - add search param support here"/>
+      <file path="server/storage.ts" kind="storage" symbol="getContractsByUser" reason="Data access for contracts by userId - may need search variant"/>
+      <file path="client/src/pages/Dashboard.tsx" kind="page" symbol="activeNav === 'contracts'" lines="505-744" reason="Contracts UI section - add search bar here, update filteredContracts"/>
+      <file path="client/src/components/contracts/ContractUpload.tsx" kind="component" reason="Reference for contracts component patterns"/>
+    </code>
+    <dependencies>
+      <node>
+        <pkg name="lodash" reason="debounce function for search input - check if installed or use custom"/>
+        <pkg name="@tanstack/react-query" version="^5.60.5" reason="Already used for contracts query - add search param"/>
+        <pkg name="drizzle-orm" version="^0.39.1" reason="ORM for search queries with ilike, or, and"/>
+        <pkg name="lucide-react" version="^0.453.0" reason="Search, X icons for search bar"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Search must be case-insensitive (use ILIKE or lower())</constraint>
+    <constraint>Debounce API calls to 300ms minimum to avoid excessive requests</constraint>
+    <constraint>Maintain existing filter functionality (all/pending/active/completed) alongside search</constraint>
+    <constraint>Follow existing UI patterns from Dashboard.tsx styling</constraint>
+    <constraint>No full-text search index initially - use ILIKE which works without setup</constraint>
+    <constraint>Pagination not required for MVP - user contracts typically &lt;100</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/contracts" kind="REST endpoint">
+      <current>Returns Contract[] for authenticated user</current>
+      <change>Add ?search=query param, filter by name/partnerName ILIKE %query%</change>
+      <signature>GET /api/contracts?search={string} -> Contract[]</signature>
+    </interface>
+    <interface name="storage.getContractsByUser" kind="function">
+      <current>getContractsByUser(userId: string): Promise&lt;Contract[]&gt;</current>
+      <change>Add optional search param or create searchContracts method</change>
+    </interface>
+    <interface name="ContractSearchBar" kind="component">
+      <new>true</new>
+      <signature>ContractSearchBar({ value, onChange, placeholder }): JSX.Element</signature>
+      <path>client/src/components/contracts/ContractSearchBar.tsx</path>
+    </interface>
+    <interface name="HighlightText" kind="component">
+      <new>true</new>
+      <signature>HighlightText({ text, highlight }): JSX.Element</signature>
+      <path>client/src/components/contracts/HighlightText.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Vitest for unit/integration tests. Tests located in same directory or __tests__. Use @testing-library/react for component tests.</standards>
+    <locations>**/*.test.ts, **/*.test.tsx</locations>
+    <ideas>
+      <idea ac="AC-1">Test search input renders on contracts page</idea>
+      <idea ac="AC-2,AC-3">Test API returns filtered results for name and partnerName search</idea>
+      <idea ac="AC-5">Test debounce delays API call by 300ms</idea>
+      <idea ac="AC-6">Test HighlightText marks correct substrings</idea>
+      <idea ac="AC-7">Test empty results shows no-results state</idea>
+      <idea ac="AC-8">Test clear button resets search and shows all contracts</idea>
+    </ideas>
+  </tests>
+</story-context>
