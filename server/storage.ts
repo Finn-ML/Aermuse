@@ -42,6 +42,13 @@ export interface IStorage {
   // Contract Templates
   getActiveTemplates(category?: string): Promise<ContractTemplate[]>;
   getTemplate(id: string): Promise<ContractTemplate | undefined>;
+
+  // Admin Template Management
+  getAllTemplates(): Promise<ContractTemplate[]>;
+  createTemplate(data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContractTemplate>;
+  updateTemplate(id: string, data: Partial<ContractTemplate>): Promise<ContractTemplate | undefined>;
+  deactivateTemplate(id: string): Promise<boolean>;
+  activateTemplate(id: string): Promise<ContractTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -181,6 +188,44 @@ export class DatabaseStorage implements IStorage {
     const [template] = await db.select()
       .from(contractTemplates)
       .where(eq(contractTemplates.id, id));
+    return template;
+  }
+
+  // Admin Template Management
+  async getAllTemplates(): Promise<ContractTemplate[]> {
+    return db.select()
+      .from(contractTemplates)
+      .orderBy(asc(contractTemplates.sortOrder));
+  }
+
+  async createTemplate(data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContractTemplate> {
+    const [template] = await db.insert(contractTemplates)
+      .values(data)
+      .returning();
+    return template;
+  }
+
+  async updateTemplate(id: string, data: Partial<ContractTemplate>): Promise<ContractTemplate | undefined> {
+    const [template] = await db.update(contractTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deactivateTemplate(id: string): Promise<boolean> {
+    const [template] = await db.update(contractTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return !!template;
+  }
+
+  async activateTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.update(contractTemplates)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
     return template;
   }
 }

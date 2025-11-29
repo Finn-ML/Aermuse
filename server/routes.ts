@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
 import { validateFormData, renderTemplateContent, generateHTML, generateText } from "./services/templateRenderer";
+import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
@@ -945,6 +946,176 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Create contract from template error:", error);
       res.status(500).json({ error: "Failed to create contract" });
+    }
+  });
+
+  // Admin Template Management routes
+  app.get("/api/admin/templates", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const templates = await storage.getAllTemplates();
+      res.json({ templates });
+    } catch (error) {
+      console.error("Admin get templates error:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  app.post("/api/admin/templates", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { name, description, category, content, fields, optionalClauses } = req.body;
+
+      // Validate template structure
+      const validation = validateTemplateStructure({
+        content: content as TemplateContent,
+        fields: (fields || []) as TemplateField[],
+        optionalClauses: (optionalClauses || []) as OptionalClause[]
+      });
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: "Invalid template", details: validation.errors });
+      }
+
+      // Get max sort order
+      const allTemplates = await storage.getAllTemplates();
+      const maxSortOrder = allTemplates.reduce((max, t) => Math.max(max, t.sortOrder ?? 0), 0);
+
+      const template = await storage.createTemplate({
+        name,
+        description,
+        category,
+        content,
+        fields: fields || [],
+        optionalClauses: optionalClauses || [],
+        isActive: true,
+        sortOrder: maxSortOrder + 1,
+        version: 1,
+        createdBy: (req.session as any).userId
+      });
+
+      console.log(`[ADMIN] Template created: ${template.id} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin create template error:", error);
+      res.status(500).json({ error: "Failed to create template" });
+    }
+  });
+
+  app.put("/api/admin/templates/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const existing = await storage.getTemplate(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { name, description, category, content, fields, optionalClauses } = req.body;
+
+      // Validate template structure
+      const validation = validateTemplateStructure({
+        content: content as TemplateContent,
+        fields: (fields || []) as TemplateField[],
+        optionalClauses: (optionalClauses || []) as OptionalClause[]
+      });
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: "Invalid template", details: validation.errors });
+      }
+
+      const template = await storage.updateTemplate(req.params.id, {
+        name,
+        description,
+        category,
+        content,
+        fields: fields || [],
+        optionalClauses: optionalClauses || [],
+        version: (existing.version ?? 1) + 1
+      });
+
+      console.log(`[ADMIN] Template updated: ${template?.id} v${template?.version} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin update template error:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  });
+
+  app.delete("/api/admin/templates/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deactivateTemplate(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      console.log(`[ADMIN] Template deactivated: ${req.params.id} by ${(req.session as any).userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin deactivate template error:", error);
+      res.status(500).json({ error: "Failed to deactivate template" });
+    }
+  });
+
+  app.post("/api/admin/templates/:id/activate", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const template = await storage.activateTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      console.log(`[ADMIN] Template activated: ${template.id} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin activate template error:", error);
+      res.status(500).json({ error: "Failed to activate template" });
+    }
+  });
+
+  app.post("/api/admin/templates/:id/clone", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const original = await storage.getTemplate(req.params.id);
+      if (!original) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { name } = req.body;
+
+      // Get max sort order
+      const allTemplates = await storage.getAllTemplates();
+      const maxSortOrder = allTemplates.reduce((max, t) => Math.max(max, t.sortOrder ?? 0), 0);
+
+      const cloned = await storage.createTemplate({
+        name: name || `${original.name} (Copy)`,
+        description: original.description,
+        category: original.category,
+        content: original.content,
+        fields: original.fields,
+        optionalClauses: original.optionalClauses,
+        isActive: true,
+        sortOrder: maxSortOrder + 1,
+        version: 1,
+        createdBy: (req.session as any).userId
+      });
+
+      console.log(`[ADMIN] Template cloned: ${original.id} → ${cloned.id} by ${(req.session as any).userId}`);
+      res.json({ template: cloned });
+    } catch (error) {
+      console.error("Admin clone template error:", error);
+      res.status(500).json({ error: "Failed to clone template" });
+    }
+  });
+
+  app.put("/api/admin/templates/reorder", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { ids } = req.body as { ids: string[] };
+
+      // Update sort order for each template
+      for (let i = 0; i < ids.length; i++) {
+        await storage.updateTemplate(ids[i], { sortOrder: i });
+      }
+
+      console.log(`[ADMIN] Templates reordered by ${(req.session as any).userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin reorder templates error:", error);
+      res.status(500).json({ error: "Failed to reorder templates" });
     }
   });
 
