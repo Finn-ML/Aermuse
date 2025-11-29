@@ -1,10 +1,10 @@
 import { AlertCircle, X, RefreshCw } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 
 interface Props {
   onConfirm: () => void;
   onCancel: () => void;
-  analysisCount?: number;
   rateLimit?: { remaining: number; resetIn: string };
 }
 
@@ -13,17 +13,58 @@ export function ReanalyzeConfirmModal({
   onCancel,
   rateLimit,
 }: Props) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus trap and keyboard handling
+  useEffect(() => {
+    // Focus the cancel button on mount
+    cancelButtonRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+      // Focus trap
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-md w-full mx-4 p-6">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reanalyze-modal-title"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div ref={modalRef} className="bg-white rounded-lg max-w-md w-full mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5 text-[#660033]" />
-            <h2 className="text-lg font-semibold">Re-analyze Contract?</h2>
+            <RefreshCw className="h-5 w-5 text-burgundy" />
+            <h2 id="reanalyze-modal-title" className="text-lg font-semibold">Re-analyze Contract?</h2>
           </div>
           <button
             onClick={onCancel}
             className="text-gray-400 hover:text-gray-600"
+            aria-label="Close modal"
           >
             <X className="h-5 w-5" />
           </button>
@@ -58,12 +99,12 @@ export function ReanalyzeConfirmModal({
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={onCancel} className="flex-1">
+          <Button ref={cancelButtonRef} variant="outline" onClick={onCancel} className="flex-1">
             Cancel
           </Button>
           <Button
             onClick={onConfirm}
-            className="flex-1 bg-[#660033] hover:bg-[#4d0026] text-white"
+            className="flex-1 bg-burgundy hover:bg-burgundy-dark text-white"
           >
             Re-analyze
           </Button>

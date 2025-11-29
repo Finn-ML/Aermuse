@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
@@ -22,14 +22,11 @@ export default function ContractView() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showReanalyzeModal, setShowReanalyzeModal] = useState(false);
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
+  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    if (id) {
-      fetchContract();
-    }
-  }, [id]);
+  const fetchContract = useCallback(async () => {
+    if (!id) return;
 
-  const fetchContract = async () => {
     setLoading(true);
     setFetchError(null);
     try {
@@ -45,18 +42,34 @@ export default function ContractView() {
       }
 
       const data = await response.json();
+
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) return;
+
       setContract(data.contract);
 
       // Auto-analyze if has extracted text but no analysis yet
       if (data.contract.extractedText && !data.contract.aiAnalysis) {
-        analyze(id!);
+        analyze(id);
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       setFetchError(err instanceof Error ? err.message : 'Failed to load contract');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [id, analyze]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchContract();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchContract]);
 
   const handleReanalyze = () => {
     setShowReanalyzeModal(false);
@@ -65,8 +78,11 @@ export default function ContractView() {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!contract?.filePath) return;
+
+    let url: string | null = null;
+    let anchor: HTMLAnchorElement | null = null;
 
     try {
       const response = await fetch(`/api/contracts/${id}/download`, {
@@ -77,19 +93,28 @@ export default function ContractView() {
         throw new Error('Download failed');
       }
 
+      // Check if component unmounted during fetch
+      if (!isMountedRef.current) return;
+
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = contract.fileName || 'contract';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      url = window.URL.createObjectURL(blob);
+      anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = contract.fileName || 'contract';
+      document.body.appendChild(anchor);
+      anchor.click();
     } catch (err) {
       console.error('Download failed:', err);
+    } finally {
+      // Clean up
+      if (url) {
+        window.URL.revokeObjectURL(url);
+      }
+      if (anchor && document.body.contains(anchor)) {
+        document.body.removeChild(anchor);
+      }
     }
-  };
+  }, [contract?.filePath, contract?.fileName, id]);
 
   if (loading) {
     return (

@@ -31,8 +31,8 @@ export function RiskScoreCard({ riskAssessment }: Props) {
     return null;
   }
 
-  const config = riskConfig[riskAssessment.overallRisk] || riskConfig.medium;
-  const score = riskAssessment.overallScore;
+  const config = riskConfig[riskAssessment.overallRisk as keyof typeof riskConfig] || riskConfig.medium;
+  const score = riskAssessment.overallScore ?? 50;
 
   // Calculate ring progress
   const circumference = 2 * Math.PI * 45; // radius = 45

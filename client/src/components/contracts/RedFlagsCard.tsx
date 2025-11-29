@@ -87,7 +87,7 @@ export function RedFlagsCard({ redFlags }: Props) {
       {/* Red Flags List */}
       <div className="space-y-3">
         {redFlags.map((flag, index) => {
-          const config = severityConfig[flag.severity];
+          const config = severityConfig[flag.severity as keyof typeof severityConfig] || severityConfig.warning;
           const Icon = config.icon;
           const isExpanded = expandedIndex === index;
           const categoryColor =

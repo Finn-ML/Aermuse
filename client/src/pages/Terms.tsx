@@ -85,7 +85,7 @@ export default function Terms() {
           </p>
 
           <p className="text-sm text-gray-500 mt-8">
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: November 29, 2025
           </p>
         </div>
       </div>

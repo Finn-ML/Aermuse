@@ -53,7 +53,7 @@ export function MissingClausesCard({ missingClauses }: Props) {
       <div className="space-y-3">
         {missingClauses.map((clause, index) => {
           const config =
-            importanceConfig[clause.importance] || importanceConfig.recommended;
+            importanceConfig[clause.importance as keyof typeof importanceConfig] || importanceConfig.recommended;
           const Icon = config.icon;
 
           return (

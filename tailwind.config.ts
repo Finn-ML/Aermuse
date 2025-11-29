@@ -81,6 +81,12 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        // Aermuse brand colors
+        burgundy: {
+          DEFAULT: "#660033",
+          dark: "#4d0026",
+          light: "#800040",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

@@ -34,7 +34,7 @@ export function LegalDisclaimer({
       <div className={`text-xs text-gray-500 ${className}`}>
         <AlertCircle className="inline h-3 w-3 mr-1" />
         {DISCLAIMER_SHORT}
-        <Link href="/terms" className="ml-1 text-[#660033] hover:underline">
+        <Link href="/terms" className="ml-1 text-burgundy hover:underline">
           Terms
         </Link>
       </div>
@@ -48,7 +48,7 @@ export function LegalDisclaimer({
           <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <div>
             <p>{DISCLAIMER_SHORT}</p>
-            <Link href="/terms" className="text-[#660033] hover:underline">
+            <Link href="/terms" className="text-burgundy hover:underline">
               View full terms of service
             </Link>
           </div>
