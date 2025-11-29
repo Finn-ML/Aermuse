@@ -6,14 +6,16 @@
  */
 
 export { artistAgreementTemplate, artistAgreementSampleData, type TemplateDefinition } from './artist-agreement';
-
-// Future templates will be exported here:
-// export { licenseAgreementTemplate } from './license-agreement';
-// export { tourAgreementTemplate } from './tour-agreement';
-// export { sampleAgreementTemplate } from './sample-agreement';
-// export { workForHireAgreementTemplate } from './work-for-hire-agreement';
+export { licenseAgreementTemplate } from './license-agreement';
+export { tourAgreementTemplate } from './tour-agreement';
+export { sampleAgreementTemplate } from './sample-agreement';
+export { workForHireAgreementTemplate } from './work-for-hire-agreement';
 
 import { artistAgreementTemplate } from './artist-agreement';
+import { licenseAgreementTemplate } from './license-agreement';
+import { tourAgreementTemplate } from './tour-agreement';
+import { sampleAgreementTemplate } from './sample-agreement';
+import { workForHireAgreementTemplate } from './work-for-hire-agreement';
 import type { TemplateDefinition } from './artist-agreement';
 
 /**
@@ -21,4 +23,8 @@ import type { TemplateDefinition } from './artist-agreement';
  */
 export const allTemplates: TemplateDefinition[] = [
   artistAgreementTemplate,
+  licenseAgreementTemplate,
+  tourAgreementTemplate,
+  sampleAgreementTemplate,
+  workForHireAgreementTemplate,
 ];
