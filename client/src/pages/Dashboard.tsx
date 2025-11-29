@@ -38,7 +38,8 @@ import {
   Trash2,
   Check,
   SearchX,
-  FolderInput
+  FolderInput,
+  FileDown
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'landing' | 'settings';
@@ -772,6 +773,14 @@ export default function Dashboard() {
                                 <Download size={18} />
                               </a>
                             )}
+                            <a
+                              href={`/api/contracts/${contract.id}/pdf`}
+                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                              title="Download PDF Summary"
+                              data-testid={`button-pdf-${contract.id}`}
+                            >
+                              <FileDown size={18} />
+                            </a>
                             <button
                               onClick={() => analyzeContractMutation.mutate(contract.id)}
                               disabled={analyzeContractMutation.isPending}

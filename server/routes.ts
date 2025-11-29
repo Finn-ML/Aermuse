@@ -11,6 +11,7 @@ import { requireAdmin } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType } from "./services/fileStorage";
+import { generateContractPdf, sanitizeFilename } from "./services/pdfGenerator";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -645,6 +646,51 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[DOWNLOAD] Failed:", error);
       res.status(500).json({ error: "Download failed" });
+    }
+  });
+
+  // Contract PDF Export (Story 8.4)
+  app.get("/api/contracts/:id/pdf", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Generate PDF
+      const pdfBuffer = await generateContractPdf({
+        id: contract.id,
+        name: contract.name,
+        type: contract.type,
+        status: contract.status,
+        partnerName: contract.partnerName,
+        value: contract.value,
+        createdAt: contract.createdAt || new Date(),
+        updatedAt: contract.updatedAt || new Date(),
+        signedAt: contract.signedAt,
+        aiRiskScore: contract.aiRiskScore,
+        aiAnalysis: contract.aiAnalysis as any,
+      });
+
+      // Create safe filename
+      const filename = sanitizeFilename(contract.name);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}-summary.pdf"`
+      );
+      res.send(pdfBuffer);
+
+      console.log(`[PDF] Generated summary for contract ${contract.id}`);
+    } catch (error) {
+      console.error("[PDF] Generation failed:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
     }
   });
 
