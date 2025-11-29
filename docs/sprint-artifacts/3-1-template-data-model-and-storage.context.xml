@@ -1,0 +1,151 @@
+<story-context id="3-1-template-data-model-and-storage" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>1</storyId>
+    <title>Template Data Model & Storage</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-1-template-data-model-and-storage.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>to define the template data structure</iWant>
+    <soThat>templates can be stored and managed</soThat>
+    <tasks>
+      <task id="1">Create database migration
+        <subtask>Add contract_templates table with all fields</subtask>
+        <subtask>Add indexes for category, isActive, sortOrder</subtask>
+        <subtask>Add template_id and template_data to contracts table</subtask>
+        <subtask>Add rendered_content field to contracts table</subtask>
+        <subtask>Run migration</subtask>
+      </task>
+      <task id="2">Update Drizzle schema
+        <subtask>Add contractTemplates table in shared/schema.ts</subtask>
+        <subtask>Define typed JSONB fields with $type</subtask>
+        <subtask>Add relations between contracts and templates</subtask>
+        <subtask>Export table for use in queries</subtask>
+      </task>
+      <task id="3">Create TypeScript interfaces
+        <subtask>Create shared/types/templates.ts</subtask>
+        <subtask>Define TemplateContent and TemplateSection</subtask>
+        <subtask>Define TemplateField and FieldType</subtask>
+        <subtask>Define OptionalClause</subtask>
+        <subtask>Define TemplateFormData</subtask>
+        <subtask>Define ContractTemplate</subtask>
+        <subtask>Export all types</subtask>
+      </task>
+      <task id="4">Create template renderer service
+        <subtask>Create server/services/templateRenderer.ts</subtask>
+        <subtask>Implement substituteVariables function</subtask>
+        <subtask>Implement formatDate helper</subtask>
+        <subtask>Implement formatCurrency helper</subtask>
+        <subtask>Implement extractVariables function</subtask>
+        <subtask>Implement validateFormData function</subtask>
+      </task>
+      <task id="5">Write tests
+        <subtask>Unit tests for substituteVariables</subtask>
+        <subtask>Unit tests for extractVariables</subtask>
+        <subtask>Unit tests for validateFormData</subtask>
+        <subtask>Integration tests for template insert/query</subtask>
+        <subtask>Integration tests for contracts.template_id references</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-1">contract_templates table created in database</ac>
+    <ac id="AC-2">Drizzle schema defined with proper types</ac>
+    <ac id="AC-3">Template content supports {{variable}} syntax</ac>
+    <ac id="AC-4">Field definitions stored as JSONB array</ac>
+    <ac id="AC-5">Optional clauses can be defined per template</ac>
+    <ac id="AC-6">Template versioning support (version field)</ac>
+    <ac id="AC-7">TypeScript interfaces exported for frontend use</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/3-1-template-data-model-and-storage.md" title="Story 3.1" section="Technical Requirements" snippet="Detailed SQL schema, Drizzle schema, TypeScript interfaces, and template renderer service specifications." />
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Epic 3 Tech Spec" section="Detailed Design" snippet="Contract Templates System architecture with data models, APIs, template rendering engine, and acceptance criteria." />
+      <doc path="docs/epics/epic-3-contract-templates.md" title="Epic 3" section="Story 3.1" snippet="Template Data Model with JSONB content supporting {{variable}} syntax and optional clause toggles." />
+    </docs>
+    <code>
+      <file path="shared/schema.ts" kind="schema" symbol="contracts, users" lines="1-111" reason="Existing Drizzle schema - add contractTemplates table here, extend contracts table with template_id/template_data/rendered_content" />
+      <file path="server/storage.ts" kind="storage" symbol="DatabaseStorage, IStorage" lines="1-160" reason="Storage interface pattern - add template CRUD operations following existing patterns" />
+      <file path="server/routes.ts" kind="routes" symbol="registerRoutes" lines="1-800" reason="API routes pattern - template routes will be added here (later stories)" />
+      <file path="server/db.ts" kind="database" symbol="db" lines="1-15" reason="Database connection - drizzle with Neon serverless" />
+      <file path="server/middleware/auth.ts" kind="middleware" symbol="requireAdmin" reason="Admin middleware for template management routes" />
+    </code>
+    <dependencies>
+      <node>
+        <pkg name="drizzle-orm" version="^0.39.1" />
+        <pkg name="drizzle-zod" version="^0.7.0" />
+        <pkg name="zod" version="^3.24.2" />
+        <pkg name="@neondatabase/serverless" version="^0.10.4" />
+        <pkg name="drizzle-kit" version="^0.31.4" dev="true" />
+        <pkg name="vitest" version="^4.0.14" dev="true" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Follow existing Drizzle schema patterns in shared/schema.ts</constraint>
+    <constraint>Use $type() for typed JSONB fields</constraint>
+    <constraint>Create Zod insert schemas with createInsertSchema()</constraint>
+    <constraint>Export types alongside tables</constraint>
+    <constraint>Use gen_random_uuid() for primary key defaults</constraint>
+    <constraint>Add createdAt/updatedAt timestamps with defaultNow()</constraint>
+    <constraint>Run drizzle-kit push for migrations (npm run db:push)</constraint>
+    <constraint>Tests use vitest (npm test)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="contractTemplates" kind="Drizzle table" path="shared/schema.ts">
+      pgTable with fields: id, name, description, category, content (JSONB), fields (JSONB), optionalClauses (JSONB), isActive, sortOrder, version, createdBy, createdAt, updatedAt
+    </interface>
+    <interface name="contracts extension" kind="Drizzle columns" path="shared/schema.ts">
+      Add: templateId (FK to contractTemplates), templateData (JSONB), renderedContent (text)
+    </interface>
+    <interface name="TemplateContent" kind="TypeScript interface" path="shared/types/templates.ts">
+      { title: string; sections: TemplateSection[] }
+    </interface>
+    <interface name="TemplateField" kind="TypeScript interface" path="shared/types/templates.ts">
+      { id, label, type: FieldType, placeholder?, required, defaultValue?, options?, validation?, helpText?, group? }
+    </interface>
+    <interface name="OptionalClause" kind="TypeScript interface" path="shared/types/templates.ts">
+      { id, name, description, defaultEnabled, fields?: TemplateField[] }
+    </interface>
+    <interface name="substituteVariables" kind="function" path="server/services/templateRenderer.ts">
+      (text: string, values: Record) => string - replaces {{variable}} placeholders
+    </interface>
+    <interface name="extractVariables" kind="function" path="server/services/templateRenderer.ts">
+      (content: TemplateContent) => string[] - extracts all variable names
+    </interface>
+    <interface name="validateFormData" kind="function" path="server/services/templateRenderer.ts">
+      (template, formData) => { valid: boolean; errors: Record }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Vitest for unit and integration tests. Tests located in __tests__ directories alongside source files.
+      Run with `npm test` or `npm run test:watch`.
+      Follow existing patterns in server/services/__tests__/ and server/middleware/__tests__/.
+    </standards>
+    <locations>
+      <loc>server/services/__tests__/templateRenderer.test.ts</loc>
+    </locations>
+    <ideas>
+      <idea ac="AC-3">substituteVariables replaces {{party_name}} with "John Doe"</idea>
+      <idea ac="AC-3">substituteVariables handles missing values (keeps placeholder)</idea>
+      <idea ac="AC-3">substituteVariables formats Date values correctly</idea>
+      <idea ac="AC-3">substituteVariables formats currency values for amount/fee fields</idea>
+      <idea ac="AC-3">extractVariables finds all {{variable}} names in content</idea>
+      <idea ac="AC-4">validateFormData catches missing required fields</idea>
+      <idea ac="AC-5">validateFormData validates optional clause fields when enabled</idea>
+      <idea ac="AC-1,AC-2">Integration: Can insert template with JSONB content into database</idea>
+      <idea ac="AC-1,AC-2">Integration: Can query templates and access typed JSONB fields</idea>
+    </ideas>
+  </tests>
+</story-context>

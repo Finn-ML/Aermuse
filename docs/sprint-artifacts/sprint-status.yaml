@@ -68,7 +68,7 @@ development_status:
   # 10 stories, 30 points
   # ============================================
   epic-3: contexted
-  3-1-template-data-model-and-storage: ready-for-dev
+  3-1-template-data-model-and-storage: done
   3-2-artist-agreement-template: ready-for-dev
   3-3-license-agreement-template: ready-for-dev
   3-4-tour-agreement-template: ready-for-dev
