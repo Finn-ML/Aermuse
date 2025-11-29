@@ -372,3 +372,79 @@ CREATE INDEX idx_contracts_title_trgm ON contracts USING gin(title gin_trgm_ops)
 
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
 - [Story 8.2: Advanced Filtering](./8-2-advanced-filtering.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create ContractSearchBar component**
+  - [ ] Create component file with search input UI
+  - [ ] Implement debounce logic for search input (300ms)
+  - [ ] Add clear search functionality
+  - [ ] Add search icon and styling
+  - [ ] Create unit tests for debounce and clear functions
+
+- [ ] **Task 2: Create HighlightText utility component**
+  - [ ] Implement text highlighting with regex
+  - [ ] Add regex escaping for special characters
+  - [ ] Style highlighted text with yellow background
+  - [ ] Create unit tests for regex escaping
+
+- [ ] **Task 3: Update Contracts page with search**
+  - [ ] Integrate ContractSearchBar component
+  - [ ] Add search query state management
+  - [ ] Implement real-time search with API calls
+  - [ ] Add loading state during search
+  - [ ] Create NoResultsState component
+
+- [ ] **Task 4: Implement search API endpoint**
+  - [ ] Add search query parameter support to GET /api/contracts
+  - [ ] Implement title search with ILIKE
+  - [ ] Implement party name search in JSON field
+  - [ ] Implement full-text search on content
+  - [ ] Add pagination support for search results
+  - [ ] Return search query in response
+
+- [ ] **Task 5: Add database search indexes**
+  - [ ] Create full-text search index using gin(to_tsvector)
+  - [ ] Create trigram index for ILIKE searches
+  - [ ] Test index performance with sample data
+
+- [ ] **Task 6: Integrate highlighting in ContractCard**
+  - [ ] Update ContractCard to accept searchQuery prop
+  - [ ] Apply HighlightText to contract titles
+  - [ ] Apply HighlightText to party names
+  - [ ] Test highlighting with various search terms
+
+- [ ] **Task 7: Testing and validation**
+  - [ ] Write integration tests for search API
+  - [ ] Write E2E tests for search flow
+  - [ ] Test with special characters and edge cases
+  - [ ] Test empty search returns all contracts
+  - [ ] Validate search performance with large datasets
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

@@ -624,3 +624,77 @@ describe('DocuSealService', () => {
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
 - [Story 4.5: Webhook Handler](./4-5-webhook-handler.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Set up TypeScript types and interfaces**
+  - [ ] Create `server/services/docuseal.types.ts` with all type definitions
+  - [ ] Define DocuSealDocument, SignatureRequest, and Webhook types
+  - [ ] Add error type definitions
+  - [ ] Export all types for use across the codebase
+
+- [ ] **Task 2: Implement core DocuSealService class**
+  - [ ] Create `server/services/docuseal.ts`
+  - [ ] Implement constructor with API key validation
+  - [ ] Build request method with retry logic
+  - [ ] Add timeout and error handling
+  - [ ] Implement delay utility for retries
+
+- [ ] **Task 3: Implement document operations**
+  - [ ] Add uploadDocument method with FormData handling
+  - [ ] Implement getDocument with signature requests
+  - [ ] Add listDocuments method
+  - [ ] Implement downloadSignedDocument with Buffer return
+
+- [ ] **Task 4: Implement signature request operations**
+  - [ ] Add createSignatureRequest for single signer
+  - [ ] Implement createBatchSignatureRequests for multiple signers
+  - [ ] Add getSignatureRequest method
+  - [ ] Implement listSignatureRequests method
+
+- [ ] **Task 5: Implement webhook operations**
+  - [ ] Add registerWebhook method
+  - [ ] Implement listWebhooks method
+  - [ ] Add deleteWebhook method
+  - [ ] Implement static verifyWebhookSignature method with HMAC-SHA256
+
+- [ ] **Task 6: Add service utilities and singleton**
+  - [ ] Implement healthCheck method
+  - [ ] Create getDocuSealService singleton function
+  - [ ] Add environment variable configuration
+  - [ ] Export convenience docuseal object
+
+- [ ] **Task 7: Write comprehensive unit tests**
+  - [ ] Test constructor validation
+  - [ ] Mock fetch for API tests
+  - [ ] Test webhook signature verification
+  - [ ] Test error handling and retry logic
+  - [ ] Verify timeout behavior
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

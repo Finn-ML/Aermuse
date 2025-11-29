@@ -308,3 +308,58 @@ import { ChangePasswordForm } from '../components/ChangePasswordForm';
 
 - [Epic 1 Tech Spec](./tech-spec-epic-1.md)
 - [Story 1.1: Upgrade Password Hashing](./1-1-upgrade-password-hashing-to-bcrypt.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Implement password change endpoint**
+  - [ ] Create PATCH /api/auth/password
+  - [ ] Require authentication
+  - [ ] Validate current password
+  - [ ] Enforce minimum 8 characters for new password
+  - [ ] Hash new password with bcrypt
+  - [ ] Keep session active after change
+
+- [ ] **Task 2: Create ChangePasswordForm component**
+  - [ ] Create `client/src/components/ChangePasswordForm.tsx`
+  - [ ] Include current password field
+  - [ ] Include new password field with min length
+  - [ ] Include confirm password field
+  - [ ] Add client-side validation
+  - [ ] Show success/error messages
+
+- [ ] **Task 3: Integrate with Settings page**
+  - [ ] Import ChangePasswordForm
+  - [ ] Add to Settings layout
+
+- [ ] **Task 4: Write tests**
+  - [ ] Unit tests for password validation
+  - [ ] Integration tests for endpoint
+  - [ ] E2E test for complete flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

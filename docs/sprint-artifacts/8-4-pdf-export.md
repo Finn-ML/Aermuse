@@ -575,3 +575,100 @@ export function DownloadPdfButton({ contractId, contractTitle, variant = 'button
 ## Related Documents
 
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Install and configure Puppeteer**
+  - [ ] Add puppeteer package to server dependencies
+  - [ ] Configure headless browser settings
+  - [ ] Set up browser instance management
+  - [ ] Add process cleanup for browser on exit
+  - [ ] Test Puppeteer installation
+
+- [ ] **Task 2: Create PDF generator service**
+  - [ ] Create pdfGenerator.ts service file
+  - [ ] Implement generateContractPdf function
+  - [ ] Define ContractPdfData interface
+  - [ ] Implement getBrowser singleton function
+  - [ ] Add PDF generation with A4 format and margins
+
+- [ ] **Task 3: Build PDF HTML template**
+  - [ ] Create generatePdfHtml function
+  - [ ] Design header with logo and contract title
+  - [ ] Add metadata section (status, dates, version)
+  - [ ] Style parties section with background
+  - [ ] Format contract content section
+  - [ ] Add signatures section with styling
+  - [ ] Implement escapeHtml utility function
+  - [ ] Add Aermuse branding footer
+
+- [ ] **Task 4: Implement PDF styling**
+  - [ ] Create inline CSS styles for PDF
+  - [ ] Style header with burgundy branding
+  - [ ] Format signature boxes and lines
+  - [ ] Add page break handling
+  - [ ] Style status badges with colors
+  - [ ] Add header/footer templates
+  - [ ] Ensure print-friendly formatting
+
+- [ ] **Task 5: Create PDF export API endpoint**
+  - [ ] Add GET /api/contracts/:id/pdf endpoint
+  - [ ] Fetch contract with signatures and versions
+  - [ ] Parse parties JSON data
+  - [ ] Collect and format signature data
+  - [ ] Call PDF generator service
+  - [ ] Set correct Content-Type headers
+  - [ ] Sanitize filename for download
+  - [ ] Handle errors gracefully
+
+- [ ] **Task 6: Create DownloadPdfButton component**
+  - [ ] Build button component with loading state
+  - [ ] Implement PDF download via fetch
+  - [ ] Handle blob conversion and download
+  - [ ] Parse Content-Disposition for filename
+  - [ ] Add variant support (button/menu-item)
+  - [ ] Show loading spinner during generation
+  - [ ] Handle download errors
+
+- [ ] **Task 7: Integrate download button in UI**
+  - [ ] Add DownloadPdfButton to contract detail view
+  - [ ] Add menu item option in contract actions
+  - [ ] Test download functionality
+  - [ ] Verify PDF opens correctly
+
+- [ ] **Task 8: Testing and validation**
+  - [ ] Write unit tests for HTML escaping
+  - [ ] Write unit tests for filename sanitization
+  - [ ] Test PDF generation with various contract types
+  - [ ] Test PDF with and without signatures
+  - [ ] Test PDF with long content
+  - [ ] Write E2E tests for download flow
+  - [ ] Validate PDF content matches contract
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

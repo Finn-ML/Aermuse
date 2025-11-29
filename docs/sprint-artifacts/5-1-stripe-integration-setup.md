@@ -571,3 +571,88 @@ describe('Stripe Service', () => {
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.4: Stripe Checkout Flow](./5-4-stripe-checkout-flow.md)
 - [Story 5.5: Stripe Webhook Handler](./5-5-stripe-webhook-handler.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Install and configure Stripe SDK**
+  - [ ] Run npm install stripe
+  - [ ] Update package.json and lock file
+  - [ ] Verify Stripe package version
+
+- [ ] **Task 2: Set up environment variables**
+  - [ ] Add Stripe keys to .env file
+  - [ ] Update .env.example with placeholder values
+  - [ ] Document all required Stripe environment variables
+  - [ ] Validate environment variable loading
+
+- [ ] **Task 3: Create Stripe product and pricing in Dashboard**
+  - [ ] Create "Aermuse Premium" product in Stripe Dashboard
+  - [ ] Set up £9/month recurring price
+  - [ ] Configure product description and metadata
+  - [ ] Copy price ID to environment variables
+
+- [ ] **Task 4: Implement Stripe service module**
+  - [ ] Create server/services/stripe.ts with SDK initialization
+  - [ ] Implement customer operations (create, get, update)
+  - [ ] Implement checkout session creation
+  - [ ] Implement billing portal session creation
+  - [ ] Implement subscription operations (get, cancel, reactivate)
+  - [ ] Implement invoice operations (list, upcoming)
+  - [ ] Add webhook verification function
+  - [ ] Add health check function
+
+- [ ] **Task 5: Create TypeScript types for Stripe**
+  - [ ] Create server/services/stripe.types.ts
+  - [ ] Define SubscriptionStatus type
+  - [ ] Implement mapStripeStatus function
+  - [ ] Define CheckoutResult, BillingInfo, InvoiceSummary interfaces
+
+- [ ] **Task 6: Configure Stripe Customer Portal**
+  - [ ] Set up portal in Stripe Dashboard Settings
+  - [ ] Enable invoice viewing and downloading
+  - [ ] Enable payment method updates
+  - [ ] Enable subscription cancellation
+  - [ ] Configure return URL
+  - [ ] Customize branding to match Aermuse
+
+- [ ] **Task 7: Set up webhook endpoint in Stripe**
+  - [ ] Add webhook endpoint URL in Stripe Dashboard
+  - [ ] Select webhook events to listen for
+  - [ ] Copy webhook signing secret to environment variables
+  - [ ] Test webhook delivery with Stripe CLI
+
+- [ ] **Task 8: Testing and verification**
+  - [ ] Write unit tests for service functions
+  - [ ] Test customer creation
+  - [ ] Test checkout session creation
+  - [ ] Test health check
+  - [ ] Verify webhook signature validation
+  - [ ] Manual test with Stripe CLI
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

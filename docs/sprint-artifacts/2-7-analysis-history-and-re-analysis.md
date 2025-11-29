@@ -506,3 +506,81 @@ For post-MVP consideration:
 
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.3: OpenAI Integration](./2-3-openai-gpt4-integration.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create reanalyze endpoint**
+  - [ ] Add POST /api/contracts/:id/reanalyze route
+  - [ ] Apply requireAuth and aiLimiter
+  - [ ] Verify contract exists and has analysis
+  - [ ] Store previous version number
+  - [ ] Run new analysis
+  - [ ] Increment version number
+  - [ ] Preserve previous analysis on error
+
+- [ ] **Task 2: Create AnalysisMetadata component**
+  - [ ] Create `client/src/components/contracts/AnalysisMetadata.tsx`
+  - [ ] Display analyzed timestamp with relative time
+  - [ ] Show version number
+  - [ ] Show model version if available
+  - [ ] Show processing time
+
+- [ ] **Task 3: Create ReanalyzeButton component**
+  - [ ] Create `client/src/components/contracts/ReanalyzeButton.tsx`
+  - [ ] Show refresh icon
+  - [ ] Display loading state
+  - [ ] Handle disabled state
+
+- [ ] **Task 4: Create ReanalyzeConfirmModal component**
+  - [ ] Create `client/src/components/contracts/ReanalyzeConfirmModal.tsx`
+  - [ ] Explain re-analysis action
+  - [ ] Show rate limit status if available
+  - [ ] List reasons results may vary
+  - [ ] Add confirm/cancel buttons
+
+- [ ] **Task 5: Update useContractAnalysis hook**
+  - [ ] Add reanalyze function
+  - [ ] Handle rate limit errors
+  - [ ] Return updated contract data
+
+- [ ] **Task 6: Update ContractView page**
+  - [ ] Add AnalysisMetadata display
+  - [ ] Add ReanalyzeButton
+  - [ ] Wire up modal and re-analysis
+  - [ ] Update contract state after re-analysis
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for AnalysisMetadata
+  - [ ] Unit tests for ReanalyzeButton states
+  - [ ] Unit tests for modal
+  - [ ] Integration tests for reanalyze endpoint
+  - [ ] Integration tests for version increment
+  - [ ] E2E test for complete re-analysis flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

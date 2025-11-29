@@ -2,22 +2,27 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import GrainOverlay from '@/components/GrainOverlay';
+import { VerificationBanner } from '@/components/VerificationBanner';
+import { ChangePasswordForm } from '@/components/ChangePasswordForm';
+import { DeleteAccountModal } from '@/components/DeleteAccountModal';
+import { ContractUpload } from '@/components/contracts/ContractUpload';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { Contract, LandingPage, LandingPageLink } from '@shared/schema';
-import { 
-  LayoutGrid, 
-  FileText, 
-  Layout, 
-  User, 
-  Settings, 
+import {
+  LayoutGrid,
+  FileText,
+  Layout,
+  User,
+  Settings,
   LogOut,
   ChevronDown,
   TrendingUp,
   Plus,
   ExternalLink,
   Upload,
+  Download,
   Eye,
   Sparkles,
   Calendar,
@@ -28,7 +33,7 @@ import {
   Check
 } from 'lucide-react';
 
-type NavId = 'dashboard' | 'contracts' | 'landing';
+type NavId = 'dashboard' | 'contracts' | 'landing' | 'settings';
 
 interface LinkItem {
   id: string;
@@ -43,7 +48,9 @@ export default function Dashboard() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [showAddContract, setShowAddContract] = useState(false);
+  const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -167,10 +174,17 @@ export default function Dashboard() {
     setLocation('/');
   };
 
+  const handleAccountDeleted = () => {
+    setShowDeleteModal(false);
+    setLocation('/');
+    window.location.reload(); // Ensure clean state
+  };
+
   const navItems = [
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
-    { id: 'landing' as NavId, label: 'Landing Page', icon: Layout }
+    { id: 'landing' as NavId, label: 'Landing Page', icon: Layout },
+    { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
   const stats = [
@@ -240,8 +254,19 @@ export default function Dashboard() {
 
   if (!user) return null;
 
+  const handleResendVerification = async () => {
+    const response = await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to send verification email');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex relative">
+    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex flex-col relative">
       <style>{`
         ::selection {
           background: #660033;
@@ -251,6 +276,12 @@ export default function Dashboard() {
 
       <GrainOverlay />
 
+      {/* Email Verification Banner */}
+      {user && !user.emailVerified && (
+        <VerificationBanner onResend={handleResendVerification} />
+      )}
+
+      <div className="flex flex-1">
       <aside 
         className={`w-[280px] flex flex-col fixed top-0 left-0 h-screen z-20 transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
@@ -319,11 +350,13 @@ export default function Dashboard() {
               {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'landing' && 'Landing Page'}
+              {activeNav === 'settings' && 'Settings'}
             </h1>
             <p className="text-sm text-[rgba(102,0,51,0.6)] font-medium">
               {activeNav === 'dashboard' && "Here's what's happening with your music career"}
               {activeNav === 'contracts' && 'Manage, analyze, and sign your contracts with AI assistance'}
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
+              {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
           </div>
 
@@ -488,18 +521,50 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-                <button 
-                  onClick={() => setShowAddContract(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
-                  data-testid="button-add-contract"
-                >
-                  <Plus size={18} />
-                  Add Contract
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowUploadContract(true)}
+                    className="flex items-center gap-2 px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                    data-testid="button-upload-contract"
+                  >
+                    <Upload size={18} />
+                    Upload Contract
+                  </button>
+                  <button
+                    onClick={() => setShowAddContract(true)}
+                    className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                    data-testid="button-add-contract"
+                  >
+                    <Plus size={18} />
+                    Add Contract
+                  </button>
+                </div>
               </div>
 
+              {showUploadContract && (
+                <div
+                  className="rounded-[20px] p-7 mb-6"
+                  style={{ background: 'rgba(255, 255, 255, 0.8)', border: '2px solid rgba(102, 0, 51, 0.1)' }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold">Upload Contract</h3>
+                    <button onClick={() => setShowUploadContract(false)} className="text-[rgba(102,0,51,0.5)] hover:text-[#660033]">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <ContractUpload
+                    onUploadComplete={(contract) => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+                      setShowUploadContract(false);
+                      toast({ title: "Contract uploaded", description: `${contract.fileName || contract.name} has been uploaded.` });
+                    }}
+                    onCancel={() => setShowUploadContract(false)}
+                  />
+                </div>
+              )}
+
               {showAddContract && (
-                <div 
+                <div
                   className="rounded-[20px] p-7 mb-6"
                   style={{ background: 'rgba(255, 255, 255, 0.8)', border: '2px solid rgba(102, 0, 51, 0.1)' }}
                 >
@@ -592,6 +657,11 @@ export default function Dashboard() {
                             <div className="font-bold text-lg mb-1">{contract.name}</div>
                             <div className="text-sm text-[rgba(102,0,51,0.5)]">
                               {contract.partnerName || 'No partner specified'} • {contract.type?.replace('_', ' ')}
+                              {contract.fileName && (
+                                <span className="ml-2 text-[rgba(102,0,51,0.4)]">
+                                  • {contract.fileType?.toUpperCase()} {contract.fileSize ? `(${(contract.fileSize / 1024 / 1024).toFixed(2)} MB)` : ''}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -606,6 +676,16 @@ export default function Dashboard() {
                             {contract.status}
                           </span>
                           <div className="flex gap-2">
+                            {contract.filePath && (
+                              <a
+                                href={`/api/contracts/${contract.id}/download`}
+                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                title={`Download ${contract.fileName || 'contract'}`}
+                                data-testid={`button-download-${contract.id}`}
+                              >
+                                <Download size={18} />
+                              </a>
+                            )}
                             <button
                               onClick={() => analyzeContractMutation.mutate(contract.id)}
                               disabled={analyzeContractMutation.isPending}
@@ -638,7 +718,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      {contract.aiAnalysis && (
+                      {contract.aiAnalysis as object && (
                         <div className="mt-4 pt-4 border-t border-[rgba(102,0,51,0.08)]">
                           <div className="flex items-center gap-2 mb-2">
                             <Sparkles size={14} className="text-[#660033]" />
@@ -648,7 +728,7 @@ export default function Dashboard() {
                               contract.aiRiskScore === 'medium' ? 'bg-[rgba(255,193,7,0.15)] text-[#B8860B]' :
                               'bg-[rgba(220,53,69,0.15)] text-[#dc3545]'
                             }`}>
-                              {contract.aiRiskScore?.toUpperCase()} RISK
+                              {(contract.aiRiskScore as string)?.toUpperCase()} RISK
                             </span>
                           </div>
                           <p className="text-sm text-[rgba(102,0,51,0.7)]">
@@ -818,7 +898,82 @@ export default function Dashboard() {
               </div>
             </>
           )}
+
+          {activeNav === 'settings' && (
+            <>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <ChangePasswordForm />
+                </div>
+                <div
+                  className="rounded-[20px] p-7"
+                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                    >
+                      <User size={20} className="text-[#F7E6CA]" />
+                    </div>
+                    <h3 className="text-lg font-bold">Email Verification</h3>
+                  </div>
+                  {user.emailVerified ? (
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-[rgba(40,167,69,0.1)] border border-[rgba(40,167,69,0.2)]">
+                      <Check size={20} className="text-[#28a745]" />
+                      <span className="text-[#28a745] font-medium">Email verified</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-sm text-[rgba(102,0,51,0.6)]">
+                        Your email is not verified yet. Please check your inbox for the verification link.
+                      </p>
+                      <button
+                        onClick={handleResendVerification}
+                        className="px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                        data-testid="button-resend-verification"
+                      >
+                        Resend Verification Email
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div
+                className="mt-8 rounded-[20px] p-7"
+                style={{ background: 'rgba(220, 53, 69, 0.05)', border: '1px solid rgba(220, 53, 69, 0.2)' }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[rgba(220,53,69,0.1)]">
+                    <Trash2 size={20} className="text-[#dc3545]" />
+                  </div>
+                  <h3 className="text-lg font-bold text-[#dc3545]">Danger Zone</h3>
+                </div>
+                <p className="text-sm text-[rgba(102,0,51,0.6)] mb-4">
+                  Once you delete your account, there is no going back. Your account will be
+                  scheduled for permanent deletion after a 30-day grace period.
+                </p>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-6 py-3 bg-[#dc3545] text-white rounded-xl font-semibold text-sm hover:bg-[#c82333] transition-all"
+                  data-testid="button-delete-account"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </>
+          )}
+
+          {showDeleteModal && (
+            <DeleteAccountModal
+              onClose={() => setShowDeleteModal(false)}
+              onDeleted={handleAccountDeleted}
+            />
+          )}
         </main>
+      </div>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@
 | **Title** | Email Verification for New Accounts |
 | **Priority** | P0 - Critical |
 | **Story Points** | 3 |
-| **Status** | Drafted |
+| **Status** | Done |
 
 ## User Story
 
@@ -435,3 +435,79 @@ Create template `email-verification` in Postmark with these variables:
 
 - [Epic 1 Tech Spec](./tech-spec-epic-1.md)
 - [Story 1.2: Password Reset Flow](./1-2-password-reset-flow.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update database schema**
+  - [ ] Add `emailVerified` boolean field to users table
+  - [ ] Add `emailVerificationToken` field to users table
+  - [ ] Update Drizzle schema
+  - [ ] Run migration
+
+- [ ] **Task 2: Extend email service**
+  - [ ] Add `sendVerificationEmail` to postmark.ts
+  - [ ] Create email-verification template in Postmark
+
+- [ ] **Task 3: Update registration endpoint**
+  - [ ] Generate verification token on registration
+  - [ ] Set emailVerified to false
+  - [ ] Send verification email (fire and forget)
+
+- [ ] **Task 4: Implement verify-email endpoint**
+  - [ ] Create POST /api/auth/verify-email
+  - [ ] Validate token
+  - [ ] Set emailVerified to true
+  - [ ] Clear token after verification
+
+- [ ] **Task 5: Implement resend-verification endpoint**
+  - [ ] Create POST /api/auth/resend-verification
+  - [ ] Require authentication
+  - [ ] Add rate limiting (1 per 5 min)
+  - [ ] Generate new token and send email
+
+- [ ] **Task 6: Create VerificationBanner component**
+  - [ ] Show for unverified users
+  - [ ] Include resend button
+  - [ ] Allow dismissal
+
+- [ ] **Task 7: Create VerifyEmail page**
+  - [ ] Handle token from URL
+  - [ ] Show loading/success/error states
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 8: Integrate with Dashboard and Settings**
+  - [ ] Add banner to Dashboard for unverified users
+  - [ ] Add verification status to Settings page
+
+- [ ] **Task 9: Write tests**
+  - [ ] Integration tests for verify-email
+  - [ ] Integration tests for resend-verification
+  - [ ] E2E test for complete flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

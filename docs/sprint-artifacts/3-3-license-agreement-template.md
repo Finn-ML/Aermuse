@@ -444,3 +444,69 @@ Date: _______________`
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template definition file**
+  - [ ] Create server/data/templates/license-agreement.ts
+  - [ ] Define licensor fields
+  - [ ] Define licensee fields
+  - [ ] Define work details fields
+  - [ ] Define license type and scope fields
+  - [ ] Define compensation fields
+
+- [ ] **Task 2: Define optional clauses**
+  - [ ] Add ongoing royalties clause
+  - [ ] Add attribution requirement clause
+  - [ ] Add usage restrictions clause
+
+- [ ] **Task 3: Create template content sections**
+  - [ ] Write parties section
+  - [ ] Write grant of license section
+  - [ ] Write scope and territory section
+  - [ ] Write compensation section
+  - [ ] Write optional royalties section
+  - [ ] Write optional attribution section
+  - [ ] Write optional restrictions section
+  - [ ] Write ownership section
+  - [ ] Write warranties section
+  - [ ] Write termination section
+  - [ ] Write signatures section
+
+- [ ] **Task 4: Add to seed script**
+  - [ ] Export license agreement template
+  - [ ] Add to seedTemplates function
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for license type rendering
+  - [ ] Integration test for seeding
+  - [ ] Render test with sync license scenario
+  - [ ] Render test with exclusive license scenario
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

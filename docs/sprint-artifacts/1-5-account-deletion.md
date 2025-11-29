@@ -408,3 +408,74 @@ Create template `account-deletion` in Postmark with these variables:
 
 - [Epic 1 Tech Spec](./tech-spec-epic-1.md)
 - [Architecture: GDPR Compliance](../architecture.md#gdpr-considerations)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update database schema**
+  - [ ] Add `deletedAt` timestamp field to users table
+  - [ ] Update Drizzle schema
+  - [ ] Run migration
+
+- [ ] **Task 2: Extend email service**
+  - [ ] Add `sendAccountDeletionEmail` to postmark.ts
+  - [ ] Create account-deletion template in Postmark
+
+- [ ] **Task 3: Implement delete account endpoint**
+  - [ ] Create DELETE /api/auth/account
+  - [ ] Require password verification
+  - [ ] Set deletedAt timestamp (soft delete)
+  - [ ] Destroy session
+  - [ ] Send confirmation email
+
+- [ ] **Task 4: Update login to check deletedAt**
+  - [ ] Add isNull(deletedAt) to login query
+  - [ ] Deleted users cannot log in
+
+- [ ] **Task 5: Update registration to check deletedAt**
+  - [ ] Block re-registration with deleted email
+  - [ ] Show appropriate error message
+
+- [ ] **Task 6: Create DeleteAccountModal component**
+  - [ ] Password field
+  - [ ] Type DELETE confirmation
+  - [ ] Warning message
+  - [ ] Success/error handling
+
+- [ ] **Task 7: Add Danger Zone to Settings**
+  - [ ] Add delete account section
+  - [ ] Open modal on click
+  - [ ] Redirect after deletion
+
+- [ ] **Task 8: Write tests**
+  - [ ] Integration tests for delete endpoint
+  - [ ] Test login blocked for deleted users
+  - [ ] Test registration blocked for deleted email
+  - [ ] E2E test for complete flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

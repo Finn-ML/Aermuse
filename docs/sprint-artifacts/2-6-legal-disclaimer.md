@@ -356,3 +356,77 @@ Before launch, have legal counsel review:
 
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.4: Summary Generation](./2-4-ai-contract-summary-generation.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create LegalDisclaimer component**
+  - [ ] Create `client/src/components/contracts/LegalDisclaimer.tsx`
+  - [ ] Implement banner variant (default)
+  - [ ] Implement compact variant
+  - [ ] Implement footer variant
+  - [ ] Add expandable full text
+  - [ ] Include Terms of Service link
+  - [ ] Make non-dismissable
+
+- [ ] **Task 2: Create Terms page**
+  - [ ] Create `client/src/pages/Terms.tsx`
+  - [ ] Add AI Analysis Disclaimer section
+  - [ ] Add Limitations of AI Analysis section
+  - [ ] Add Your Responsibilities section
+  - [ ] Add Limitation of Liability section
+  - [ ] Style with prose typography
+
+- [ ] **Task 3: Add route**
+  - [ ] Add /terms route to App.tsx
+  - [ ] Ensure publicly accessible
+
+- [ ] **Task 4: Integrate with ContractView**
+  - [ ] Add banner disclaimer at top of analysis
+  - [ ] Add footer disclaimer at bottom
+  - [ ] Show only when analysis exists or is loading
+
+- [ ] **Task 5: Create AnalysisExport component**
+  - [ ] Create `client/src/components/contracts/AnalysisExport.tsx`
+  - [ ] Include disclaimer at top of export
+  - [ ] Include disclaimer at bottom of export
+  - [ ] Format for print/PDF
+
+- [ ] **Task 6: Write tests**
+  - [ ] Unit tests for all disclaimer variants
+  - [ ] Unit tests for expand/collapse
+  - [ ] Integration tests for Terms link
+  - [ ] E2E test for viewing disclaimer on analysis
+
+- [ ] **Task 7: Accessibility review**
+  - [ ] Verify screen reader accessibility
+  - [ ] Test keyboard navigation
+  - [ ] Check color contrast
+  - [ ] Add focus indicators
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

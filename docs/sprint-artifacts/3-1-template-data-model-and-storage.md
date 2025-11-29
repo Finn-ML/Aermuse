@@ -363,3 +363,70 @@ export function validateFormData(
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Architecture: Database Schema](../architecture.md#database-schema-extensions)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create database migration**
+  - [ ] Add contract_templates table with all fields
+  - [ ] Add indexes for category, isActive, sortOrder
+  - [ ] Add template_id and template_data to contracts table
+  - [ ] Add rendered_content field to contracts table
+  - [ ] Run migration
+
+- [ ] **Task 2: Update Drizzle schema**
+  - [ ] Add contractTemplates table in shared/schema.ts
+  - [ ] Define typed JSONB fields with $type
+  - [ ] Add relations between contracts and templates
+  - [ ] Export table for use in queries
+
+- [ ] **Task 3: Create TypeScript interfaces**
+  - [ ] Create shared/types/templates.ts
+  - [ ] Define TemplateContent and TemplateSection
+  - [ ] Define TemplateField and FieldType
+  - [ ] Define OptionalClause
+  - [ ] Define TemplateFormData
+  - [ ] Define ContractTemplate
+  - [ ] Export all types
+
+- [ ] **Task 4: Create template renderer service**
+  - [ ] Create server/services/templateRenderer.ts
+  - [ ] Implement substituteVariables function
+  - [ ] Implement formatDate helper
+  - [ ] Implement formatCurrency helper
+  - [ ] Implement extractVariables function
+  - [ ] Implement validateFormData function
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for substituteVariables
+  - [ ] Unit tests for extractVariables
+  - [ ] Unit tests for validateFormData
+  - [ ] Integration tests for template insert/query
+  - [ ] Integration tests for contracts.template_id references
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

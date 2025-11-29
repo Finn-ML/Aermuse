@@ -497,3 +497,95 @@ For MVP, the template editor uses a structured JSON form rather than a full WYSI
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 1.6: Admin Role System](./1-6-admin-role-system.md)
 - [Epic 6: Admin Dashboard](../epics/epic-6-admin-dashboard.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create admin template API endpoints**
+  - [ ] Add GET /api/admin/templates (all templates)
+  - [ ] Add POST /api/admin/templates (create)
+  - [ ] Add PUT /api/admin/templates/:id (update)
+  - [ ] Add DELETE /api/admin/templates/:id (deactivate)
+  - [ ] Add POST /api/admin/templates/:id/activate
+  - [ ] Add POST /api/admin/templates/:id/clone
+  - [ ] Add PUT /api/admin/templates/reorder
+  - [ ] Apply requireAdmin middleware to all routes
+
+- [ ] **Task 2: Create template validation service**
+  - [ ] Create server/services/templateValidation.ts
+  - [ ] Validate content structure
+  - [ ] Validate section requirements
+  - [ ] Validate field definitions
+  - [ ] Validate optional clauses
+  - [ ] Validate variables match fields
+  - [ ] Return detailed error messages
+
+- [ ] **Task 3: Create AdminTemplates list page**
+  - [ ] Create client/src/pages/admin/AdminTemplates.tsx
+  - [ ] Fetch all templates (including inactive)
+  - [ ] Display table with name, category, version, status
+  - [ ] Add drag handle for reordering
+  - [ ] Add Edit, Clone, Activate/Deactivate actions
+  - [ ] Add New Template button
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 4: Create FieldEditor component**
+  - [ ] Create client/src/components/admin/FieldEditor.tsx
+  - [ ] Edit field ID, label, type
+  - [ ] Edit required flag
+  - [ ] Edit default value
+  - [ ] Edit validation rules
+  - [ ] Edit options for select type
+  - [ ] Add/remove fields
+
+- [ ] **Task 5: Create ClauseEditor component**
+  - [ ] Create client/src/components/admin/ClauseEditor.tsx
+  - [ ] Edit clause ID, name, description
+  - [ ] Edit defaultEnabled flag
+  - [ ] Nested FieldEditor for clause fields
+  - [ ] Add/remove clauses
+
+- [ ] **Task 6: Create AdminTemplateEdit page**
+  - [ ] Create client/src/pages/admin/AdminTemplateEdit.tsx
+  - [ ] Load existing template or initialize new
+  - [ ] Edit basic info (name, description, category)
+  - [ ] Integrate FieldEditor for fields
+  - [ ] Integrate ClauseEditor for clauses
+  - [ ] Section content editor
+  - [ ] Preview button
+  - [ ] Save with validation
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for template validation
+  - [ ] Integration tests for all admin endpoints
+  - [ ] Test version increment on update
+  - [ ] Test clone creates new template
+  - [ ] E2E test for full admin workflow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

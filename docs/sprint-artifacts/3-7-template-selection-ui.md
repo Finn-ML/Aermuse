@@ -406,3 +406,81 @@ export default function Templates() {
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.8: Template Fill-in Form](./3-8-template-fill-in-form.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create templates API endpoint**
+  - [ ] Create server/routes/templates.ts
+  - [ ] Implement GET /api/templates
+  - [ ] Add category filter
+  - [ ] Add search filter
+  - [ ] Order by sortOrder
+  - [ ] Return only active templates
+
+- [ ] **Task 2: Create useTemplates hook**
+  - [ ] Create client/src/hooks/useTemplates.ts
+  - [ ] Implement fetch with query params
+  - [ ] Track loading, error, templates state
+  - [ ] Implement category and search filters
+  - [ ] Implement refresh function
+
+- [ ] **Task 3: Create CategoryFilter component**
+  - [ ] Create client/src/components/templates/CategoryFilter.tsx
+  - [ ] Render category pill buttons
+  - [ ] Handle selection state
+  - [ ] Add horizontal scroll for mobile
+
+- [ ] **Task 4: Create TemplateCard component**
+  - [ ] Create client/src/components/templates/TemplateCard.tsx
+  - [ ] Display name and description
+  - [ ] Show category badge with color
+  - [ ] Add "Use Template" button
+  - [ ] Handle click callback
+
+- [ ] **Task 5: Create TemplateGallery component**
+  - [ ] Create client/src/components/templates/TemplateGallery.tsx
+  - [ ] Integrate CategoryFilter and search
+  - [ ] Render TemplateCard grid
+  - [ ] Show loading skeleton
+  - [ ] Show empty state
+  - [ ] Show error state
+
+- [ ] **Task 6: Create Templates page**
+  - [ ] Create client/src/pages/Templates.tsx
+  - [ ] Render TemplateGallery
+  - [ ] Handle template selection navigation
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for CategoryFilter
+  - [ ] Unit tests for TemplateCard
+  - [ ] Integration tests for API endpoint
+  - [ ] E2E test for browsing and selecting template
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

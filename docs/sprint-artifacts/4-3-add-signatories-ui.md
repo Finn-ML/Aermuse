@@ -597,3 +597,79 @@ npm install @hello-pangea/dnd
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
 - [Story 4.7: Signature Status Tracking UI](./4-7-signature-status-tracking-ui.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Install required dependencies**
+  - [ ] Install @hello-pangea/dnd for drag and drop
+  - [ ] Verify lucide-react icons are available
+  - [ ] Test drag and drop library works
+
+- [ ] **Task 2: Create AddSignatoriesModal component**
+  - [ ] Create `client/src/components/signatures/AddSignatoriesModal.tsx`
+  - [ ] Implement signatory state management with add/remove/update
+  - [ ] Add drag and drop reordering with DragDropContext
+  - [ ] Implement form validation for emails and names
+  - [ ] Add message and expiration fields
+  - [ ] Handle form submission with loading states
+
+- [ ] **Task 3: Create SignatureRequestSuccess component**
+  - [ ] Create `client/src/components/signatures/SignatureRequestSuccess.tsx`
+  - [ ] Display success message with signatory list
+  - [ ] Show signing order and status for each signatory
+  - [ ] Add copy signing URL functionality
+  - [ ] Add navigation to status page
+
+- [ ] **Task 4: Integrate with ContractDetail page**
+  - [ ] Add "Request Signatures" button to ContractDetail
+  - [ ] Import and render AddSignatoriesModal
+  - [ ] Handle modal open/close state
+  - [ ] Navigate to status page on success
+  - [ ] Disable button if contract already signed
+
+- [ ] **Task 5: Create useSignatureRequest hook**
+  - [ ] Create `client/src/hooks/useSignatureRequest.ts`
+  - [ ] Implement createRequest function with error handling
+  - [ ] Add loading and error state management
+  - [ ] Return typed SignatureRequestWithSignatories response
+
+- [ ] **Task 6: Add form validation and error handling**
+  - [ ] Validate email format with regex
+  - [ ] Check for duplicate emails
+  - [ ] Ensure at least one signatory
+  - [ ] Limit maximum 10 signatories
+  - [ ] Display validation errors clearly
+
+- [ ] **Task 7: Test responsive design and interactions**
+  - [ ] Test on mobile devices
+  - [ ] Verify drag and drop works on touch
+  - [ ] Test form validation edge cases
+  - [ ] Verify success flow end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

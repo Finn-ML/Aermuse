@@ -165,3 +165,69 @@ export const tourAgreementTemplate = {
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template definition file**
+  - [ ] Create server/data/templates/tour-agreement.ts
+  - [ ] Define artist fields
+  - [ ] Define venue/promoter fields
+  - [ ] Define performance details fields
+  - [ ] Define compensation fields
+  - [ ] Define technical requirements fields
+
+- [ ] **Task 2: Define optional clauses**
+  - [ ] Add door split/backend clause
+  - [ ] Add hospitality rider clause
+  - [ ] Add travel & accommodation clause
+  - [ ] Add merchandise rights clause
+
+- [ ] **Task 3: Create template content sections**
+  - [ ] Write parties section
+  - [ ] Write engagement section
+  - [ ] Write compensation section
+  - [ ] Write technical requirements section
+  - [ ] Write optional door split section
+  - [ ] Write optional hospitality section
+  - [ ] Write optional travel section
+  - [ ] Write optional merchandise section
+  - [ ] Write cancellation section
+  - [ ] Write signatures section
+
+- [ ] **Task 4: Add to seed script**
+  - [ ] Export tour agreement template
+  - [ ] Add to seedTemplates function
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for time field validation
+  - [ ] Integration test for seeding
+  - [ ] Render test with all optional clauses
+  - [ ] Render test with door split calculation
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

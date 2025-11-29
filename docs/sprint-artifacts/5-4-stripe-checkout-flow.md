@@ -587,3 +587,73 @@ import { CheckoutSuccess } from './pages/CheckoutSuccess';
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.3: Pricing Page](./5-3-pricing-page.md)
 - [Story 5.5: Stripe Webhook Handler](./5-5-stripe-webhook-handler.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create billing API routes**
+  - [ ] Create server/routes/billing.ts
+  - [ ] Set up Express router
+  - [ ] Add requireAuth middleware import
+  - [ ] Mount router in server/index.ts
+
+- [ ] **Task 2: Implement checkout session endpoint**
+  - [ ] Create POST /api/billing/checkout route
+  - [ ] Query user from database with Stripe fields
+  - [ ] Check if user already has active subscription
+  - [ ] Create Stripe customer if needed
+  - [ ] Save customer ID to database
+  - [ ] Create Stripe checkout session
+  - [ ] Return session ID and URL
+  - [ ] Add comprehensive error handling
+
+- [ ] **Task 3: Implement checkout verification endpoint**
+  - [ ] Create GET /api/billing/checkout/verify/:sessionId route
+  - [ ] Retrieve session from Stripe
+  - [ ] Verify session belongs to current user
+  - [ ] Check payment status
+  - [ ] Return verification result with subscription info
+
+- [ ] **Task 4: Implement subscription status endpoint**
+  - [ ] Create GET /api/billing/subscription route
+  - [ ] Query user subscription from database
+  - [ ] Return formatted subscription data
+
+- [ ] **Task 5: Build Checkout page component**
+  - [ ] Create client/src/pages/Checkout.tsx
+  - [ ] Implement useEffect to auto-initiate checkout
+  - [ ] Create initiateCheckout function
+  - [ ] Handle redirect to Stripe
+  - [ ] Show loading state during redirect
+  - [ ] Display error state with retry option
+  - [ ] Add "Powered by Stripe" messaging
+
+- [ ] **Task 6: Build CheckoutSuccess page**
+  - [ ] Create client/src/pages/CheckoutSuccess.tsx
+  - [ ] Extract session_id from URL params
+  - [ ] Implement verifyCheckout function
+  - [ ] Call refreshUser to update context
+  - [ ] Show verifying, success, and error states
+  - [ ] Display "What's Unlocked" feature list
+  - [ ] Add navigation buttons to dashboard and contracts
+
+- [ ] **Task 7: Create useCheckout hook**
+  - [ ] Create client/src/hooks/useCheckout.ts
+  - [ ] Implement startCheckout function
+  - [ ] Manage loading and error states
+  - [ ] Return hook interface
+
+- [ ] **Task 8: Add route configuration**
+  - [ ] Add /checkout route in App.tsx
+  - [ ] Add /checkout/success route in App.tsx
+  - [ ] Test navigation flows
+
+- [ ] **Task 9: Testing**
+  - [ ] Test checkout session creation API
+  - [ ] Test with Stripe test card 4242 4242 4242 4242
+  - [ ] Verify redirect to Stripe works
+  - [ ] Test success flow and verification
+  - [ ] Test cancel flow back to pricing
+  - [ ] Test error handling
+  - [ ] Verify subscription updates after checkout

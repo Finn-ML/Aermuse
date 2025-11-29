@@ -568,3 +568,77 @@ export function SignatureStatusBadge({ status, signedCount, totalCount }: Signat
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.3: Add Signatories UI](./4-3-add-signatories-ui.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create SignatureStatus page component**
+  - [ ] Create `client/src/pages/SignatureStatus.tsx`
+  - [ ] Implement status fetching from API
+  - [ ] Add auto-refresh every 30 seconds
+  - [ ] Show loading and error states
+  - [ ] Display overall status card with progress
+
+- [ ] **Task 2: Create SignatoryTimeline component**
+  - [ ] Create `client/src/components/signatures/SignatoryTimeline.tsx`
+  - [ ] Display signatories in order with status icons
+  - [ ] Show connector lines between signatories
+  - [ ] Display timestamps for signed entries
+  - [ ] Add action buttons for pending signatories
+
+- [ ] **Task 3: Create SignatureProgress component**
+  - [ ] Create `client/src/components/signatures/SignatureProgress.tsx`
+  - [ ] Implement animated progress bar
+  - [ ] Show step indicators for each signatory
+  - [ ] Color code based on status (green/yellow/gray)
+  - [ ] Update dynamically as signatures complete
+
+- [ ] **Task 4: Implement action handlers**
+  - [ ] Add handleSendReminder to call API
+  - [ ] Add handleCancel with confirmation dialog
+  - [ ] Implement copySigningUrl to clipboard
+  - [ ] Show success/error notifications
+
+- [ ] **Task 5: Add download signed PDF functionality**
+  - [ ] Show download button when completed
+  - [ ] Link to /api/contracts/:id/signed-pdf
+  - [ ] Handle download errors gracefully
+
+- [ ] **Task 6: Create SignatureStatusBadge for contract cards**
+  - [ ] Create reusable badge component
+  - [ ] Show appropriate icon and text based on status
+  - [ ] Display progress count for in-progress requests
+  - [ ] Use consistent color scheme
+
+- [ ] **Task 7: Add routing and navigation**
+  - [ ] Add /signatures/:id route
+  - [ ] Navigate from success modal to status page
+  - [ ] Add back button to contract detail
+  - [ ] Test navigation flow end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

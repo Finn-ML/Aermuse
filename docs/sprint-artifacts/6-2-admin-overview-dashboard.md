@@ -627,3 +627,81 @@ export function AdminOverview() {
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 6.1: Admin Layout & Navigation](./6-1-admin-layout-and-navigation.md)
 - [Story 6.6: Subscription Metrics](./6-6-subscription-metrics.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create overview stats API endpoint**
+  - [ ] Implement `/api/admin/overview/stats` endpoint
+  - [ ] Calculate total users with 30-day trend
+  - [ ] Calculate active subscribers with trend
+  - [ ] Calculate total contracts and pending signatures
+  - [ ] Calculate monthly revenue (MRR)
+  - [ ] Add error handling and logging
+
+- [ ] **Task 2: Create activity feed API endpoint**
+  - [ ] Implement `/api/admin/overview/activity` endpoint
+  - [ ] Query recent users and contracts
+  - [ ] Combine and sort activity by timestamp
+  - [ ] Limit results and handle pagination
+  - [ ] Test activity feed data structure
+
+- [ ] **Task 3: Build StatCard component**
+  - [ ] Create reusable StatCard component
+  - [ ] Implement trend indicator logic (up/down/neutral)
+  - [ ] Add color variants (burgundy, green, blue, yellow, gray)
+  - [ ] Support prefix/suffix for values
+  - [ ] Test with various stat types
+
+- [ ] **Task 4: Build ActivityFeed component**
+  - [ ] Create ActivityFeed with activity type icons
+  - [ ] Implement relative time formatting (e.g., "2h ago")
+  - [ ] Add loading state skeleton
+  - [ ] Handle empty state
+  - [ ] Test with different activity types
+
+- [ ] **Task 5: Build QuickActions component**
+  - [ ] Create quick action button grid
+  - [ ] Link to key admin pages (users, templates, settings)
+  - [ ] Style with icons and descriptions
+  - [ ] Test navigation from quick actions
+
+- [ ] **Task 6: Build AdminOverview page**
+  - [ ] Implement data fetching for stats and activity
+  - [ ] Create responsive grid layout for stat cards
+  - [ ] Integrate activity feed and quick actions
+  - [ ] Add loading and error states
+  - [ ] Test responsive layout on mobile/tablet/desktop
+
+- [ ] **Task 7: Mount overview routes**
+  - [ ] Add overview routes to admin router
+  - [ ] Update AdminOverview page import in admin routes
+  - [ ] Test admin overview page loads correctly
+  - [ ] Verify all stats display with real data
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

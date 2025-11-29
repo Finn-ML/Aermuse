@@ -806,3 +806,98 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
 - [Story 7.6: Proposal to Contract Flow](./7-6-proposal-to-contract-flow.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Proposals List Page**
+  - [ ] Create `client/src/pages/dashboard/Proposals.tsx`
+  - [ ] Implement proposals state management
+  - [ ] Add status filter functionality (all, new, viewed, responded, archived)
+  - [ ] Implement fetchProposals with status filtering
+  - [ ] Create empty state for no proposals
+  - [ ] Add loading state
+  - [ ] Implement handleStatusChange function
+  - [ ] Implement handleDelete with confirmation
+
+- [ ] **Task 2: Create Proposal Card Component**
+  - [ ] Create `client/src/components/dashboard/ProposalCard.tsx`
+  - [ ] Display sender info (name, email, company)
+  - [ ] Add status badge with color coding
+  - [ ] Add proposal type badge
+  - [ ] Show message preview (truncated to 150 chars)
+  - [ ] Display creation date and landing page title
+  - [ ] Implement actions dropdown menu
+  - [ ] Add "View Details", "Reply via Email", "Mark as Responded", "Archive", and "Delete" actions
+  - [ ] Handle click outside to close menu
+
+- [ ] **Task 3: Create Proposal Detail Page**
+  - [ ] Create `client/src/pages/dashboard/ProposalDetail.tsx`
+  - [ ] Fetch and display full proposal details
+  - [ ] Show complete contact information with icons
+  - [ ] Display full message (not truncated)
+  - [ ] Add action buttons (Reply, Mark as Responded, Archive, Delete)
+  - [ ] Add "Create Contract" CTA section
+  - [ ] Implement auto-mark as viewed when status is 'new'
+  - [ ] Add back navigation to proposals list
+
+- [ ] **Task 4: Create Proposal API Endpoints**
+  - [ ] Add GET /api/proposals endpoint (list with filtering)
+  - [ ] Add GET /api/proposals/:id endpoint (detail view)
+  - [ ] Add PATCH /api/proposals/:id endpoint (update status)
+  - [ ] Add DELETE /api/proposals/:id endpoint
+  - [ ] Implement authentication middleware for all endpoints
+  - [ ] Auto-update viewedAt and respondedAt timestamps
+  - [ ] Include landing page relation in queries
+  - [ ] Add proper error handling
+
+- [ ] **Task 5: Implement Status Management**
+  - [ ] Track viewed, responded, and archived timestamps
+  - [ ] Update status badges in real-time after actions
+  - [ ] Implement status color coding (new=blue, viewed=gray, responded=green, archived=muted)
+  - [ ] Ensure status transitions are logical
+
+- [ ] **Task 6: Add Dashboard Navigation**
+  - [ ] Add "Proposals" section to dashboard sidebar
+  - [ ] Add Mail icon to navigation
+  - [ ] Integrate notification badge from Story 7.4
+
+- [ ] **Task 7: Testing**
+  - [ ] Unit test: Status filter logic
+  - [ ] Unit test: Date formatting
+  - [ ] Integration test: GET /api/proposals returns user's proposals
+  - [ ] Integration test: GET /api/proposals/:id marks as viewed
+  - [ ] Integration test: PATCH updates status correctly
+  - [ ] Integration test: DELETE removes proposal
+  - [ ] E2E test: View proposals list
+  - [ ] E2E test: Filter by status
+  - [ ] E2E test: View proposal detail
+  - [ ] E2E test: Change status
+  - [ ] E2E test: Delete proposal
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

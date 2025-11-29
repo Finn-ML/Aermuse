@@ -2,9 +2,114 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import ShaderAnimation from '@/components/ShaderAnimation';
 import GrainOverlay from '@/components/GrainOverlay';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, X, Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+
+// Forgot Password Modal Component
+function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setIsSubmitted(true);
+      } else {
+        const data = await response.json();
+        toast({
+          title: "Error",
+          description: data.error || "Failed to send reset email",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-[#F7E6CA] rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[rgba(102,0,51,0.5)] hover:text-[#660033] transition-colors"
+        >
+          <X size={24} />
+        </button>
+
+        {isSubmitted ? (
+          <div className="text-center py-4">
+            <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
+            <h2 className="text-2xl font-bold text-[#660033] mb-2">Check Your Email</h2>
+            <p className="text-[rgba(102,0,51,0.7)] mb-6">
+              If an account exists for <strong>{email}</strong>, you'll receive a password reset link shortly.
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-[#660033] text-[#F7E6CA] px-8 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
+            >
+              Got it
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-6">
+              <Mail className="w-12 h-12 mx-auto mb-4 text-[#660033]" />
+              <h2 className="text-2xl font-bold text-[#660033] mb-2">Forgot Password?</h2>
+              <p className="text-[rgba(102,0,51,0.7)]">
+                Enter your email and we'll send you a link to reset your password.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-6">
+                <label className="block mb-2 text-[13px] font-semibold tracking-[0.05em] uppercase text-[rgba(102,0,51,0.7)]">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-white/60 border-2 border-[rgba(102,0,51,0.1)] rounded-2xl px-6 py-4 text-[#660033] placeholder-[rgba(102,0,51,0.4)] focus:outline-none focus:border-[#660033] transition-colors"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#660033] text-[#F7E6CA] py-4 rounded-full font-bold tracking-wider uppercase flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-70"
+              >
+                {isSubmitting && <Loader2 className="animate-spin" size={18} />}
+                Send Reset Link
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Auth() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -18,6 +123,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   const { user, login, register } = useAuth();
   const [, setLocation] = useLocation();
@@ -335,9 +441,14 @@ export default function Auth() {
             <div className="h-[52px] mb-6">
               {activeTab === 'login' ? (
                 <div className="text-center">
-                  <a href="#" className="link text-sm" data-testid="link-forgot-password">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="link text-sm"
+                    data-testid="link-forgot-password"
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
               ) : (
                 <div className="flex items-start gap-3">
@@ -379,6 +490,10 @@ export default function Auth() {
           </form>
         </div>
       </div>
+
+      {showForgotPassword && (
+        <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
     </div>
   );
 }

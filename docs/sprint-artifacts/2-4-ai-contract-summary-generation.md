@@ -480,3 +480,85 @@ export default function ContractView() {
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.3: OpenAI Integration](./2-3-openai-gpt4-integration.md)
 - [Story 2.5: Fairness Analysis](./2-5-fairness-analysis-and-clause-flagging.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create TypeScript types**
+  - [ ] Create ContractAnalysis type in `client/src/types`
+  - [ ] Define summary, keyTerms, parties, dates interfaces
+  - [ ] Export types for use in components
+
+- [ ] **Task 2: Create useContractAnalysis hook**
+  - [ ] Create `client/src/hooks/useContractAnalysis.ts`
+  - [ ] Implement analyze function
+  - [ ] Track isAnalyzing, error, analysis state
+  - [ ] Handle API responses and errors
+
+- [ ] **Task 3: Create AnalyzingState component**
+  - [ ] Create `client/src/components/contracts/AnalyzingState.tsx`
+  - [ ] Design loading animation with Brain icon
+  - [ ] Add informative loading message
+  - [ ] Animate bouncing dots
+
+- [ ] **Task 4: Create ContractSummary component**
+  - [ ] Create `client/src/components/contracts/ContractSummary.tsx`
+  - [ ] Display overview text
+  - [ ] Show contract type badge
+  - [ ] Display duration if present
+  - [ ] Render parties with roles
+  - [ ] Render key dates with deadline highlighting
+
+- [ ] **Task 5: Create KeyTermsCard component**
+  - [ ] Create `client/src/components/contracts/KeyTermsCard.tsx`
+  - [ ] Display terms with risk indicators
+  - [ ] Color-code by risk level (low/medium/high)
+  - [ ] Show term value and explanation
+  - [ ] Include section reference if available
+  - [ ] Add risk legend
+
+- [ ] **Task 6: Create ContractView page**
+  - [ ] Create or update `client/src/pages/ContractView.tsx`
+  - [ ] Fetch contract data on mount
+  - [ ] Trigger auto-analysis if not analyzed
+  - [ ] Display analyzing state during processing
+  - [ ] Render summary and key terms when complete
+  - [ ] Handle error state with retry
+
+- [ ] **Task 7: Add route**
+  - [ ] Add /contracts/:id route to App.tsx
+  - [ ] Ensure authentication required
+
+- [ ] **Task 8: Write tests**
+  - [ ] Unit tests for ContractSummary rendering
+  - [ ] Unit tests for KeyTermsCard risk colors
+  - [ ] Unit tests for AnalyzingState
+  - [ ] Integration tests for analysis hook
+  - [ ] E2E test for upload → view → analysis flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

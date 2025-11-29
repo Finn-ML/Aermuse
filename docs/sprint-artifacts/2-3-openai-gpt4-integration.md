@@ -541,3 +541,77 @@ AI_TIMEOUT=45000                # Timeout in ms
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.2: Text Extraction](./2-2-text-extraction-from-documents.md)
 - [Architecture: OpenAI Integration](../architecture.md#openai-integration-epic-2)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Install dependencies**
+  - [ ] Run `npm install openai`
+  - [ ] Add OPENAI_API_KEY to environment
+  - [ ] Verify API key works
+
+- [ ] **Task 2: Create OpenAI service**
+  - [ ] Create `server/services/openai.ts`
+  - [ ] Initialize OpenAI client
+  - [ ] Create MUSIC_CONTRACT_SYSTEM_PROMPT
+  - [ ] Implement OpenAIError class
+  - [ ] Implement analyzeContract function
+  - [ ] Implement retry logic with exponential backoff
+  - [ ] Add timeout handling (45s)
+  - [ ] Implement token estimation helpers
+
+- [ ] **Task 3: Create AI rate limiter**
+  - [ ] Update `server/middleware/rateLimit.ts`
+  - [ ] Add aiLimiter (10 per hour per user)
+  - [ ] Configure keyGenerator for user-based limiting
+  - [ ] Add appropriate error messages
+
+- [ ] **Task 4: Create analyze endpoint**
+  - [ ] Add POST /api/contracts/:id/analyze route
+  - [ ] Apply requireAuth and aiLimiter
+  - [ ] Validate extracted text exists
+  - [ ] Truncate text if needed
+  - [ ] Call analyzeContract
+  - [ ] Save analysis to contract record
+  - [ ] Handle and log errors
+
+- [ ] **Task 5: Update database schema**
+  - [ ] Add aiAnalysis JSON field to contracts
+  - [ ] Add analyzedAt timestamp field
+  - [ ] Add analysisVersion integer field
+  - [ ] Run migration
+
+- [ ] **Task 6: Write tests**
+  - [ ] Unit tests for token estimation
+  - [ ] Unit tests for retry delay calculation
+  - [ ] Unit tests for error classification
+  - [ ] Integration tests with mocked OpenAI
+  - [ ] Integration tests for rate limiting
+  - [ ] Manual test with real API call
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

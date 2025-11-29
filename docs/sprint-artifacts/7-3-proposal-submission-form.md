@@ -495,3 +495,84 @@ export const proposalRateLimiter = rateLimit({
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
 - [Story 7.4: Proposal Notification](./7-4-proposal-notification.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Proposal Form Modal Component**
+  - [ ] Create `client/src/components/landing/ProposalFormModal.tsx`
+  - [ ] Implement modal with all required form fields
+  - [ ] Add proposal type dropdown with all options
+  - [ ] Implement 1000 character limit with counter for message field
+  - [ ] Add form state management (formData, errors, submitStatus)
+  - [ ] Implement client-side validation (name, email format, message)
+  - [ ] Add loading state for submit button
+  - [ ] Create success confirmation modal view
+  - [ ] Add error message display
+
+- [ ] **Task 2: Implement Form Validation**
+  - [ ] Validate required fields (name, email, message)
+  - [ ] Validate email format with regex
+  - [ ] Validate message length (max 1000 characters)
+  - [ ] Display validation errors inline
+  - [ ] Prevent submission with invalid data
+
+- [ ] **Task 3: Create Proposal API Endpoint**
+  - [ ] Create/modify `server/routes/proposals.ts`
+  - [ ] Implement POST /api/proposals endpoint
+  - [ ] Add Zod schema validation for request body
+  - [ ] Verify landing page exists and is published
+  - [ ] Insert proposal into database with IP and user agent tracking
+  - [ ] Return appropriate success/error responses
+
+- [ ] **Task 4: Implement Rate Limiting**
+  - [ ] Create/modify `server/middleware/rateLimiter.ts`
+  - [ ] Implement proposal rate limiter (5 per hour per IP)
+  - [ ] Add rate limiter to POST /api/proposals route
+  - [ ] Test rate limiting blocks excess requests
+  - [ ] Return appropriate error message when rate limited
+
+- [ ] **Task 5: Form UX Enhancements**
+  - [ ] Implement modal close functionality
+  - [ ] Clear form data on close
+  - [ ] Handle success state display
+  - [ ] Handle error state display
+  - [ ] Add Terms of Service and Privacy Policy disclaimer
+
+- [ ] **Task 6: Testing**
+  - [ ] Unit test: Form validation logic
+  - [ ] Unit test: Character counter
+  - [ ] Unit test: Email format validation
+  - [ ] Integration test: POST /api/proposals creates record
+  - [ ] Integration test: Rate limiter blocks excess requests
+  - [ ] Integration test: Invalid landing page returns 404
+  - [ ] E2E test: Complete form submission flow
+  - [ ] E2E test: Validation error display
+  - [ ] E2E test: Success state display
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

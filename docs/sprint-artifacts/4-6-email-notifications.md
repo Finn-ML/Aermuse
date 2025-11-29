@@ -606,3 +606,90 @@ in your Aermuse account.
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
 - [Story 4.5: Webhook Handler](./4-5-webhook-handler.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Set up email service infrastructure**
+  - [ ] Create `server/services/email/index.ts`
+  - [ ] Configure nodemailer with SMTP settings
+  - [ ] Implement getTransporter with dev mode fallback
+  - [ ] Add sendEmail wrapper function
+  - [ ] Implement stripHtml utility
+
+- [ ] **Task 2: Create base email template**
+  - [ ] Create `server/services/email/templates.ts`
+  - [ ] Design responsive HTML email template
+  - [ ] Add Aermuse branding with burgundy color scheme
+  - [ ] Create button helper function
+  - [ ] Create infoBox helper function
+  - [ ] Add formatDate utility
+
+- [ ] **Task 3: Implement signing request email**
+  - [ ] Create `server/services/email/signing.ts`
+  - [ ] Implement sendSigningRequestEmail function
+  - [ ] Include contract title, initiator name, and message
+  - [ ] Add prominent "Sign Now" button with signing URL
+  - [ ] Display expiration date if set
+
+- [ ] **Task 4: Implement signing reminder email**
+  - [ ] Implement sendSigningReminderEmail function
+  - [ ] Create friendly reminder message
+  - [ ] Include signing URL and expiration warning
+  - [ ] Test reminder email formatting
+
+- [ ] **Task 5: Implement signature confirmation email**
+  - [ ] Implement sendSignatureConfirmedEmail function
+  - [ ] Thank signer for completing signature
+  - [ ] Notify about final PDF delivery when complete
+
+- [ ] **Task 6: Implement progress notification emails**
+  - [ ] Implement sendSignatureNotificationToInitiator function
+  - [ ] Show signed count vs total count
+  - [ ] Add visual progress bar
+  - [ ] Include link to view status
+
+- [ ] **Task 7: Implement document completed email**
+  - [ ] Implement sendDocumentCompletedEmail function
+  - [ ] Celebrate completion for all parties
+  - [ ] Include download link for signed PDF
+  - [ ] Send to all unique email addresses (dedupe)
+
+- [ ] **Task 8: Add cancellation email template**
+  - [ ] Implement sendRequestCancelledEmail function
+  - [ ] Notify signatories of cancellation
+  - [ ] Explain links are no longer valid
+
+- [ ] **Task 9: Test email rendering across clients**
+  - [ ] Test in Gmail web and mobile
+  - [ ] Test in Outlook desktop and web
+  - [ ] Test in Apple Mail
+  - [ ] Verify all links work correctly
+  - [ ] Test with special characters in names
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

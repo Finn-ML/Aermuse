@@ -498,3 +498,64 @@ router.post('/reactivate', requireAuth, async (req, res) => {
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.5: Stripe Webhook Handler](./5-5-stripe-webhook-handler.md)
 - [Story 5.7: Stripe Customer Portal](./5-7-stripe-customer-portal.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Enhance webhook handlers for cancellation**
+  - [ ] Update handleSubscriptionUpdated in stripe-handlers.ts
+  - [ ] Check for cancel_at_period_end flag
+  - [ ] Get user by customer ID
+  - [ ] Send cancellation email when newly canceled
+  - [ ] Update handleSubscriptionDeleted to send access expired email
+
+- [ ] **Task 2: Create subscription email service**
+  - [ ] Create server/services/email/subscription.ts
+  - [ ] Implement sendCancellationEmail function
+  - [ ] Implement sendAccessExpiredEmail function
+  - [ ] Implement sendExpirationReminderEmail function
+  - [ ] Use email templates with branding
+  - [ ] Include reactivation links
+
+- [ ] **Task 3: Build expiration reminder job**
+  - [ ] Create server/jobs/expirationReminder.ts
+  - [ ] Define REMINDER_DAYS array [7, 3, 1]
+  - [ ] Implement sendExpirationReminders function
+  - [ ] Query users with subscriptions ending soon
+  - [ ] Send reminder emails at appropriate intervals
+  - [ ] Add cron scheduling (optional)
+
+- [ ] **Task 4: Build CancellationBanner component**
+  - [ ] Create client/src/components/billing/CancellationBanner.tsx
+  - [ ] Calculate urgency level based on days remaining
+  - [ ] Display formatted period end date
+  - [ ] Show days remaining message
+  - [ ] Add reactivate button using portal
+  - [ ] Style based on urgency (red, yellow, blue)
+
+- [ ] **Task 5: Implement reactivation API endpoint**
+  - [ ] Add POST /api/billing/reactivate route
+  - [ ] Query user subscription
+  - [ ] Verify subscription is set to cancel
+  - [ ] Call reactivateSubscription Stripe service
+  - [ ] Update database cancel_at_period_end to false
+  - [ ] Return success response
+
+- [ ] **Task 6: Integrate CancellationBanner in UI**
+  - [ ] Add to billing dashboard
+  - [ ] Add to main dashboard
+  - [ ] Show only when cancelAtPeriodEnd is true
+  - [ ] Pass days remaining and period end
+
+- [ ] **Task 7: Testing**
+  - [ ] Cancel subscription via portal
+  - [ ] Verify cancellation email sent
+  - [ ] Verify banner appears
+  - [ ] Verify access continues until period end
+  - [ ] Test reactivation via API
+  - [ ] Verify banner disappears after reactivation
+  - [ ] Test expiration reminder job
+  - [ ] Simulate period ending
+  - [ ] Verify access expired email sent
+  - [ ] Verify downgrade to free tier

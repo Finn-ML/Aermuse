@@ -481,3 +481,69 @@ import { Billing } from './pages/settings/Billing';
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.7: Stripe Customer Portal](./5-7-stripe-customer-portal.md)
 - [Story 5.2: Subscription Data Model](./5-2-subscription-data-model.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create billing info API endpoint**
+  - [ ] Add GET /api/billing/info route to server/routes/billing.ts
+  - [ ] Query user subscription fields from database
+  - [ ] Calculate tier, hasAccess, and daysRemaining
+  - [ ] Return formatted billing info object
+  - [ ] Handle missing user error
+
+- [ ] **Task 2: Build Billing page component**
+  - [ ] Create client/src/pages/settings/Billing.tsx
+  - [ ] Set up state for billingInfo, loading, error
+  - [ ] Implement fetchBillingInfo function
+  - [ ] Add useEffect to load data on mount
+  - [ ] Render loading spinner
+  - [ ] Render error state
+  - [ ] Display SubscriptionCard component
+  - [ ] Display BillingActions component
+  - [ ] Add cancellation warning section
+
+- [ ] **Task 3: Build SubscriptionCard component**
+  - [ ] Create client/src/components/billing/SubscriptionCard.tsx
+  - [ ] Display tier name and price
+  - [ ] Show subscription status badge with icon
+  - [ ] Display next billing date
+  - [ ] Show days remaining in billing period
+  - [ ] Add free tier feature list
+  - [ ] Implement getStatusDisplay function
+
+- [ ] **Task 4: Build BillingActions component**
+  - [ ] Create client/src/components/billing/BillingActions.tsx
+  - [ ] Implement handleManageSubscription function
+  - [ ] Call /api/billing/portal endpoint
+  - [ ] Redirect to Stripe portal
+  - [ ] Show "Manage Subscription" for premium users
+  - [ ] Show "Upgrade to Premium" for free users
+  - [ ] Add loading state during portal redirect
+
+- [ ] **Task 5: Add cancellation warning banner**
+  - [ ] Check if cancelAtPeriodEnd is true
+  - [ ] Display yellow warning box
+  - [ ] Show days remaining
+  - [ ] Add link to reactivate subscription
+
+- [ ] **Task 6: Add invoice history link**
+  - [ ] Check if user has customer ID
+  - [ ] Display invoice history section
+  - [ ] Add link to billing portal
+  - [ ] Add link to /settings/billing/invoices
+
+- [ ] **Task 7: Add route configuration**
+  - [ ] Import Billing component
+  - [ ] Add /settings/billing route
+  - [ ] Test navigation
+
+- [ ] **Task 8: Testing**
+  - [ ] Test billing info API returns correct data
+  - [ ] Test as free user (shows upgrade option)
+  - [ ] Test as active premium user
+  - [ ] Test as canceled user with access
+  - [ ] Test as past_due user
+  - [ ] Verify status badges display correctly
+  - [ ] Test date and days remaining formatting

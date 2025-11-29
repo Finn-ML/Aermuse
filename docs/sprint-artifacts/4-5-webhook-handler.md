@@ -661,3 +661,82 @@ describe('Webhook Handler', () => {
 - [Story 4.1: DocuSeal Integration Service](./4-1-docuseal-integration-service.md)
 - [Story 4.6: Email Notifications](./4-6-email-notifications.md)
 - [Story 4.9: Signed Document Storage](./4-9-signed-document-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create webhook endpoint with signature verification**
+  - [ ] Create `server/routes/webhooks.ts`
+  - [ ] Implement POST /api/webhooks/docuseal endpoint
+  - [ ] Use express.raw() for signature verification
+  - [ ] Verify HMAC-SHA256 signature using webhook secret
+  - [ ] Parse and validate webhook payload
+
+- [ ] **Task 2: Implement signature.completed event handler**
+  - [ ] Create handleSignatureCompleted function
+  - [ ] Update signatory status to 'signed' with timestamp
+  - [ ] Update signature request status to 'in_progress' if first signature
+  - [ ] Send confirmation email to signer
+  - [ ] Send progress notification to initiator
+  - [ ] Add idempotency check
+
+- [ ] **Task 3: Implement signature.next_signer_ready event handler**
+  - [ ] Create handleNextSignerReady function
+  - [ ] Update signatory status from 'waiting' to 'pending'
+  - [ ] Send signing request email to next signer
+  - [ ] Include message and expiration in email
+
+- [ ] **Task 4: Implement document.completed event handler**
+  - [ ] Create handleDocumentCompleted function
+  - [ ] Download signed PDF from DocuSeal
+  - [ ] Store signed PDF using storage service
+  - [ ] Update signature request status to 'completed'
+  - [ ] Update contract status to 'signed' with PDF path
+  - [ ] Send completion emails to all parties
+
+- [ ] **Task 5: Create signed PDF storage service**
+  - [ ] Create `server/services/signedPdfStorage.ts`
+  - [ ] Implement storeSignedPdf with unique filename generation
+  - [ ] Add readSignedPdf with path validation
+  - [ ] Implement deleteSignedPdf for cleanup
+  - [ ] Add file size and format validation
+
+- [ ] **Task 6: Grant shared access to registered signatories**
+  - [ ] Create shared contract access helper function
+  - [ ] Add registered signatories to shared_contracts table
+  - [ ] Ensure contract visible in signatory dashboards
+  - [ ] Handle duplicate access grants gracefully
+
+- [ ] **Task 7: Create webhook registration script**
+  - [ ] Create `scripts/register-webhook.ts`
+  - [ ] Register webhook URL with DocuSeal
+  - [ ] Subscribe to required events
+  - [ ] Display webhook secret for .env configuration
+  - [ ] Test webhook with DocuSeal sandbox
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

@@ -639,3 +639,86 @@ function TemplateFormContent({
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.7: Template Selection UI](./3-7-template-selection-ui.md)
 - [Story 3.9: Contract Preview](./3-9-contract-preview-and-editing.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template detail API endpoint**
+  - [ ] Add GET /api/templates/:id to routes
+  - [ ] Return full template with fields and clauses
+
+- [ ] **Task 2: Create useTemplateForm hook**
+  - [ ] Create client/src/hooks/useTemplateForm.ts
+  - [ ] Initialize from localStorage or defaults
+  - [ ] Implement updateField function
+  - [ ] Implement toggleClause function
+  - [ ] Implement validate function
+  - [ ] Implement auto-save to localStorage
+  - [ ] Implement clearDraft function
+  - [ ] Save on beforeunload
+
+- [ ] **Task 3: Create DynamicField component**
+  - [ ] Create client/src/components/templates/DynamicField.tsx
+  - [ ] Render text/email input
+  - [ ] Render textarea
+  - [ ] Render number input with min/max
+  - [ ] Render currency input with symbol
+  - [ ] Render date input
+  - [ ] Render select dropdown
+  - [ ] Show error state and help text
+
+- [ ] **Task 4: Create ClauseToggle component**
+  - [ ] Create client/src/components/templates/ClauseToggle.tsx
+  - [ ] Render checkbox with name and description
+  - [ ] Expand/collapse clause fields
+  - [ ] Render nested DynamicFields
+
+- [ ] **Task 5: Create FieldGroup component**
+  - [ ] Create client/src/components/templates/FieldGroup.tsx
+  - [ ] Render group heading
+  - [ ] Layout fields in grid
+
+- [ ] **Task 6: Create TemplateForm page**
+  - [ ] Create client/src/pages/TemplateForm.tsx
+  - [ ] Fetch template on mount
+  - [ ] Group fields by group property
+  - [ ] Render field groups
+  - [ ] Render optional clauses section
+  - [ ] Add Clear Draft button
+  - [ ] Add Preview button with validation
+  - [ ] Show last saved indicator
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for each field type
+  - [ ] Unit tests for ClauseToggle
+  - [ ] Unit tests for validation
+  - [ ] Integration tests for auto-save
+  - [ ] E2E test for fill form → preview
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

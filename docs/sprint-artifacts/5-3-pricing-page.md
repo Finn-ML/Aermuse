@@ -449,3 +449,59 @@ import { Pricing } from './pages/Pricing';
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.4: Stripe Checkout Flow](./5-4-stripe-checkout-flow.md)
 - [Story 5.8: Subscription Paywall](./5-8-subscription-paywall.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create pricing page component**
+  - [ ] Create client/src/pages/Pricing.tsx
+  - [ ] Set up page layout with header and hero section
+  - [ ] Define FREE_FEATURES and PREMIUM_FEATURES arrays
+  - [ ] Implement handleGetPremium navigation logic
+  - [ ] Add value proposition section
+  - [ ] Add final CTA section with conditional rendering
+
+- [ ] **Task 2: Build PricingCard component**
+  - [ ] Create client/src/components/pricing/PricingCard.tsx
+  - [ ] Define Props interface with all required fields
+  - [ ] Implement card layout with header and pricing
+  - [ ] Add badge support for "Most Popular" etc
+  - [ ] Add "Current Plan" badge for logged-in users
+  - [ ] Render feature list with Check/X icons
+  - [ ] Style highlighted vs normal cards
+  - [ ] Add button with proper variant styling
+
+- [ ] **Task 3: Build FAQ component**
+  - [ ] Create client/src/components/pricing/FAQ.tsx
+  - [ ] Define faqs array with questions and answers
+  - [ ] Implement accordion state management
+  - [ ] Add ChevronDown icon with rotation animation
+  - [ ] Style FAQ items with hover states
+
+- [ ] **Task 4: Integrate with authentication context**
+  - [ ] Import useAuth hook
+  - [ ] Check user and subscription status
+  - [ ] Conditionally show "Current Plan" badges
+  - [ ] Disable buttons for current tier
+  - [ ] Redirect to login if not authenticated
+
+- [ ] **Task 5: Add route configuration**
+  - [ ] Import Pricing component in App.tsx
+  - [ ] Add /pricing route to router
+  - [ ] Test navigation from other pages
+
+- [ ] **Task 6: Styling and responsiveness**
+  - [ ] Implement mobile-responsive grid layout
+  - [ ] Test desktop side-by-side view
+  - [ ] Test mobile stacked view
+  - [ ] Ensure proper spacing and alignment
+  - [ ] Add burgundy color scheme consistency
+
+- [ ] **Task 7: Testing**
+  - [ ] Test as anonymous user (shows "Get Started")
+  - [ ] Test as free user (shows upgrade options)
+  - [ ] Test as premium user (shows "Current Plan")
+  - [ ] Test FAQ accordion interactions
+  - [ ] Test all navigation flows
+  - [ ] Verify mobile responsiveness

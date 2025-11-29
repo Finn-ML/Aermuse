@@ -539,3 +539,87 @@ router.get('/history', requireAuth, async (req, res) => {
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
 - [Story 4.7: Signature Status Tracking UI](./4-7-signature-status-tracking-ui.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create usePendingSignatures hook**
+  - [ ] Create `client/src/hooks/usePendingSignatures.ts`
+  - [ ] Fetch from /api/signatures/to-sign endpoint
+  - [ ] Return pending list, count, loading, error states
+  - [ ] Add refresh function for manual updates
+  - [ ] Handle authentication errors
+
+- [ ] **Task 2: Create AwaitingSignatures dashboard component**
+  - [ ] Create `client/src/components/dashboard/AwaitingSignatures.tsx`
+  - [ ] Display section header with pending count
+  - [ ] Show loading skeleton while fetching
+  - [ ] Display empty state when no pending signatures
+  - [ ] List pending contracts with details
+
+- [ ] **Task 3: Design pending signature card UI**
+  - [ ] Show contract title prominently
+  - [ ] Display initiator name with icon
+  - [ ] Show relative date requested
+  - [ ] Include optional message preview
+  - [ ] Add "Sign Now" button with external link icon
+
+- [ ] **Task 4: Add expiration warnings**
+  - [ ] Implement isExpiringSoon utility function
+  - [ ] Show warning for contracts expiring within 3 days
+  - [ ] Use orange/red color scheme for urgency
+  - [ ] Display relative expiration time
+
+- [ ] **Task 5: Add navigation badge for pending count**
+  - [ ] Update `client/src/components/layout/NavBar.tsx`
+  - [ ] Use usePendingSignatures hook in navbar
+  - [ ] Display badge with count on dashboard link
+  - [ ] Limit display to "9+" for high counts
+  - [ ] Style badge with burgundy background
+
+- [ ] **Task 6: Create signature history page**
+  - [ ] Create `client/src/pages/SignatureHistory.tsx`
+  - [ ] Add filter tabs for all/pending/signed
+  - [ ] List historical signature requests
+  - [ ] Show status icons and dates
+  - [ ] Link to full contracts when signed
+
+- [ ] **Task 7: Add history API endpoint**
+  - [ ] Add GET /api/signatures/history to server
+  - [ ] Query signatories table by user
+  - [ ] Join with signature requests and contracts
+  - [ ] Return formatted history list
+  - [ ] Limit to 50 most recent items
+
+- [ ] **Task 8: Integrate with dashboard**
+  - [ ] Import AwaitingSignatures component in Dashboard
+  - [ ] Place prominently near top of dashboard
+  - [ ] Ensure responsive layout on mobile
+  - [ ] Test interaction flow end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

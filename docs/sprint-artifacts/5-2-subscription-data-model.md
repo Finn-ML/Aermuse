@@ -559,3 +559,86 @@ describe('Subscription Service', () => {
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.1: Stripe Integration Setup](./5-1-stripe-integration-setup.md)
 - [Story 5.8: Subscription Paywall](./5-8-subscription-paywall.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update database schema with subscription fields**
+  - [ ] Modify server/db/schema/users.ts to add subscription columns
+  - [ ] Add stripeCustomerId, stripeSubscriptionId fields
+  - [ ] Add subscriptionStatus, subscriptionPriceId fields
+  - [ ] Add subscriptionCurrentPeriodEnd, subscriptionCancelAtPeriodEnd fields
+  - [ ] Define indexes for performance optimization
+
+- [ ] **Task 2: Create database migration**
+  - [ ] Create migration file with timestamp
+  - [ ] Write up() function to add columns and indexes
+  - [ ] Write down() function for rollback
+  - [ ] Test migration applies successfully
+  - [ ] Test migration rollback works
+
+- [ ] **Task 3: Define TypeScript subscription types**
+  - [ ] Create shared/types/subscription.ts
+  - [ ] Define SubscriptionStatus type with all valid statuses
+  - [ ] Define SubscriptionTier type (free/premium)
+  - [ ] Create UserSubscription interface
+  - [ ] Create SubscriptionUpdate interface
+  - [ ] Create FeatureAccess interface
+
+- [ ] **Task 4: Implement subscription service functions**
+  - [ ] Create server/services/subscription.ts
+  - [ ] Implement hasActiveSubscription check
+  - [ ] Implement hasPremiumAccess check with grace period logic
+  - [ ] Implement getSubscriptionTier function
+  - [ ] Implement getDaysRemaining calculation
+  - [ ] Implement getFeatureAccess function
+  - [ ] Implement getUserSubscription query function
+  - [ ] Implement canAccessPremiumFeature check
+
+- [ ] **Task 5: Implement subscription update functions**
+  - [ ] Create updateUserSubscription function
+  - [ ] Create updateSubscriptionByCustomerId function
+  - [ ] Create linkStripeCustomer function
+  - [ ] Add proper error handling and logging
+
+- [ ] **Task 6: Implement contract limit logic**
+  - [ ] Create canCreateContract function
+  - [ ] Query contract count for user
+  - [ ] Check against FREE_CONTRACT_LIMIT constant
+  - [ ] Return detailed limit information
+
+- [ ] **Task 7: Testing**
+  - [ ] Write unit tests for hasActiveSubscription
+  - [ ] Write unit tests for hasPremiumAccess edge cases
+  - [ ] Write unit tests for getDaysRemaining
+  - [ ] Write unit tests for getFeatureAccess
+  - [ ] Test migration applies and reverses
+  - [ ] Verify indexes created properly
+  - [ ] Test canCreateContract with various scenarios
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

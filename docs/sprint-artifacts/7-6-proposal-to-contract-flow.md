@@ -476,3 +476,87 @@ router.post('/:id/contract', requireAuth, async (req, res) => {
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
 - [Epic 3: Contract Templates](./tech-spec-epic-3.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update Database Schema**
+  - [ ] Add proposalId field to contracts table schema in `server/db/schema/contracts.ts`
+  - [ ] Create migration to add proposal_id column to contracts table
+  - [ ] Add index for proposal_id for efficient querying
+  - [ ] Test migration runs successfully
+
+- [ ] **Task 2: Create Contract Creation Page**
+  - [ ] Create `client/src/pages/dashboard/CreateContractFromProposal.tsx`
+  - [ ] Implement proposal and templates fetching
+  - [ ] Display proposal summary (name, email, company)
+  - [ ] Implement template selection UI
+  - [ ] Add template suggestion logic based on proposal type
+  - [ ] Create TemplateOption component with selection state
+  - [ ] Add "Create Contract" button with loading state
+  - [ ] Implement navigation to contract editor after creation
+
+- [ ] **Task 3: Implement Template Suggestions**
+  - [ ] Create PROPOSAL_TO_TEMPLATE_SUGGESTIONS mapping
+  - [ ] Filter templates into suggested and other categories
+  - [ ] Display suggested templates with "Recommended" badge
+  - [ ] Display other templates in separate section
+
+- [ ] **Task 4: Create Convert to Contract API**
+  - [ ] Add POST /api/proposals/:id/contract endpoint to `server/routes/proposals.ts`
+  - [ ] Verify proposal ownership
+  - [ ] Fetch template by ID
+  - [ ] Create contract with pre-filled data from proposal
+  - [ ] Pre-fill party information (name, email, company)
+  - [ ] Copy template content to contract
+  - [ ] Update proposal status to "responded"
+  - [ ] Set respondedAt timestamp
+  - [ ] Link contract to proposal (contractId field)
+  - [ ] Return contract ID for navigation
+
+- [ ] **Task 5: Update Proposal Detail Page**
+  - [ ] Add "Create Contract" CTA section to proposal detail
+  - [ ] Link to CreateContractFromProposal page
+  - [ ] Show if contract already created from proposal
+
+- [ ] **Task 6: Update Contract Detail Page**
+  - [ ] Add proposal origin indicator when contract.proposalId exists
+  - [ ] Display "Created from Proposal" banner
+  - [ ] Add link back to original proposal
+
+- [ ] **Task 7: Testing**
+  - [ ] Unit test: Template suggestions based on proposal type
+  - [ ] Integration test: POST /api/proposals/:id/contract creates contract
+  - [ ] Integration test: Proposal status updated to "responded"
+  - [ ] Integration test: Contract has correct pre-filled data
+  - [ ] Integration test: Proposal-contract link established
+  - [ ] E2E test: Full flow - select template → create contract
+  - [ ] E2E test: Verify pre-filled information in contract
+  - [ ] E2E test: Navigate to contract editor successfully
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

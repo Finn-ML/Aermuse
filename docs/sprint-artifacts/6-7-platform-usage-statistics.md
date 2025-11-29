@@ -583,3 +583,91 @@ export function UsageChart({ data, isLoading }: Props) {
 
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 6.2: Admin Overview Dashboard](./6-2-admin-overview-dashboard.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create usage statistics API endpoint**
+  - [ ] Implement GET `/api/admin/analytics/usage` endpoint
+  - [ ] Support period filters (week, month, year)
+  - [ ] Calculate contracts created in period
+  - [ ] Calculate AI analyses performed
+  - [ ] Calculate signatures completed
+  - [ ] Calculate template vs uploaded contract split
+  - [ ] Calculate active users count
+  - [ ] Test usage calculations for different periods
+
+- [ ] **Task 2: Create timeline API endpoint**
+  - [ ] Implement GET `/api/admin/analytics/timeline` endpoint
+  - [ ] Generate daily activity data for specified days
+  - [ ] Track contracts and analyses per day
+  - [ ] Test timeline data generation
+
+- [ ] **Task 3: Create template usage API endpoint**
+  - [ ] Implement GET `/api/admin/analytics/templates` endpoint
+  - [ ] Count usage per template
+  - [ ] Join with template names and categories
+  - [ ] Return top 10 most popular templates
+  - [ ] Test template usage ranking
+
+- [ ] **Task 4: Create engagement metrics API**
+  - [ ] Implement GET `/api/admin/analytics/engagement` endpoint
+  - [ ] Calculate feature adoption rates
+  - [ ] Count users who used contracts, AI, and e-signing
+  - [ ] Calculate percentage adoption for each feature
+  - [ ] Test engagement calculations
+
+- [ ] **Task 5: Build UsageChart component**
+  - [ ] Create area chart using recharts library
+  - [ ] Display contracts and analyses over time
+  - [ ] Add loading and empty states
+  - [ ] Test chart rendering
+
+- [ ] **Task 6: Build TemplateUsageTable component**
+  - [ ] Create table showing popular templates
+  - [ ] Display template name, category, and usage count
+  - [ ] Add loading state
+  - [ ] Test table rendering
+
+- [ ] **Task 7: Build UsageStatistics page**
+  - [ ] Implement data fetching for all analytics endpoints
+  - [ ] Add period selector (week/month/year)
+  - [ ] Create stat cards grid for usage metrics
+  - [ ] Build feature adoption section with progress bars
+  - [ ] Integrate usage chart
+  - [ ] Integrate template usage table
+  - [ ] Test responsive layout and period switching
+
+- [ ] **Task 8: Mount analytics routes and testing**
+  - [ ] Add analytics routes to admin router
+  - [ ] Test all usage metrics display
+  - [ ] Test period filtering
+  - [ ] Verify adoption rate calculations
+  - [ ] Test charts and tables
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

@@ -6,6 +6,7 @@ import type { User } from '@shared/schema';
 interface AuthContextType {
   user: Omit<User, 'password'> | null;
   isLoading: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; password: string; name: string; artistName?: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -61,13 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutMutation.mutateAsync();
   };
 
+  const user = data?.user ?? null;
+  const isAdmin = user?.role === 'admin';
+
   return (
-    <AuthContext.Provider value={{ 
-      user: data?.user ?? null, 
-      isLoading, 
-      login, 
-      register, 
-      logout 
+    <AuthContext.Provider value={{
+      user,
+      isLoading,
+      isAdmin,
+      login,
+      register,
+      logout
     }}>
       {children}
     </AuthContext.Provider>

@@ -205,3 +205,69 @@ export function MobileSendProposalCTA({ landingPageId, artistName }: Props) {
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
 - [Story 7.3: Proposal Submission Form](./7-3-proposal-submission-form.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Send Proposal Button Component**
+  - [ ] Create `client/src/components/landing/SendProposalButton.tsx`
+  - [ ] Implement button component with modal state management
+  - [ ] Add burgundy theme styling with hover and focus states
+  - [ ] Integrate lucide-react Send icon
+  - [ ] Add accessibility attributes (aria-label, focus ring)
+  - [ ] Implement ProposalFormModal integration
+
+- [ ] **Task 2: Integrate Button into Landing Page View**
+  - [ ] Modify `client/src/pages/LandingPageView.tsx`
+  - [ ] Add SendProposalButton to hero section
+  - [ ] Add SendProposalButton to footer CTA section
+  - [ ] Ensure button only appears on published pages
+  - [ ] Test button placement and visibility
+
+- [ ] **Task 3: Implement Mobile Responsive Design**
+  - [ ] Verify button responsive styling on mobile devices
+  - [ ] Test button functionality on mobile viewports
+  - [ ] Ensure modal opens correctly on mobile
+  - [ ] Optional: Add fixed bottom CTA for mobile (MobileSendProposalCTA)
+
+- [ ] **Task 4: Accessibility Implementation**
+  - [ ] Add keyboard navigation support (Enter/Space keys)
+  - [ ] Implement proper focus management
+  - [ ] Add screen reader announcements
+  - [ ] Test with keyboard-only navigation
+
+- [ ] **Task 5: Testing**
+  - [ ] Visual test: Button appears in hero and footer sections
+  - [ ] Visual test: Mobile view displays correctly
+  - [ ] Visual test: Hover states work as expected
+  - [ ] Functional test: Click opens modal
+  - [ ] Functional test: Button doesn't appear on draft pages
+  - [ ] Accessibility test: Keyboard navigation works
+  - [ ] Accessibility test: Screen reader announces correctly
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

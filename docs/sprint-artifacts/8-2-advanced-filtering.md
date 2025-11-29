@@ -483,3 +483,78 @@ router.get('/', requireAuth, async (req, res) => {
 
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
 - [Story 8.1: Contract Search](./8-1-contract-search.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create ContractFilters component**
+  - [ ] Build filter panel with expandable/collapsible UI
+  - [ ] Add status dropdown with all status options
+  - [ ] Add type dropdown with contract type options
+  - [ ] Add date range inputs (from/to) with calendar icons
+  - [ ] Implement active filter count badge
+  - [ ] Add clear all filters button
+
+- [ ] **Task 2: Create ActiveFilters component**
+  - [ ] Build filter pills UI to show active filters
+  - [ ] Implement individual filter removal
+  - [ ] Create label mapping for status and type values
+  - [ ] Style pills with burgundy theme
+  - [ ] Add remove button to each pill
+
+- [ ] **Task 3: Create useContractFilters hook**
+  - [ ] Implement URL parameter sync for filters
+  - [ ] Handle filter state management
+  - [ ] Implement setFilters function
+  - [ ] Implement clearFilters function
+  - [ ] Parse URL params on mount
+
+- [ ] **Task 4: Extend contracts API for filtering**
+  - [ ] Add status filter support with eq() condition
+  - [ ] Add type filter support with eq() condition
+  - [ ] Add date range filters with gte/lte conditions
+  - [ ] Combine all filters with and() operator
+  - [ ] Return applied filters in API response
+  - [ ] Test filter combinations
+
+- [ ] **Task 5: Integrate filters in Contracts page**
+  - [ ] Add ContractFilters component to page
+  - [ ] Add ActiveFilters component to page
+  - [ ] Connect filters to useContractFilters hook
+  - [ ] Update fetchContracts to include filter params
+  - [ ] Handle filter changes and refetch
+
+- [ ] **Task 6: Testing and validation**
+  - [ ] Write unit tests for URL parameter parsing
+  - [ ] Write integration tests for filter API
+  - [ ] Test all filter combinations
+  - [ ] Test date range boundary conditions
+  - [ ] Write E2E tests for filter interactions
+  - [ ] Test filter persistence in URL
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

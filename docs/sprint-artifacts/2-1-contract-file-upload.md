@@ -9,7 +9,7 @@
 | **Title** | Contract File Upload |
 | **Priority** | P0 - Critical |
 | **Story Points** | 5 |
-| **Status** | Drafted |
+| **Status** | Ready for Review |
 
 ## User Story
 
@@ -26,14 +26,14 @@ This story establishes the file upload infrastructure for the AI Attorney featur
 
 ## Acceptance Criteria
 
-- [ ] **AC-1:** File upload button visible on contracts page
-- [ ] **AC-2:** Drag-and-drop upload supported
-- [ ] **AC-3:** PDF, DOC, DOCX formats accepted
-- [ ] **AC-4:** File size limit enforced (10MB)
-- [ ] **AC-5:** Upload progress indicator displayed
-- [ ] **AC-6:** Files stored in Replit Object Storage
-- [ ] **AC-7:** File metadata saved to contract record
-- [ ] **AC-8:** Invalid file types rejected with clear error message
+- [x] **AC-1:** File upload button visible on contracts page
+- [x] **AC-2:** Drag-and-drop upload supported
+- [x] **AC-3:** PDF, DOC, DOCX formats accepted
+- [x] **AC-4:** File size limit enforced (10MB)
+- [x] **AC-5:** Upload progress indicator displayed
+- [x] **AC-6:** Files stored in Replit Object Storage
+- [x] **AC-7:** File metadata saved to contract record
+- [x] **AC-8:** Invalid file types rejected with clear error message
 
 ## Technical Requirements
 
@@ -543,25 +543,25 @@ app.get('/api/contracts/:id/download', requireAuth, async (req, res) => {
 
 ## Definition of Done
 
-- [ ] Multer middleware configured with file limits
-- [ ] Replit Object Storage service working
-- [ ] Upload endpoint creates contract and stores file
-- [ ] File type validation with magic bytes
-- [ ] ContractUpload component with drag-and-drop
-- [ ] Progress indicator during upload
-- [ ] Error messages for invalid files
-- [ ] Download endpoint for retrieving files
-- [ ] Files organized by user/contract in storage
+- [x] Multer middleware configured with file limits
+- [x] Replit Object Storage service working
+- [x] Upload endpoint creates contract and stores file
+- [x] File type validation with magic bytes
+- [x] ContractUpload component with drag-and-drop
+- [x] Progress indicator during upload
+- [x] Error messages for invalid files
+- [x] Download endpoint for retrieving files
+- [x] Files organized by user/contract in storage
 
 ## Testing Checklist
 
 ### Unit Tests
 
-- [ ] File extension validation
-- [ ] File size validation
-- [ ] Magic byte verification for PDF
-- [ ] Magic byte verification for DOCX
-- [ ] Storage path generation
+- [x] File extension validation
+- [x] File size validation
+- [x] Magic byte verification for PDF
+- [x] Magic byte verification for DOCX
+- [x] Storage path generation
 
 ### Integration Tests
 
@@ -585,3 +585,113 @@ app.get('/api/contracts/:id/download', requireAuth, async (req, res) => {
 
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Architecture: Replit Object Storage](../architecture.md#replit-object-storage-epics-2-8)
+
+---
+
+## Tasks/Subtasks
+
+- [x] **Task 1: Install dependencies**
+  - [x] Run `npm install multer @types/multer file-type`
+  - [x] Verify packages installed
+
+- [x] **Task 2: Update database schema**
+  - [x] Add filePath, fileName, fileSize, fileType fields to contracts table
+  - [x] Update Drizzle schema
+  - [x] Run migration
+
+- [x] **Task 3: Create upload middleware**
+  - [x] Create `server/middleware/upload.ts`
+  - [x] Configure multer with memory storage
+  - [x] Implement file size limit (10MB)
+  - [x] Implement extension validation
+  - [x] Add magic byte verification function
+
+- [x] **Task 4: Create storage service**
+  - [x] Create `server/services/fileStorage.ts`
+  - [x] Implement uploadContractFile function
+  - [x] Implement downloadContractFile function
+  - [x] Implement deleteContractFile function
+  - [x] Set up path organization by user/contract
+
+- [x] **Task 5: Create upload endpoint**
+  - [x] Add POST /api/contracts/upload route
+  - [x] Integrate multer middleware
+  - [x] Verify file type with magic bytes
+  - [x] Create contract record
+  - [x] Upload to Object Storage
+  - [x] Update contract with file metadata
+
+- [x] **Task 6: Create download endpoint**
+  - [x] Add GET /api/contracts/:id/download route
+  - [x] Verify ownership
+  - [x] Stream file from Object Storage
+
+- [x] **Task 7: Create ContractUpload component**
+  - [x] Create `client/src/components/contracts/ContractUpload.tsx`
+  - [x] Implement drag-and-drop zone
+  - [x] Add file input with click-to-browse
+  - [x] Client-side validation (type, size)
+  - [x] Progress indicator with XHR
+  - [x] Success/error states
+
+- [x] **Task 8: Integrate with Contracts page**
+  - [x] Add upload button/area to Dashboard Contracts section
+  - [x] Handle upload completion callback
+  - [x] Refresh contract list after upload
+  - [x] Display download button for uploaded contracts
+  - [x] Show file metadata (type, size) for uploaded contracts
+
+- [x] **Task 9: Write tests**
+  - [x] Unit tests for file validation
+  - [x] Unit tests for content type mapping
+  - [x] Unit tests for magic byte verification
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+
+Implementation completed successfully. All tasks completed:
+
+1. **Dependencies**: multer, @types/multer, file-type, @replit/object-storage installed
+2. **Database Schema**: Added filePath, fileName, fileSize, fileType columns to contracts table via Drizzle
+3. **Upload Middleware**: Created `server/middleware/upload.ts` with multer config, file validation, and magic byte verification
+4. **Storage Service**: Created `server/services/fileStorage.ts` using @replit/object-storage Client
+5. **Upload Endpoint**: POST /api/contracts/upload - creates contract, verifies file, uploads to Object Storage
+6. **Download Endpoint**: GET /api/contracts/:id/download - streams file from Object Storage
+7. **ContractUpload Component**: React component with drag-and-drop, progress bar, validation
+8. **Dashboard Integration**: Added Upload Contract button, download buttons, file metadata display
+9. **Tests**: 13 new unit tests for upload middleware and file storage service (all passing)
+
+**Decisions Made:**
+- Used memory storage in multer (not disk) since files go directly to Object Storage
+- File path pattern: `contracts/{userId}/{contractId}/original.{ext}`
+- Magic byte detection fallback for DOC files (d0cf11e0)
+- Used XHR instead of fetch for upload progress tracking
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| Created | server/middleware/upload.ts |
+| Created | server/services/fileStorage.ts |
+| Created | client/src/components/contracts/ContractUpload.tsx |
+| Created | server/middleware/__tests__/upload.test.ts |
+| Created | server/services/__tests__/fileStorage.test.ts |
+| Modified | shared/schema.ts |
+| Modified | server/routes.ts |
+| Modified | client/src/pages/Dashboard.tsx |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2025-11-29 | Implemented contract file upload feature | Dev Agent |

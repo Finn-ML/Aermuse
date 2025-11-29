@@ -156,3 +156,69 @@ export const sampleAgreementTemplate = {
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template definition file**
+  - [ ] Create server/data/templates/sample-agreement.ts
+  - [ ] Define sample owner fields
+  - [ ] Define sampling artist fields
+  - [ ] Define original work fields
+  - [ ] Define new work fields
+  - [ ] Define rights scope fields
+  - [ ] Define compensation fields
+
+- [ ] **Task 2: Define optional clauses**
+  - [ ] Add ongoing royalties clause
+  - [ ] Add credit requirement clause
+  - [ ] Add modification rights clause
+
+- [ ] **Task 3: Create template content sections**
+  - [ ] Write parties section
+  - [ ] Write sample identification section
+  - [ ] Write new work section
+  - [ ] Write grant of rights section
+  - [ ] Write compensation section
+  - [ ] Write optional royalties section
+  - [ ] Write optional credit section
+  - [ ] Write optional modifications section
+  - [ ] Write warranties section
+  - [ ] Write signatures section
+
+- [ ] **Task 4: Add to seed script**
+  - [ ] Export sample agreement template
+  - [ ] Add to seedTemplates function
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for rights type rendering
+  - [ ] Integration test for seeding
+  - [ ] Render test with master only rights
+  - [ ] Render test with both master and publishing
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

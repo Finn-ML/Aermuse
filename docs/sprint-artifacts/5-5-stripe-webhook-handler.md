@@ -424,3 +424,65 @@ stripe trigger invoice.payment_failed
 - [Story 5.1: Stripe Integration Setup](./5-1-stripe-integration-setup.md)
 - [Story 5.2: Subscription Data Model](./5-2-subscription-data-model.md)
 - [Story 5.9: Subscription Cancellation Handling](./5-9-subscription-cancellation-handling.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create webhook route**
+  - [ ] Create server/routes/webhooks/stripe.ts
+  - [ ] Set up Express router with raw body parser
+  - [ ] Implement POST / endpoint
+  - [ ] Extract stripe-signature header
+  - [ ] Add signature validation check
+  - [ ] Call handleStripeEvent function
+  - [ ] Return success/error responses
+
+- [ ] **Task 2: Implement event handlers**
+  - [ ] Create server/services/webhooks/stripe-handlers.ts
+  - [ ] Implement handleStripeEvent router function
+  - [ ] Route events to appropriate handlers
+  - [ ] Add logging for each event type
+
+- [ ] **Task 3: Handle checkout events**
+  - [ ] Implement handleCheckoutCompleted function
+  - [ ] Extract userId and customerId from session
+  - [ ] Link customer to user if not already linked
+  - [ ] Update database with customer ID
+
+- [ ] **Task 4: Handle subscription events**
+  - [ ] Implement handleSubscriptionCreated function
+  - [ ] Implement handleSubscriptionUpdated function
+  - [ ] Implement handleSubscriptionDeleted function
+  - [ ] Create buildSubscriptionUpdate helper
+  - [ ] Update user by customer ID
+
+- [ ] **Task 5: Handle invoice events**
+  - [ ] Implement handlePaymentSucceeded function
+  - [ ] Implement handlePaymentFailed function
+  - [ ] Update subscription status appropriately
+  - [ ] Add TODO for failed payment notification
+
+- [ ] **Task 6: Implement helper functions**
+  - [ ] Create buildSubscriptionUpdate function
+  - [ ] Create updateUserByCustomerId function
+  - [ ] Add proper error handling and logging
+
+- [ ] **Task 7: Configure middleware order**
+  - [ ] Mount webhook routes BEFORE body parser in server/index.ts
+  - [ ] Ensure raw body available for signature verification
+  - [ ] Test middleware ordering
+
+- [ ] **Task 8: Optional idempotency tracking**
+  - [ ] Consider creating webhook_events table
+  - [ ] Implement duplicate event detection
+  - [ ] Store processed event IDs
+
+- [ ] **Task 9: Testing**
+  - [ ] Set up Stripe CLI for local testing
+  - [ ] Run stripe listen --forward-to localhost:3000/api/webhooks/stripe
+  - [ ] Trigger test events with stripe trigger commands
+  - [ ] Verify signature verification works
+  - [ ] Test each event type handler
+  - [ ] Verify database updates correctly
+  - [ ] Test idempotent processing

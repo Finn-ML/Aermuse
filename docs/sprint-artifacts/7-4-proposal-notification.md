@@ -365,3 +365,89 @@ export function NotificationBadge({ count, className = '' }: Props) {
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
 - [Story 7.5: Proposal Management Dashboard](./7-5-proposal-management-dashboard.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Email Notification Service Function**
+  - [ ] Modify `server/services/email.ts` to add sendProposalNotification
+  - [ ] Define ProposalNotificationParams interface
+  - [ ] Implement proposal type label mapping
+  - [ ] Create message preview truncation logic (200 chars)
+  - [ ] Generate view proposal URL
+  - [ ] Call email service with template data
+
+- [ ] **Task 2: Create Email Template**
+  - [ ] Create `server/templates/emails/new-proposal.html`
+  - [ ] Design responsive HTML email layout
+  - [ ] Add burgundy theme header section
+  - [ ] Create proposal details card section
+  - [ ] Add message preview section with left border highlight
+  - [ ] Implement "View Full Proposal" CTA button
+  - [ ] Add footer with company info and unsubscribe info
+  - [ ] Test email rendering across email clients
+
+- [ ] **Task 3: Integrate Email into Proposal Submission**
+  - [ ] Modify POST /api/proposals endpoint in `server/routes/proposals.ts`
+  - [ ] Call sendProposalNotification after proposal creation
+  - [ ] Pass all required parameters (artist, sender, proposal details)
+  - [ ] Handle email sending errors gracefully
+  - [ ] Ensure proposal is still created if email fails
+
+- [ ] **Task 4: Create Unread Count API**
+  - [ ] Add GET /api/proposals/unread-count endpoint
+  - [ ] Require authentication middleware
+  - [ ] Query proposals with status 'new' for current user
+  - [ ] Return count in JSON response
+  - [ ] Add error handling
+
+- [ ] **Task 5: Implement Dashboard Badge**
+  - [ ] Modify `client/src/components/dashboard/Sidebar.tsx`
+  - [ ] Add state for proposal count
+  - [ ] Implement fetchProposalCount function
+  - [ ] Add useEffect to fetch count on mount
+  - [ ] Set up 5-minute interval to refresh count
+  - [ ] Add badge to Proposals nav item
+  - [ ] Display "99+" for counts over 99
+
+- [ ] **Task 6: Create Notification Badge Component**
+  - [ ] Create `client/src/components/ui/NotificationBadge.tsx`
+  - [ ] Implement reusable badge component
+  - [ ] Add burgundy styling
+  - [ ] Handle 99+ display logic
+  - [ ] Return null when count is 0
+
+- [ ] **Task 7: Testing**
+  - [ ] Unit test: Email template renders correctly
+  - [ ] Unit test: Message preview truncation
+  - [ ] Integration test: Email sent on proposal creation
+  - [ ] Integration test: Unread count API returns correct value
+  - [ ] E2E test: Submit proposal → artist receives email
+  - [ ] E2E test: Badge decrements when proposal viewed
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

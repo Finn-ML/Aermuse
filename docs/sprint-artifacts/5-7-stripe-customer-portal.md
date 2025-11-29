@@ -379,3 +379,62 @@ export function PortalButton({ variant = 'secondary', className = '' }: Props) {
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.6: Billing Dashboard](./5-6-billing-dashboard.md)
 - [Story 5.9: Subscription Cancellation Handling](./5-9-subscription-cancellation-handling.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Implement portal session API endpoint**
+  - [ ] Add POST /api/billing/portal route to server/routes/billing.ts
+  - [ ] Query user to get stripeCustomerId
+  - [ ] Validate user has Stripe customer
+  - [ ] Call createPortalSession from Stripe service
+  - [ ] Return portal URL
+  - [ ] Handle error for users without customer
+
+- [ ] **Task 2: Configure Customer Portal in Stripe Dashboard**
+  - [ ] Navigate to Settings → Billing → Customer portal
+  - [ ] Add business information and branding
+  - [ ] Enable invoice viewing and downloading
+  - [ ] Enable payment method updates
+  - [ ] Enable subscription cancellation
+  - [ ] Set cancellation mode to "at end of billing period"
+  - [ ] Configure return URL to /settings/billing
+  - [ ] Customize portal colors to match Aermuse
+
+- [ ] **Task 3: Build BillingPortal page component**
+  - [ ] Create client/src/pages/settings/BillingPortal.tsx
+  - [ ] Implement openPortal function in useEffect
+  - [ ] Call /api/billing/portal API
+  - [ ] Redirect to portal URL
+  - [ ] Show loading state during redirect
+  - [ ] Display error state with retry option
+
+- [ ] **Task 4: Create useBillingPortal hook**
+  - [ ] Create client/src/hooks/useBillingPortal.ts
+  - [ ] Implement openPortal function
+  - [ ] Manage loading and error states
+  - [ ] Return hook interface
+
+- [ ] **Task 5: Build PortalButton component**
+  - [ ] Create client/src/components/billing/PortalButton.tsx
+  - [ ] Use useBillingPortal hook
+  - [ ] Support primary and secondary variants
+  - [ ] Show loading spinner when active
+  - [ ] Display error message if present
+  - [ ] Make reusable across app
+
+- [ ] **Task 6: Add route configuration**
+  - [ ] Import BillingPortal component
+  - [ ] Add /settings/billing/portal route
+  - [ ] Test navigation
+
+- [ ] **Task 7: Testing**
+  - [ ] Test portal session creation API
+  - [ ] Test as premium user with customer ID
+  - [ ] Test as free user without customer (error)
+  - [ ] Verify redirect to Stripe portal
+  - [ ] Test updating payment method in portal
+  - [ ] Test viewing invoices in portal
+  - [ ] Test canceling subscription in portal
+  - [ ] Verify return URL brings user back

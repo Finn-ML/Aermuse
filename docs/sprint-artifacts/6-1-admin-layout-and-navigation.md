@@ -537,3 +537,75 @@ export function AdminOverview() {
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 1.6: Admin Role System](./1-6-admin-role-system.md)
 - [Story 6.2: Admin Overview Dashboard](./6-2-admin-overview-dashboard.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create admin authentication middleware**
+  - [ ] Implement `requireAdmin` middleware in `server/middleware/requireAdmin.ts`
+  - [ ] Add type augmentation for Express Request
+  - [ ] Test middleware with admin and non-admin users
+  - [ ] Add error handling for auth failures
+
+- [ ] **Task 2: Set up admin route structure**
+  - [ ] Create `server/routes/admin/index.ts` aggregator
+  - [ ] Apply auth and admin middleware to all admin routes
+  - [ ] Mount admin routes at `/api/admin` in main server
+  - [ ] Add health check endpoint
+
+- [ ] **Task 3: Build AdminLayout component**
+  - [ ] Create `AdminLayout.tsx` with outlet and navigation
+  - [ ] Implement role check and redirect logic
+  - [ ] Add loading state handling
+  - [ ] Test responsive layout structure
+
+- [ ] **Task 4: Build AdminSidebar component**
+  - [ ] Create navigation menu with all admin sections
+  - [ ] Implement active route highlighting logic
+  - [ ] Add mobile responsive sidebar with collapsible menu
+  - [ ] Style with burgundy theme colors
+
+- [ ] **Task 5: Build AdminHeader component**
+  - [ ] Create header with breadcrumb navigation
+  - [ ] Implement dynamic page title generation
+  - [ ] Add user info and notification placeholder
+  - [ ] Test breadcrumb generation for nested routes
+
+- [ ] **Task 6: Configure admin routes in App.tsx**
+  - [ ] Add admin route configuration with nested routes
+  - [ ] Create placeholder Overview page component
+  - [ ] Test route protection and redirects
+  - [ ] Verify all navigation links work
+
+- [ ] **Task 7: Integration testing and validation**
+  - [ ] Test admin middleware blocks non-admin users
+  - [ ] Test mobile sidebar functionality
+  - [ ] Validate all navigation paths
+  - [ ] Check responsive design on various screen sizes
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

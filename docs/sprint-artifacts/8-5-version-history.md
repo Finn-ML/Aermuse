@@ -648,3 +648,100 @@ export function ContractVersionView() {
 ## Related Documents
 
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create contract versions database schema**
+  - [ ] Create contractVersions.ts schema file
+  - [ ] Define table with id, contractId, versionNumber, content fields
+  - [ ] Add changeSummary and changedBy fields
+  - [ ] Create unique index on contractId + versionNumber
+  - [ ] Add relations to contracts and users tables
+  - [ ] Create TypeScript types
+  - [ ] Run database migration
+
+- [ ] **Task 2: Create version manager service**
+  - [ ] Create versionManager.ts service file
+  - [ ] Implement createContractVersion function
+  - [ ] Implement getContractVersions function
+  - [ ] Implement getContractVersion function
+  - [ ] Implement restoreContractVersion function
+  - [ ] Add version number auto-increment logic
+  - [ ] Create contract snapshot functionality
+
+- [ ] **Task 3: Create version history API endpoints**
+  - [ ] Implement GET /api/contracts/:id/versions
+  - [ ] Implement GET /api/contracts/:id/versions/:version
+  - [ ] Implement POST /api/contracts/:id/restore/:version
+  - [ ] Add contract ownership verification
+  - [ ] Format version response data
+  - [ ] Handle errors appropriately
+
+- [ ] **Task 4: Integrate versioning into contract update**
+  - [ ] Modify PATCH /api/contracts/:id endpoint
+  - [ ] Call createContractVersion before update
+  - [ ] Accept optional changeSummary in request
+  - [ ] Test version creation on each update
+  - [ ] Ensure atomic operations
+
+- [ ] **Task 5: Create VersionHistory component**
+  - [ ] Build expandable version history panel
+  - [ ] Display version list with metadata
+  - [ ] Show version number and change summary
+  - [ ] Display changed by user and timestamp
+  - [ ] Add View and Restore buttons per version
+  - [ ] Implement restore confirmation dialog
+  - [ ] Add loading states
+
+- [ ] **Task 6: Create ContractVersionView page**
+  - [ ] Create version viewer page component
+  - [ ] Add warning banner for historical view
+  - [ ] Display version metadata header
+  - [ ] Show read-only contract content
+  - [ ] Add back navigation to current contract
+  - [ ] Format dates and user information
+  - [ ] Style as read-only view
+
+- [ ] **Task 7: Integrate version history in UI**
+  - [ ] Add VersionHistory component to contract detail page
+  - [ ] Add route for version view page
+  - [ ] Link version view from history list
+  - [ ] Update UI after version restore
+  - [ ] Test navigation flow
+
+- [ ] **Task 8: Testing and validation**
+  - [ ] Write unit tests for version number incrementing
+  - [ ] Write unit tests for snapshot creation
+  - [ ] Test version creation on contract update
+  - [ ] Test version list API
+  - [ ] Test version restore creates backup first
+  - [ ] Write E2E tests for version workflows
+  - [ ] Test concurrent version operations
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

@@ -665,3 +665,88 @@ function SaveButton({
 
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 6.9: Admin Activity Log](./6-9-admin-activity-log.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create system_settings database table**
+  - [ ] Add system_settings table to schema (if not exists)
+  - [ ] Define columns: id, key, value (jsonb), description, updatedAt, updatedBy
+  - [ ] Run database migration
+  - [ ] Test table creation
+
+- [ ] **Task 2: Build settings service**
+  - [ ] Create `server/services/settings.ts` with default settings
+  - [ ] Implement `initializeSettings()` function
+  - [ ] Implement `getSetting()` with caching
+  - [ ] Implement `getAllSettings()` function
+  - [ ] Implement `updateSetting()` with validation
+  - [ ] Implement `refreshSettingsCache()` function
+  - [ ] Implement `isMaintenanceMode()` helper
+  - [ ] Test all service functions
+
+- [ ] **Task 3: Create settings API endpoints**
+  - [ ] Implement GET `/api/admin/settings` to get all settings
+  - [ ] Implement GET `/api/admin/settings/:key` to get single setting
+  - [ ] Implement PUT `/api/admin/settings/:key` to update setting
+  - [ ] Add validation for each setting type
+  - [ ] Log all setting changes to activity log
+  - [ ] Test all endpoints
+
+- [ ] **Task 4: Create maintenance mode middleware**
+  - [ ] Implement `checkMaintenanceMode` middleware
+  - [ ] Skip check for admin routes and webhooks
+  - [ ] Check if user is admin before blocking
+  - [ ] Return 503 error for non-admin users when enabled
+  - [ ] Test maintenance mode blocking
+
+- [ ] **Task 5: Build SystemSettings page**
+  - [ ] Create settings page with sections (Platform, Signatures, Email)
+  - [ ] Build SettingRow component for consistent layout
+  - [ ] Build SaveButton component with loading state
+  - [ ] Implement platform name text input
+  - [ ] Implement maintenance mode toggle
+  - [ ] Implement signature expiry days input
+  - [ ] Implement email notification toggles
+  - [ ] Track pending changes before save
+  - [ ] Test all setting controls
+
+- [ ] **Task 6: Add maintenance mode warning**
+  - [ ] Display warning banner when maintenance mode is active
+  - [ ] Show clear message about non-admin access blocking
+  - [ ] Test warning display
+
+- [ ] **Task 7: Mount settings routes and integration testing**
+  - [ ] Add settings routes to admin router
+  - [ ] Initialize settings on server startup
+  - [ ] Apply maintenance mode middleware to main app
+  - [ ] Test get/update settings end-to-end
+  - [ ] Test maintenance mode blocks regular users
+  - [ ] Verify activity logging for setting changes
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

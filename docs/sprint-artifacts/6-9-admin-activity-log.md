@@ -737,3 +737,98 @@ export function ActivityTable({ activities, isLoading }: Props) {
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 6.3: User Management](./6-3-user-management.md)
 - [Story 6.8: System Configuration](./6-8-system-configuration.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create admin_activity_log database table**
+  - [ ] Add admin_activity_log table to schema (if not exists)
+  - [ ] Define columns: id, adminId, action, entityType, entityId, details, ipAddress, createdAt
+  - [ ] Run database migration
+  - [ ] Test table creation
+
+- [ ] **Task 2: Build activity logging service**
+  - [ ] Create `server/services/adminActivity.ts` service
+  - [ ] Define AdminAction and EntityType types
+  - [ ] Implement `logAdminActivity()` function
+  - [ ] Extract IP address from request headers
+  - [ ] Add error handling (logging failure shouldn't break operations)
+  - [ ] Create ACTION_DESCRIPTIONS mapping
+  - [ ] Test logging functionality
+
+- [ ] **Task 3: Create activity log API endpoints**
+  - [ ] Implement GET `/api/admin/activity` with pagination
+  - [ ] Add filters for action, adminId, and date range
+  - [ ] Join with users table to get admin info
+  - [ ] Include action descriptions in response
+  - [ ] Test pagination and filtering
+
+- [ ] **Task 4: Create filter helper endpoints**
+  - [ ] Implement GET `/api/admin/activity/actions` for action types
+  - [ ] Implement GET `/api/admin/activity/admins` for admin list
+  - [ ] Test filter endpoints
+
+- [ ] **Task 5: Implement CSV export endpoint**
+  - [ ] Create GET `/api/admin/activity/export` endpoint
+  - [ ] Generate CSV with activity data
+  - [ ] Handle JSON details serialization
+  - [ ] Log export activity
+  - [ ] Test CSV format and download
+
+- [ ] **Task 6: Build ActivityTable component**
+  - [ ] Create activity list with icons for action types
+  - [ ] Display admin name, entity info, and timestamp
+  - [ ] Add links to related entities (users, contracts, templates)
+  - [ ] Show IP addresses
+  - [ ] Format timestamps in readable format
+  - [ ] Add loading skeleton
+  - [ ] Test table rendering
+
+- [ ] **Task 7: Build ActivityLog page**
+  - [ ] Implement data fetching with URL params
+  - [ ] Create filter controls (action, admin, date range)
+  - [ ] Integrate ActivityTable component
+  - [ ] Add pagination
+  - [ ] Add export button
+  - [ ] Test complete activity log workflow
+
+- [ ] **Task 8: Integrate logging into existing admin features**
+  - [ ] Verify user management actions are logged
+  - [ ] Verify template changes are logged
+  - [ ] Verify settings updates are logged
+  - [ ] Verify exports are logged
+  - [ ] Test end-to-end: perform action -> view in activity log
+
+- [ ] **Task 9: Mount activity routes and final testing**
+  - [ ] Add activity routes to admin router
+  - [ ] Test all filters (action, admin, date)
+  - [ ] Test CSV export
+  - [ ] Verify IP addresses are captured
+  - [ ] Test pagination with large datasets
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

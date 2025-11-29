@@ -769,3 +769,78 @@ describe('DELETE /api/signatures/:id', () => {
 - [Story 4.1: DocuSeal Integration Service](./4-1-docuseal-integration-service.md)
 - [Story 4.3: Add Signatories UI](./4-3-add-signatories-ui.md)
 - [Story 4.5: Webhook Handler](./4-5-webhook-handler.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create PDF generator service**
+  - [ ] Create `server/services/pdfGenerator.ts`
+  - [ ] Install pdf-lib dependency
+  - [ ] Implement contract to PDF conversion
+  - [ ] Add text wrapping and pagination
+  - [ ] Add signature placeholder section
+
+- [ ] **Task 2: Implement POST /api/signatures/request endpoint**
+  - [ ] Create `server/routes/signatures.ts`
+  - [ ] Add Zod validation schema for input
+  - [ ] Validate contract ownership and status
+  - [ ] Check for existing pending requests
+  - [ ] Generate PDF from contract content
+
+- [ ] **Task 3: Integrate DocuSeal for document upload and signature requests**
+  - [ ] Upload generated PDF to DocuSeal
+  - [ ] Create batch signature request with all signatories
+  - [ ] Handle signing order correctly
+  - [ ] Store DocuSeal document and request IDs
+
+- [ ] **Task 4: Create local database records**
+  - [ ] Insert signature request record
+  - [ ] Insert signatory records with order
+  - [ ] Link registered users to signatory records
+  - [ ] Update contract status to pending_signature
+
+- [ ] **Task 5: Implement remaining API endpoints**
+  - [ ] Add GET /api/signatures/:id with authorization
+  - [ ] Add GET /api/signatures/pending for initiator
+  - [ ] Add GET /api/signatures/to-sign for signatories
+  - [ ] Add DELETE /api/signatures/:id for cancellation
+  - [ ] Add POST /api/signatures/:id/remind endpoint
+
+- [ ] **Task 6: Add authorization and validation**
+  - [ ] Verify user owns contract before creating request
+  - [ ] Check access rights for viewing requests
+  - [ ] Validate duplicate email prevention
+  - [ ] Ensure only initiator can cancel or remind
+
+- [ ] **Task 7: Write comprehensive tests**
+  - [ ] Unit test input validation schemas
+  - [ ] Integration test full request creation flow
+  - [ ] Test authorization checks
+  - [ ] Test error scenarios and edge cases
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

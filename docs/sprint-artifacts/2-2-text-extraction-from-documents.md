@@ -525,3 +525,85 @@ Create test fixtures:
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.1: Contract File Upload](./2-1-contract-file-upload.md)
 - [Architecture: PDF Text Extraction](../architecture.md#adr-002-pdf-text-extraction)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Install dependencies**
+  - [ ] Run `npm install pdf-parse mammoth`
+  - [ ] Run `npm install -D @types/pdf-parse`
+  - [ ] Verify packages installed
+
+- [ ] **Task 2: Update database schema**
+  - [ ] Add extractedText field to contracts table
+  - [ ] Update Drizzle schema
+  - [ ] Run migration
+
+- [ ] **Task 3: Create extraction service**
+  - [ ] Create `server/services/extraction.ts`
+  - [ ] Implement extractFromPDF function
+  - [ ] Implement extractFromDOCX function
+  - [ ] Implement extractFromDOC function (best effort)
+  - [ ] Create extractText router function
+  - [ ] Implement cleanText helper
+  - [ ] Implement truncateForAI function
+
+- [ ] **Task 4: Integrate extraction with upload**
+  - [ ] Update upload endpoint to trigger extraction
+  - [ ] Store extracted text in contract record
+  - [ ] Set appropriate status (uploaded/extraction_failed)
+  - [ ] Return extraction status in response
+
+- [ ] **Task 5: Create re-extraction endpoint**
+  - [ ] Add POST /api/contracts/:id/extract route
+  - [ ] Download file from storage
+  - [ ] Run extraction
+  - [ ] Update contract record
+
+- [ ] **Task 6: Create ExtractionStatus component**
+  - [ ] Create `client/src/components/contracts/ExtractionStatus.tsx`
+  - [ ] Show success state with char count
+  - [ ] Show warning state for limited extraction
+  - [ ] Show error state with retry option
+
+- [ ] **Task 7: Create test documents**
+  - [ ] Create test-text.pdf
+  - [ ] Create test-multi-page.pdf
+  - [ ] Create test-scanned.pdf
+  - [ ] Create test-contract.docx
+  - [ ] Create test-empty.pdf
+
+- [ ] **Task 8: Write tests**
+  - [ ] Unit tests for PDF extraction
+  - [ ] Unit tests for DOCX extraction
+  - [ ] Unit tests for text cleaning
+  - [ ] Unit tests for truncation
+  - [ ] Integration tests for extraction endpoint
+  - [ ] E2E test for upload → extraction flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

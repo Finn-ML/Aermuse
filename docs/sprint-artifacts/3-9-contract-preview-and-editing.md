@@ -548,3 +548,88 @@ export default function TemplatePreview() {
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.8: Template Form](./3-8-template-fill-in-form.md)
 - [Epic 4: E-Signing](../epics/epic-4-e-signing.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create render endpoint**
+  - [ ] Add POST /api/templates/:id/render to routes
+  - [ ] Load template by ID
+  - [ ] Validate form data
+  - [ ] Call renderTemplate service
+  - [ ] Return HTML, text, and title
+
+- [ ] **Task 2: Implement full template renderer**
+  - [ ] Extend server/services/templateRenderer.ts
+  - [ ] Implement renderTemplate function
+  - [ ] Filter optional sections by enabled clauses
+  - [ ] Generate HTML with styles
+  - [ ] Generate plain text version
+  - [ ] Implement escapeHtml helper
+  - [ ] Implement formatContent helper
+
+- [ ] **Task 3: Implement PDF generation**
+  - [ ] Install pdf-lib package
+  - [ ] Implement generatePDF function
+  - [ ] Add POST /api/templates/:id/pdf endpoint
+  - [ ] Return PDF buffer with correct headers
+
+- [ ] **Task 4: Create contract from template endpoint**
+  - [ ] Add POST /api/contracts/from-template to routes
+  - [ ] Validate template and form data
+  - [ ] Render template
+  - [ ] Insert contract with templateId and templateData
+  - [ ] Return created contract
+
+- [ ] **Task 5: Create ContractPreview component**
+  - [ ] Create client/src/components/templates/ContractPreview.tsx
+  - [ ] Render HTML in sandboxed iframe
+  - [ ] Style with paper effect
+  - [ ] Handle scroll
+
+- [ ] **Task 6: Create TemplatePreview page**
+  - [ ] Create client/src/pages/TemplatePreview.tsx
+  - [ ] Load form data from localStorage
+  - [ ] Fetch rendered HTML on mount
+  - [ ] Display ContractPreview
+  - [ ] Add Edit button (navigate back)
+  - [ ] Add Download PDF button
+  - [ ] Add Send for Signature button
+  - [ ] Handle contract creation
+  - [ ] Clear draft after creation
+  - [ ] Add route to App.tsx
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for template rendering
+  - [ ] Unit tests for optional section filtering
+  - [ ] Integration tests for render endpoint
+  - [ ] Integration tests for PDF endpoint
+  - [ ] Integration tests for contract creation
+  - [ ] E2E test for full preview flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

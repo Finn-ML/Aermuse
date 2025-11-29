@@ -464,3 +464,80 @@ describe('Signature Request Queries', () => {
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.1: DocuSeal Integration Service](./4-1-docuseal-integration-service.md)
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Drizzle schema for signature_requests table**
+  - [ ] Create `server/db/schema/signatures.ts`
+  - [ ] Define signatureRequests table with all fields
+  - [ ] Add foreign keys to contracts and users
+  - [ ] Create indexes for performance optimization
+  - [ ] Add default values and constraints
+
+- [ ] **Task 2: Create Drizzle schema for signatories table**
+  - [ ] Define signatories table in signatures schema
+  - [ ] Add foreign key to signature_requests
+  - [ ] Add optional foreign key to users for registered signatories
+  - [ ] Create indexes on email, user_id, and status
+  - [ ] Add signing order and DocuSeal reference fields
+
+- [ ] **Task 3: Define table relations**
+  - [ ] Add signatureRequestsRelations with contract, initiator, and signatories
+  - [ ] Add signatoriesRelations with signatureRequest and user
+  - [ ] Test relation queries work correctly
+
+- [ ] **Task 4: Create TypeScript types from schema**
+  - [ ] Export SignatureRequest and NewSignatureRequest types
+  - [ ] Export Signatory and NewSignatory types
+  - [ ] Define SignatureRequestStatus union type
+  - [ ] Define SignatoryStatus union type
+  - [ ] Define SigningOrder type
+
+- [ ] **Task 5: Create shared TypeScript types for API**
+  - [ ] Create `shared/types/signatures.ts`
+  - [ ] Define SignatureRequestDTO interface
+  - [ ] Define SignatoryDTO interface
+  - [ ] Define SignatureRequestWithSignatories interface
+  - [ ] Define CreateSignatureRequestDTO interface
+
+- [ ] **Task 6: Create and test database migration**
+  - [ ] Generate migration file for both tables
+  - [ ] Test migration applies cleanly
+  - [ ] Test migration rollback works
+  - [ ] Verify all indexes are created
+  - [ ] Test cascade delete behavior
+
+- [ ] **Task 7: Write database query tests**
+  - [ ] Test creating signature request with signatories
+  - [ ] Test cascade delete from contract
+  - [ ] Test finding pending requests by initiator
+  - [ ] Test finding pending signatures by email/user
+  - [ ] Test relational queries with proper loading
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

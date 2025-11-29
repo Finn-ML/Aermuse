@@ -232,3 +232,66 @@ CREATE TRIGGER update_proposals_updated_at
 ## Related Documents
 
 - [Epic 7 Tech Spec](./tech-spec-epic-7.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create Drizzle Schema for Proposals**
+  - [ ] Create `server/db/schema/proposals.ts` file
+  - [ ] Define proposal type enum with all required values
+  - [ ] Define proposal status enum with all required values
+  - [ ] Create proposals table schema with all fields
+  - [ ] Add indexes for landing_page_id, user_id, status, and created_at
+  - [ ] Define relations to users, landingPages, and contracts tables
+  - [ ] Export TypeScript types for Proposal, NewProposal, ProposalType, ProposalStatus
+
+- [ ] **Task 2: Update Schema Index**
+  - [ ] Add proposals export to `server/db/schema/index.ts`
+  - [ ] Verify all exports are properly typed
+
+- [ ] **Task 3: Create Database Migration**
+  - [ ] Create SQL migration file `server/db/migrations/XXXX_create_proposals.sql`
+  - [ ] Add CREATE TYPE statements for proposal_type and proposal_status enums
+  - [ ] Add CREATE TABLE statement for proposals with all columns
+  - [ ] Add foreign key references to landing_pages, users, and contracts
+  - [ ] Create indexes for efficient querying
+  - [ ] Add updated_at trigger for automatic timestamp updates
+
+- [ ] **Task 4: Verify Schema Integration**
+  - [ ] Run migration to verify it executes without errors
+  - [ ] Test Drizzle schema generates correct TypeScript types
+  - [ ] Verify relations work correctly with existing tables
+  - [ ] Validate all enum values are properly constrained
+
+- [ ] **Task 5: Testing**
+  - [ ] Write unit tests for schema types and default values
+  - [ ] Write integration tests for inserting proposals
+  - [ ] Test querying by landing page and user
+  - [ ] Verify cascade delete behavior works correctly
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

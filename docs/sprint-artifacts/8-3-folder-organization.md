@@ -706,3 +706,94 @@ export function MoveToFolderModal({ isOpen, onClose, contractId, currentFolderId
 ## Related Documents
 
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create contract folders database schema**
+  - [ ] Create contractFolders.ts schema file
+  - [ ] Define table with id, userId, name, color, sortOrder fields
+  - [ ] Add unique index on userId + name
+  - [ ] Create relations to users and contracts tables
+  - [ ] Add TypeScript types for ContractFolder
+  - [ ] Run database migration
+
+- [ ] **Task 2: Update contracts schema**
+  - [ ] Add folderId foreign key to contracts table
+  - [ ] Create migration for schema update
+  - [ ] Update contract relations to include folder
+  - [ ] Test cascading deletes
+
+- [ ] **Task 3: Create folders API routes**
+  - [ ] Implement GET /api/folders with contract counts
+  - [ ] Implement POST /api/folders with validation
+  - [ ] Implement PATCH /api/folders/:id for rename/color update
+  - [ ] Implement DELETE /api/folders/:id with empty check
+  - [ ] Implement POST /api/contracts/:id/move to move contracts
+  - [ ] Add Zod validation schemas
+
+- [ ] **Task 4: Create FolderSidebar component**
+  - [ ] Build sidebar layout with folder list
+  - [ ] Add "All Contracts" and "Unfiled" sections
+  - [ ] Implement folder selection highlighting
+  - [ ] Add contract count badges per folder
+  - [ ] Add folder create button
+  - [ ] Build FolderItem subcomponent with dropdown menu
+
+- [ ] **Task 5: Create CreateFolderModal component**
+  - [ ] Build modal UI for folder creation
+  - [ ] Add name input field with validation
+  - [ ] Add color picker for folder labels
+  - [ ] Support edit mode for renaming
+  - [ ] Handle form submission
+  - [ ] Show validation errors
+
+- [ ] **Task 6: Create MoveToFolderModal component**
+  - [ ] Build modal UI with folder list
+  - [ ] Add "Remove from folder" option
+  - [ ] Filter out current folder from list
+  - [ ] Implement move API call
+  - [ ] Show loading state during move
+  - [ ] Handle empty folder state
+
+- [ ] **Task 7: Integrate folders in Contracts page**
+  - [ ] Add FolderSidebar to page layout
+  - [ ] Implement folder filtering in contract list
+  - [ ] Add move to folder button in contract actions
+  - [ ] Update contract counts after operations
+  - [ ] Handle unfiled contracts view
+
+- [ ] **Task 8: Testing and validation**
+  - [ ] Write unit tests for name validation
+  - [ ] Write integration tests for folder CRUD
+  - [ ] Test delete prevention for non-empty folders
+  - [ ] Test contract move operations
+  - [ ] Write E2E tests for folder workflows
+  - [ ] Test concurrent folder operations
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

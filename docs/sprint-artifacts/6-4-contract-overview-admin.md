@@ -626,3 +626,84 @@ export function ContractDetail() {
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Epic 2: AI Attorney](./tech-spec-epic-2.md)
 - [Epic 4: E-Signing](./tech-spec-epic-4.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create contract list API endpoint**
+  - [ ] Implement GET `/api/admin/contracts` with pagination
+  - [ ] Build search query for title and party names
+  - [ ] Add filters for status, type, and date range
+  - [ ] Include signature status for each contract
+  - [ ] Test pagination and filtering
+
+- [ ] **Task 2: Create contract detail API endpoint**
+  - [ ] Implement GET `/api/admin/contracts/:id` endpoint
+  - [ ] Fetch contract with user info
+  - [ ] Include AI analysis if available
+  - [ ] Include signature request and signatories
+  - [ ] Log view activity
+  - [ ] Test contract detail retrieval
+
+- [ ] **Task 3: Implement CSV export endpoint**
+  - [ ] Create GET `/api/admin/contracts/export/csv` endpoint
+  - [ ] Generate CSV with contract data
+  - [ ] Log export activity
+  - [ ] Test CSV format and download
+
+- [ ] **Task 4: Build ContractTable component**
+  - [ ] Create table with contract list display
+  - [ ] Add status badges
+  - [ ] Show AI analysis and signature icons
+  - [ ] Link to user profiles
+  - [ ] Add loading and empty states
+  - [ ] Test table rendering
+
+- [ ] **Task 5: Build ContractDetail page**
+  - [ ] Create detail view with contract info
+  - [ ] Display AI analysis section if available
+  - [ ] Display signature request section if available
+  - [ ] Add back navigation
+  - [ ] Show read-only disclaimer
+  - [ ] Test detail page with various contract states
+
+- [ ] **Task 6: Build ContractOverview page**
+  - [ ] Implement data fetching with filters
+  - [ ] Add search and filter controls
+  - [ ] Integrate ContractTable component
+  - [ ] Add pagination
+  - [ ] Add export functionality
+  - [ ] Test complete contract overview workflow
+
+- [ ] **Task 7: Mount contract routes and test**
+  - [ ] Add contract routes to admin router
+  - [ ] Test search and filtering
+  - [ ] Verify read-only access (no edit)
+  - [ ] Test CSV export end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

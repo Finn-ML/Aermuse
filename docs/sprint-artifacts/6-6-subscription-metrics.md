@@ -523,3 +523,89 @@ export function SubscriptionChart({ data, isLoading }: Props) {
 
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Epic 5: Subscription & Billing](./tech-spec-epic-5.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create subscription metrics API endpoint**
+  - [ ] Implement GET `/api/admin/subscriptions/metrics` endpoint
+  - [ ] Calculate active subscriptions count
+  - [ ] Calculate MRR (Monthly Recurring Revenue)
+  - [ ] Calculate new subscriptions this month
+  - [ ] Calculate cancelled subscriptions this month
+  - [ ] Calculate churn rate
+  - [ ] Count failed payments (past_due status)
+  - [ ] Test metrics calculations
+
+- [ ] **Task 2: Create subscription timeline API**
+  - [ ] Implement GET `/api/admin/subscriptions/timeline` endpoint
+  - [ ] Generate monthly subscription trend data
+  - [ ] Calculate historical MRR for each month
+  - [ ] Test timeline data structure
+
+- [ ] **Task 3: Create subscriber list API**
+  - [ ] Implement GET `/api/admin/subscriptions/list` with pagination
+  - [ ] Add filter by subscription status
+  - [ ] Include subscription period end dates
+  - [ ] Test pagination and filtering
+
+- [ ] **Task 4: Implement CSV export endpoint**
+  - [ ] Create GET `/api/admin/subscriptions/export` endpoint
+  - [ ] Generate CSV with subscriber data
+  - [ ] Log export activity
+  - [ ] Test CSV format and download
+
+- [ ] **Task 5: Build SubscriptionChart component**
+  - [ ] Create line chart using recharts library
+  - [ ] Display subscription trend over time
+  - [ ] Add loading and empty states
+  - [ ] Test chart rendering with various datasets
+
+- [ ] **Task 6: Build SubscriberList component**
+  - [ ] Create table displaying subscribers
+  - [ ] Show subscription status badges
+  - [ ] Add pagination support
+  - [ ] Test list rendering
+
+- [ ] **Task 7: Build SubscriptionMetrics page**
+  - [ ] Implement data fetching for metrics and timeline
+  - [ ] Create stat cards grid for key metrics
+  - [ ] Add failed payment alert banner
+  - [ ] Integrate subscription chart
+  - [ ] Integrate subscriber list
+  - [ ] Add export button
+  - [ ] Test responsive layout
+
+- [ ] **Task 8: Mount subscription routes and testing**
+  - [ ] Add subscription routes to admin router
+  - [ ] Test all metrics display correctly
+  - [ ] Verify churn rate calculation
+  - [ ] Test timeline chart
+  - [ ] Test CSV export end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

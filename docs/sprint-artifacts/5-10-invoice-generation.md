@@ -548,3 +548,77 @@ In Stripe Dashboard → Settings → Emails:
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.6: Billing Dashboard](./5-6-billing-dashboard.md)
 - [Story 5.7: Stripe Customer Portal](./5-7-stripe-customer-portal.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create invoice list API endpoint**
+  - [ ] Add GET /api/billing/invoices route to server/routes/billing.ts
+  - [ ] Import listInvoices from Stripe service
+  - [ ] Query user's stripeCustomerId
+  - [ ] Fetch invoices from Stripe
+  - [ ] Transform to InvoiceSummary format
+  - [ ] Return invoices array with hasMore flag
+
+- [ ] **Task 2: Create upcoming invoice API endpoint**
+  - [ ] Add GET /api/billing/invoices/upcoming route
+  - [ ] Import getUpcomingInvoice from Stripe service
+  - [ ] Query user's stripeCustomerId
+  - [ ] Fetch upcoming invoice from Stripe
+  - [ ] Return formatted upcoming invoice data
+
+- [ ] **Task 3: Add invoice types to Stripe types**
+  - [ ] Update server/services/stripe.types.ts
+  - [ ] Define InvoiceSummary interface
+  - [ ] Define UpcomingInvoice interface
+
+- [ ] **Task 4: Build InvoiceList component**
+  - [ ] Create client/src/components/billing/InvoiceList.tsx
+  - [ ] Fetch invoices from API on mount
+  - [ ] Display loading state
+  - [ ] Display empty state for no invoices
+  - [ ] Render invoice table with columns
+  - [ ] Format dates and amounts
+  - [ ] Implement getStatusBadge function
+  - [ ] Add PDF download links
+  - [ ] Add hosted invoice view links
+
+- [ ] **Task 5: Build Invoices page**
+  - [ ] Create client/src/pages/settings/Invoices.tsx
+  - [ ] Add page header with back button
+  - [ ] Render InvoiceList component
+  - [ ] Add "View in Stripe" portal link
+  - [ ] Include footer text about portal
+
+- [ ] **Task 6: Build UpcomingInvoice component**
+  - [ ] Create client/src/components/billing/UpcomingInvoice.tsx
+  - [ ] Fetch upcoming invoice from API
+  - [ ] Display amount and next payment date
+  - [ ] Show billing period
+  - [ ] Format currency and dates
+  - [ ] Hide if no upcoming invoice
+
+- [ ] **Task 7: Configure Stripe invoice emails**
+  - [ ] Navigate to Stripe Dashboard → Settings → Emails
+  - [ ] Enable "Successful payments" email
+  - [ ] Enable "Failed payments" email
+  - [ ] Optionally enable "Upcoming renewals"
+  - [ ] Customize email templates with Aermuse branding
+  - [ ] Add logo and business details to invoice PDF
+
+- [ ] **Task 8: Add route and navigation**
+  - [ ] Add /settings/billing/invoices route
+  - [ ] Link from billing dashboard
+  - [ ] Test navigation
+
+- [ ] **Task 9: Testing**
+  - [ ] Complete test payment to generate invoice
+  - [ ] Verify invoice appears in list
+  - [ ] Test PDF download link
+  - [ ] Test hosted invoice view link
+  - [ ] Verify upcoming invoice displays
+  - [ ] Test with no invoices (empty state)
+  - [ ] Verify invoice email received
+  - [ ] Test amount and date formatting
+  - [ ] Test status badges for different statuses

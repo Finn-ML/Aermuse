@@ -522,3 +522,80 @@ SIGNED_PDF_STORAGE_DIR=./uploads/signed
 - [Epic 4 Tech Spec](./tech-spec-epic-4.md)
 - [Story 4.5: Webhook Handler](./4-5-webhook-handler.md)
 - [Story 4.6: Email Notifications](./4-6-email-notifications.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update contracts schema with signedPdfPath**
+  - [ ] Add signed_pdf_path column to contracts table
+  - [ ] Create database migration
+  - [ ] Test migration applies and rolls back correctly
+
+- [ ] **Task 2: Create shared_contracts schema**
+  - [ ] Create `server/db/schema/sharedContracts.ts`
+  - [ ] Define sharedContracts table with user and contract foreign keys
+  - [ ] Add unique constraint on user_id + contract_id
+  - [ ] Create indexes for performance
+  - [ ] Add relations to users and contracts
+
+- [ ] **Task 3: Enhance signed PDF storage service**
+  - [ ] Update `server/services/signedPdfStorage.ts`
+  - [ ] Add PDF format validation (check magic bytes)
+  - [ ] Implement file size limit checking
+  - [ ] Add SHA-256 hash calculation for integrity
+  - [ ] Ensure storage directory path validation
+
+- [ ] **Task 4: Create shared access service**
+  - [ ] Create `server/services/sharedAccess.ts`
+  - [ ] Implement grantSharedAccess function
+  - [ ] Add revokeSharedAccess function
+  - [ ] Implement hasSharedAccess check
+  - [ ] Add getSharedContracts query function
+
+- [ ] **Task 5: Implement signed PDF download endpoint**
+  - [ ] Add GET /api/contracts/:id/signed-pdf to contracts router
+  - [ ] Check user is owner or has shared access
+  - [ ] Verify signed PDF file exists
+  - [ ] Stream PDF with correct content headers
+  - [ ] Add optional preview endpoint (inline display)
+
+- [ ] **Task 6: Update contracts list to include shared contracts**
+  - [ ] Modify GET /api/contracts endpoint
+  - [ ] Query both owned and shared contracts
+  - [ ] Merge and sort by updated date
+  - [ ] Mark ownership (isOwner flag)
+  - [ ] Include shared access type
+
+- [ ] **Task 7: Test storage and access control**
+  - [ ] Unit test PDF validation logic
+  - [ ] Test shared access grant/revoke
+  - [ ] Integration test full storage flow
+  - [ ] Test download authorization
+  - [ ] Verify signatories see shared contracts
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

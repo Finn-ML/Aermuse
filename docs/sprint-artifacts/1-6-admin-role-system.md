@@ -461,3 +461,75 @@ ADMIN_NAME=Platform Admin
 - [Epic 1 Tech Spec](./tech-spec-epic-1.md)
 - [Epic 6: Admin Dashboard](../epics/epic-6-admin-dashboard.md)
 - [Architecture: Admin Role System](../architecture.md#adr-005-admin-role-management)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update database schema**
+  - [ ] Add `role` text field to users table (default 'user')
+  - [ ] Update Drizzle schema in `shared/schema.ts`
+  - [ ] Add UserRole type export
+  - [ ] Run migration
+
+- [ ] **Task 2: Create auth middleware**
+  - [ ] Create `server/middleware/auth.ts` file
+  - [ ] Implement `requireAuth` middleware with user loading
+  - [ ] Implement `requireAdmin` middleware with 403 for non-admins
+  - [ ] Add Express type extensions for user on request
+
+- [ ] **Task 3: Create admin seeding script**
+  - [ ] Create `server/scripts/seed-admin.ts`
+  - [ ] Read ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME from env
+  - [ ] Check for existing admin and skip if present
+  - [ ] Create or upgrade user to admin role
+  - [ ] Hash password with bcrypt
+
+- [ ] **Task 4: Integrate seeding with server startup**
+  - [ ] Import seedAdmin in `server/index.ts`
+  - [ ] Call seedAdmin after database connection
+  - [ ] Log seeding results
+
+- [ ] **Task 5: Update auth routes**
+  - [ ] Include role in /api/auth/me response
+  - [ ] Include role in login response
+  - [ ] Apply requireAdmin to /api/admin/* routes
+  - [ ] Create placeholder /api/admin/stats route
+
+- [ ] **Task 6: Update frontend auth**
+  - [ ] Add role to User type
+  - [ ] Add isAdmin computed property to AuthContext
+  - [ ] Create AdminRoute component for route protection
+  - [ ] Export useAuth hook with isAdmin
+
+- [ ] **Task 7: Write tests**
+  - [ ] Unit tests for requireAdmin middleware
+  - [ ] Integration tests for admin seeding
+  - [ ] Integration tests for admin route protection
+  - [ ] E2E test for admin access flow
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

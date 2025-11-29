@@ -416,3 +416,81 @@ export function SortableColumnHeader({
 - [Epic 8 Tech Spec](./tech-spec-epic-8.md)
 - [Story 8.1: Contract Search](./8-1-contract-search.md)
 - [Story 8.2: Advanced Filtering](./8-2-advanced-filtering.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create ContractSortDropdown component**
+  - [ ] Define SortField and SortOrder types
+  - [ ] Create sort options array with labels
+  - [ ] Build dropdown UI with current selection
+  - [ ] Add sort direction icons (asc/desc)
+  - [ ] Implement click outside to close
+  - [ ] Add toggle logic for same field
+  - [ ] Use default order for new field selection
+
+- [ ] **Task 2: Create useContractSort hook**
+  - [ ] Implement URL parameter sync for sort
+  - [ ] Parse sort field and order from URL
+  - [ ] Implement setSort function
+  - [ ] Handle default values (updatedAt desc)
+  - [ ] Clean up URL when using defaults
+  - [ ] Return sortField, sortOrder, setSort
+
+- [ ] **Task 3: Create SortableColumnHeader component (optional)**
+  - [ ] Build column header with sort indicator
+  - [ ] Add click handler to toggle sort
+  - [ ] Show active sort with arrow icon
+  - [ ] Style active vs inactive states
+  - [ ] Implement sort toggle logic
+
+- [ ] **Task 4: Extend contracts API for sorting**
+  - [ ] Add sort and order query parameters
+  - [ ] Implement getSortColumn helper function
+  - [ ] Map sort fields to database columns
+  - [ ] Apply asc/desc based on order param
+  - [ ] Return sort info in API response
+  - [ ] Test sorting with various fields
+
+- [ ] **Task 5: Integrate sorting in Contracts page**
+  - [ ] Add ContractSortDropdown to page header
+  - [ ] Connect to useContractSort hook
+  - [ ] Update fetchContracts to include sort params
+  - [ ] Handle sort changes and refetch
+  - [ ] Position sort dropdown with search bar
+  - [ ] Test sort persistence
+
+- [ ] **Task 6: Testing and validation**
+  - [ ] Write unit tests for sort toggle logic
+  - [ ] Write unit tests for URL param handling
+  - [ ] Test sort API with each field
+  - [ ] Test combined with search and filters
+  - [ ] Write E2E tests for sort interactions
+  - [ ] Test sort persistence after page refresh
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

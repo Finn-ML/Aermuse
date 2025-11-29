@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -12,6 +12,13 @@ export const users = pgTable("users", {
   artistName: text("artist_name"),
   avatarInitials: text("avatar_initials"),
   plan: text("plan").default("free"),
+  // Epic 1: Auth & Security fields
+  role: text("role").default("user"), // 'user' | 'admin'
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: varchar("email_verification_token"),
+  passwordResetToken: varchar("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -36,6 +43,9 @@ export const contracts = pgTable("contracts", {
   expiryDate: timestamp("expiry_date"),
   fileUrl: text("file_url"),
   fileName: text("file_name"),
+  filePath: text("file_path"), // Path in Object Storage
+  fileSize: integer("file_size"), // Size in bytes
+  fileType: text("file_type"), // 'pdf' | 'doc' | 'docx'
   aiAnalysis: jsonb("ai_analysis"),
   aiRiskScore: text("ai_risk_score"),
   signedAt: timestamp("signed_at"),

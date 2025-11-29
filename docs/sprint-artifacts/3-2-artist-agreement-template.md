@@ -444,3 +444,68 @@ const sampleData = {
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template definition file**
+  - [ ] Create server/data/templates/artist-agreement.ts
+  - [ ] Define all party fields (Party A and B)
+  - [ ] Define project fields
+  - [ ] Define financial terms fields
+  - [ ] Define dates and territory fields
+
+- [ ] **Task 2: Define optional clauses**
+  - [ ] Add exclusivity clause with period field
+  - [ ] Add credit requirements clause with credit name fields
+  - [ ] Add termination clause with notice period field
+
+- [ ] **Task 3: Create template content sections**
+  - [ ] Write parties section
+  - [ ] Write project scope section
+  - [ ] Write revenue sharing section
+  - [ ] Write IP rights section
+  - [ ] Write optional exclusivity section
+  - [ ] Write optional credits section
+  - [ ] Write optional termination section
+  - [ ] Write general provisions section
+  - [ ] Write signatures section
+
+- [ ] **Task 4: Create seed script**
+  - [ ] Create server/scripts/seed-templates.ts
+  - [ ] Implement seedTemplates function
+  - [ ] Check for existing template before insert
+  - [ ] Export for use in startup
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for field validations
+  - [ ] Test revenue split validates to 100%
+  - [ ] Integration test for template seeding
+  - [ ] Render test with sample data
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

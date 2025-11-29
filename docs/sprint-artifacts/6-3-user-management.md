@@ -755,3 +755,91 @@ export function UserManagement() {
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Story 6.1: Admin Layout & Navigation](./6-1-admin-layout-and-navigation.md)
 - [Story 6.9: Admin Activity Log](./6-9-admin-activity-log.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create user management API endpoints**
+  - [ ] Implement GET `/api/admin/users` with pagination and filters
+  - [ ] Build search query logic for email/name
+  - [ ] Add filter support for role and subscription status
+  - [ ] Test pagination and limit handling
+
+- [ ] **Task 2: Implement user detail API endpoint**
+  - [ ] Create GET `/api/admin/users/:id` endpoint
+  - [ ] Fetch user data with contract count
+  - [ ] Log admin view activity
+  - [ ] Test user detail retrieval
+
+- [ ] **Task 3: Implement user update API**
+  - [ ] Create PATCH `/api/admin/users/:id` for role changes
+  - [ ] Add validation to prevent self-role-removal
+  - [ ] Log role change activity
+  - [ ] Test role updates
+
+- [ ] **Task 4: Implement subscription adjustment API**
+  - [ ] Create PATCH `/api/admin/users/:id/subscription` endpoint
+  - [ ] Support extend, activate, and cancel actions
+  - [ ] Update subscription dates and status
+  - [ ] Log subscription adjustment activity
+  - [ ] Test all subscription actions
+
+- [ ] **Task 5: Implement CSV export endpoint**
+  - [ ] Create GET `/api/admin/users/export/csv` endpoint
+  - [ ] Generate CSV with user data
+  - [ ] Log export activity
+  - [ ] Test CSV format and download
+
+- [ ] **Task 6: Build UserTable component**
+  - [ ] Create table with user list display
+  - [ ] Add status badges for subscriptions
+  - [ ] Implement loading skeleton
+  - [ ] Handle empty state
+  - [ ] Test table rendering with various data
+
+- [ ] **Task 7: Build UserFilters component**
+  - [ ] Create search input with debounce
+  - [ ] Add role filter dropdown
+  - [ ] Add subscription status filter dropdown
+  - [ ] Add export button
+  - [ ] Test filter interactions
+
+- [ ] **Task 8: Build UserManagement page**
+  - [ ] Implement data fetching with URL params
+  - [ ] Integrate UserFilters and UserTable
+  - [ ] Add pagination component
+  - [ ] Handle export functionality
+  - [ ] Test complete user management workflow
+
+- [ ] **Task 9: Mount user routes and test**
+  - [ ] Add user routes to admin router
+  - [ ] Test search, filter, and pagination
+  - [ ] Verify activity logging works
+  - [ ] Test CSV export end-to-end
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

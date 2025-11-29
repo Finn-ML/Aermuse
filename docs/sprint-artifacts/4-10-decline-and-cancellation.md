@@ -492,3 +492,79 @@ cron.schedule('0 0 * * *', async () => {
 - [Story 4.4: Signature Request API](./4-4-signature-request-api.md)
 - [Story 4.6: Email Notifications](./4-6-email-notifications.md)
 - [Story 4.7: Signature Status Tracking UI](./4-7-signature-status-tracking-ui.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Enhance cancellation API endpoint**
+  - [ ] Update DELETE /api/signatures/:id in signatures router
+  - [ ] Add validation to prevent cancelling completed requests
+  - [ ] Update signature request and contract statuses
+  - [ ] Filter pending signatories for notification
+  - [ ] Send cancellation emails to all pending signatories
+
+- [ ] **Task 2: Create cancellation email template**
+  - [ ] Add sendRequestCancelledEmail to email service
+  - [ ] Design clear cancellation message
+  - [ ] Explain that signing links are now invalid
+  - [ ] Use professional but friendly tone
+
+- [ ] **Task 3: Create CancelRequestDialog component**
+  - [ ] Create `client/src/components/signatures/CancelRequestDialog.tsx`
+  - [ ] Show warning about irreversible action
+  - [ ] Display contract title and pending count
+  - [ ] Add confirmation and cancel buttons
+  - [ ] Show loading state during cancellation
+
+- [ ] **Task 4: Implement expiration handling**
+  - [ ] Create `server/jobs/expireRequests.ts`
+  - [ ] Query for requests past expiration date
+  - [ ] Update status to 'expired' for old requests
+  - [ ] Update contract status back to draft
+  - [ ] Log expiration events
+
+- [ ] **Task 5: Set up cron job for expiration**
+  - [ ] Install node-cron dependency
+  - [ ] Configure daily midnight execution
+  - [ ] Add to server initialization
+  - [ ] Test cron job runs correctly
+  - [ ] Add error handling and logging
+
+- [ ] **Task 6: Create expired link page**
+  - [ ] Create `client/src/pages/SigningLinkExpired.tsx`
+  - [ ] Show different messages for expired/cancelled/invalid
+  - [ ] Use appropriate icons for each scenario
+  - [ ] Add link back to Aermuse homepage
+
+- [ ] **Task 7: Add request status validation utility**
+  - [ ] Create checkRequestStatus helper function
+  - [ ] Return validation result with error messages
+  - [ ] Use in relevant endpoints to prevent invalid operations
+  - [ ] Test all status transitions
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

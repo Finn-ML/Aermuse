@@ -169,3 +169,71 @@ export const workForHireTemplate = {
 
 - [Epic 3 Tech Spec](./tech-spec-epic-3.md)
 - [Story 3.1: Template Data Model](./3-1-template-data-model-and-storage.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template definition file**
+  - [ ] Create server/data/templates/work-for-hire.ts
+  - [ ] Define client fields
+  - [ ] Define contractor fields
+  - [ ] Define project fields
+  - [ ] Define timeline fields
+  - [ ] Define compensation fields
+
+- [ ] **Task 2: Define optional clauses**
+  - [ ] Add revision policy clause
+  - [ ] Add kill fee/cancellation clause
+  - [ ] Add credit/portfolio clause
+  - [ ] Add confidentiality clause
+
+- [ ] **Task 3: Create template content sections**
+  - [ ] Write parties section
+  - [ ] Write scope of work section
+  - [ ] Write deliverables section
+  - [ ] Write timeline section
+  - [ ] Write compensation section
+  - [ ] Write IP assignment section (critical clause)
+  - [ ] Write optional revisions section
+  - [ ] Write optional cancellation section
+  - [ ] Write optional credit section
+  - [ ] Write optional confidentiality section
+  - [ ] Write warranties section
+  - [ ] Write signatures section
+
+- [ ] **Task 4: Add to seed script**
+  - [ ] Export work-for-hire template
+  - [ ] Add to seedTemplates function
+
+- [ ] **Task 5: Write tests**
+  - [ ] Unit tests for payment schedule rendering
+  - [ ] Integration test for seeding
+  - [ ] Render test with all clauses enabled
+  - [ ] Test kill fee calculation
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

@@ -537,3 +537,78 @@ For testing and validation, ensure the AI correctly identifies:
 - [Epic 2 Tech Spec](./tech-spec-epic-2.md)
 - [Story 2.4: Summary Generation](./2-4-ai-contract-summary-generation.md)
 - [Architecture: OpenAI Integration](../architecture.md#openai-integration-epic-2)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Update TypeScript types**
+  - [ ] Add redFlags interface to ContractAnalysis type
+  - [ ] Add riskAssessment interface
+  - [ ] Add missingClauses interface
+  - [ ] Define severity and importance enums
+
+- [ ] **Task 2: Create RedFlagsCard component**
+  - [ ] Create `client/src/components/contracts/RedFlagsCard.tsx`
+  - [ ] Display warning/critical severity indicators
+  - [ ] Color-code categories
+  - [ ] Implement expandable detail view
+  - [ ] Show quoted clause text
+  - [ ] Display explanation and recommendation
+  - [ ] Handle empty state (no flags)
+
+- [ ] **Task 3: Create RiskScoreCard component**
+  - [ ] Create `client/src/components/contracts/RiskScoreCard.tsx`
+  - [ ] Implement animated circular progress
+  - [ ] Display 0-100 score
+  - [ ] Show risk level label (low/medium/high)
+  - [ ] Display summary text
+  - [ ] Render category breakdown bars
+
+- [ ] **Task 4: Create MissingClausesCard component**
+  - [ ] Create `client/src/components/contracts/MissingClausesCard.tsx`
+  - [ ] Display importance levels (recommended/important/essential)
+  - [ ] Show clause name and explanation
+  - [ ] Color-code by importance
+  - [ ] Handle empty state
+
+- [ ] **Task 5: Update ContractView page**
+  - [ ] Import new components
+  - [ ] Add RiskScoreCard after summary
+  - [ ] Add RedFlagsCard
+  - [ ] Add MissingClausesCard
+  - [ ] Arrange components in logical order
+
+- [ ] **Task 6: Write tests**
+  - [ ] Unit tests for RedFlagsCard rendering
+  - [ ] Unit tests for RiskScoreCard progress calculation
+  - [ ] Unit tests for MissingClausesCard importance levels
+  - [ ] Unit tests for empty states
+  - [ ] E2E test with risky contract
+  - [ ] E2E test with fair contract
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

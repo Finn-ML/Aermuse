@@ -809,3 +809,87 @@ export function TemplateEditor() {
 
 - [Epic 6 Tech Spec](./tech-spec-epic-6.md)
 - [Epic 3: Contract Templates](./tech-spec-epic-3.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create template CRUD API endpoints**
+  - [ ] Implement GET `/api/admin/templates` to list all templates
+  - [ ] Implement GET `/api/admin/templates/:id` to get single template
+  - [ ] Implement POST `/api/admin/templates` to create new template
+  - [ ] Implement PUT `/api/admin/templates/:id` to update template
+  - [ ] Test all CRUD operations
+
+- [ ] **Task 2: Implement template management features**
+  - [ ] Create POST `/api/admin/templates/:id/toggle` for activate/deactivate
+  - [ ] Create POST `/api/admin/templates/:id/clone` for duplicating
+  - [ ] Create POST `/api/admin/templates/reorder` for drag-and-drop ordering
+  - [ ] Create DELETE `/api/admin/templates/:id` for deletion
+  - [ ] Log all actions to activity log
+  - [ ] Test toggle, clone, reorder, and delete
+
+- [ ] **Task 3: Build TemplateManagement page**
+  - [ ] Implement template list with sortable items using @dnd-kit
+  - [ ] Add drag-and-drop reordering functionality
+  - [ ] Create SortableTemplate component with action buttons
+  - [ ] Handle toggle, clone, and delete actions
+  - [ ] Add "New Template" button
+  - [ ] Test drag-and-drop and all actions
+
+- [ ] **Task 4: Build FieldEditor component**
+  - [ ] Create interface for managing template fields
+  - [ ] Support field types: text, textarea, date, number, select
+  - [ ] Allow adding/removing/editing fields
+  - [ ] Add field validation options
+  - [ ] Test field management
+
+- [ ] **Task 5: Build TemplateEditor page**
+  - [ ] Create template details form (name, description, category)
+  - [ ] Integrate FieldEditor for managing fields
+  - [ ] Add rich text content editor with placeholder syntax
+  - [ ] Implement save functionality (create/update)
+  - [ ] Add preview button
+  - [ ] Handle navigation and unsaved changes
+  - [ ] Test create and edit workflows
+
+- [ ] **Task 6: Build TemplatePreview component**
+  - [ ] Create preview modal showing rendered template
+  - [ ] Replace placeholder syntax with sample data
+  - [ ] Show fields and optional clauses
+  - [ ] Test preview rendering
+
+- [ ] **Task 7: Mount template routes and integration testing**
+  - [ ] Add template routes to admin router
+  - [ ] Test create template end-to-end
+  - [ ] Test edit template end-to-end
+  - [ ] Test drag-and-drop reordering
+  - [ ] Test clone functionality
+  - [ ] Test toggle active/inactive
+  - [ ] Verify activity logging for all actions
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+<!-- Automatically updated by dev agent during implementation -->
+
+### Completion Notes
+<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+---
+
+## File List
+
+| Action | File Path |
+|--------|-----------|
+| | |
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| | | |

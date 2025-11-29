@@ -600,3 +600,73 @@ export function ContractLimitWarning({ currentCount }: { currentCount: number })
 - [Epic 5 Tech Spec](./tech-spec-epic-5.md)
 - [Story 5.2: Subscription Data Model](./5-2-subscription-data-model.md)
 - [Story 5.3: Pricing Page](./5-3-pricing-page.md)
+
+---
+
+## Tasks/Subtasks
+
+- [ ] **Task 1: Create requirePremium middleware**
+  - [ ] Create server/middleware/requirePremium.ts
+  - [ ] Implement requirePremium function
+  - [ ] Query user subscription status
+  - [ ] Check hasPremiumAccess
+  - [ ] Return 403 error with upgrade info if not premium
+  - [ ] Create checkPremiumStatus helper function
+
+- [ ] **Task 2: Create checkContractLimit middleware**
+  - [ ] Create server/middleware/checkContractLimit.ts
+  - [ ] Define FREE_CONTRACT_LIMIT constant
+  - [ ] Query user subscription status
+  - [ ] Count existing contracts for user
+  - [ ] Check if premium (bypass limit)
+  - [ ] Return 403 if limit reached for free users
+  - [ ] Attach contractsRemaining to request
+
+- [ ] **Task 3: Apply middleware to protected routes**
+  - [ ] Add requirePremium to server/routes/ai.ts analysis endpoints
+  - [ ] Add requirePremium to server/routes/templates.ts endpoints
+  - [ ] Add requirePremium to server/routes/signatures.ts endpoints
+  - [ ] Add checkContractLimit to server/routes/contracts.ts creation endpoint
+
+- [ ] **Task 4: Build UpgradePrompt component**
+  - [ ] Create client/src/components/paywall/UpgradePrompt.tsx
+  - [ ] Create modal with backdrop
+  - [ ] Display feature name and description
+  - [ ] List premium features with icons
+  - [ ] Show £9/month pricing
+  - [ ] Add "Upgrade Now" button
+  - [ ] Add "Maybe Later" close option
+
+- [ ] **Task 5: Build FeatureGate component**
+  - [ ] Create client/src/components/paywall/FeatureGate.tsx
+  - [ ] Check subscription status from auth context
+  - [ ] Render children normally for premium users
+  - [ ] Show locked overlay for free users (if showLocked=true)
+  - [ ] Trigger upgrade prompt on click
+  - [ ] Support hidden mode vs locked mode
+
+- [ ] **Task 6: Update AuthContext with subscription**
+  - [ ] Add subscription to AuthContextValue interface
+  - [ ] Define Subscription interface
+  - [ ] Fetch subscription data with user
+  - [ ] Call /api/billing/subscription endpoint
+  - [ ] Store in context state
+  - [ ] Update on user refresh
+
+- [ ] **Task 7: Build ContractLimitWarning component**
+  - [ ] Create client/src/components/contracts/ContractLimitWarning.tsx
+  - [ ] Calculate remaining contracts
+  - [ ] Show red banner if limit reached
+  - [ ] Show yellow warning if 1 remaining
+  - [ ] Hide for premium users
+  - [ ] Add upgrade link
+
+- [ ] **Task 8: Testing**
+  - [ ] Test requirePremium blocks free users from AI analysis
+  - [ ] Test requirePremium blocks free users from templates
+  - [ ] Test requirePremium blocks free users from e-signing
+  - [ ] Test checkContractLimit allows up to 3 contracts
+  - [ ] Test premium users bypass all limits
+  - [ ] Test upgrade prompt displays correctly
+  - [ ] Test FeatureGate locks features visually
+  - [ ] Test canceled user with period remaining has access
