@@ -2,6 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
+import { validateFormData, renderTemplateContent, generateHTML, generateText } from "./services/templateRenderer";
+import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { authLimiter } from "./middleware/rateLimit";
@@ -840,6 +842,109 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get template error:", error);
       res.status(500).json({ error: "Failed to get template" });
+    }
+  });
+
+  // Render template with form data
+  app.post("/api/templates/:id/render", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { formData } = req.body as { formData: TemplateFormData };
+
+      // Validate form data
+      const templateForValidation = {
+        fields: (template.fields || []) as TemplateField[],
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const { valid, errors } = validateFormData(templateForValidation, formData);
+      if (!valid) {
+        return res.status(400).json({ error: "Validation failed", errors });
+      }
+
+      // Render the template
+      const templateForRender = {
+        content: template.content as TemplateContent,
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const rendered = renderTemplateContent(templateForRender, formData);
+
+      // Generate HTML and text
+      const html = generateHTML(rendered.title, rendered.sections);
+      const text = generateText(rendered.title, rendered.sections);
+
+      res.json({
+        html,
+        text,
+        title: rendered.title
+      });
+    } catch (error) {
+      console.error("Render template error:", error);
+      res.status(500).json({ error: "Failed to render template" });
+    }
+  });
+
+  // Create contract from template
+  app.post("/api/contracts/from-template", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { templateId, formData, title } = req.body as {
+        templateId: string;
+        formData: TemplateFormData;
+        title?: string;
+      };
+
+      const template = await storage.getTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      // Validate form data
+      const templateForValidation = {
+        fields: (template.fields || []) as TemplateField[],
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const { valid, errors } = validateFormData(templateForValidation, formData);
+      if (!valid) {
+        return res.status(400).json({ error: "Validation failed", errors });
+      }
+
+      // Render the template
+      const templateForRender = {
+        content: template.content as TemplateContent,
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const rendered = renderTemplateContent(templateForRender, formData);
+      const html = generateHTML(rendered.title, rendered.sections);
+
+      // Create the contract
+      const contract = await storage.createContract({
+        userId,
+        name: title || rendered.title,
+        type: template.category || 'other',
+        status: 'draft',
+        templateId,
+        templateData: formData,
+        renderedContent: html,
+      });
+
+      console.log(`[CONTRACT] Created from template ${templateId}: ${contract.id}`);
+      res.json({ contract });
+    } catch (error) {
+      console.error("Create contract from template error:", error);
+      res.status(500).json({ error: "Failed to create contract" });
     }
   });
 

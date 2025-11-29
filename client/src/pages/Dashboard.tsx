@@ -8,7 +8,9 @@ import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ContractUpload } from '@/components/contracts/ContractUpload';
 import { TemplateGallery } from '@/components/templates/TemplateGallery';
 import { TemplateForm } from '@/components/templates/TemplateForm';
+import { ContractPreview } from '@/components/templates/ContractPreview';
 import { useAuth } from '@/lib/auth';
+import type { TemplateFormData } from '@shared/types/templates';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { Contract, LandingPage, LandingPageLink, ContractTemplate } from '@shared/schema';
@@ -54,6 +56,7 @@ export default function Dashboard() {
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
+  const [previewFormData, setPreviewFormData] = useState<TemplateFormData | null>(null);
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -750,20 +753,30 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'templates' && (
-            selectedTemplate ? (
+            previewFormData && selectedTemplate ? (
+              <ContractPreview
+                template={selectedTemplate}
+                formData={previewFormData}
+                onBack={() => setPreviewFormData(null)}
+                onContractCreated={(contractId) => {
+                  toast({
+                    title: 'Contract Created',
+                    description: 'Your contract has been saved as a draft.',
+                  });
+                  setSelectedTemplate(null);
+                  setPreviewFormData(null);
+                  // Switch to contracts view
+                  setActiveNav('contracts');
+                  // Refresh contracts list
+                  queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+                }}
+              />
+            ) : selectedTemplate ? (
               <TemplateForm
                 template={selectedTemplate}
                 onBack={() => setSelectedTemplate(null)}
                 onPreview={(formData) => {
-                  // Save form data and navigate to preview (Story 3.9)
-                  localStorage.setItem(
-                    `template-preview-${selectedTemplate.id}`,
-                    JSON.stringify(formData)
-                  );
-                  toast({
-                    title: 'Form Saved',
-                    description: 'Contract preview coming soon in Story 3.9!',
-                  });
+                  setPreviewFormData(formData);
                 }}
               />
             ) : (
