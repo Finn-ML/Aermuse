@@ -10,6 +10,8 @@ import { ContractSearchBar } from '@/components/contracts/ContractSearchBar';
 import { HighlightText } from '@/components/contracts/HighlightText';
 import { ContractFilters, type FilterState } from '@/components/contracts/ContractFilters';
 import { ActiveFilters } from '@/components/contracts/ActiveFilters';
+import { FolderSidebar } from '@/components/contracts/FolderSidebar';
+import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -35,7 +37,8 @@ import {
   Loader2,
   Trash2,
   Check,
-  SearchX
+  SearchX,
+  FolderInput
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'landing' | 'settings';
@@ -62,6 +65,8 @@ export default function Dashboard() {
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, 'unfiled' = unfiled
+  const [moveContractModal, setMoveContractModal] = useState<{ contractId: string; contractName: string; currentFolderId: string | null } | null>(null);
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -78,7 +83,7 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
-    queryKey: ['/api/contracts', searchQuery, advancedFilters],
+    queryKey: ['/api/contracts', searchQuery, advancedFilters, selectedFolder],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery.trim()) {
@@ -95,6 +100,12 @@ export default function Dashboard() {
       }
       if (advancedFilters.dateTo) {
         params.set('dateTo', advancedFilters.dateTo);
+      }
+      // Folder filtering
+      if (selectedFolder === 'unfiled') {
+        params.set('folderId', 'null');
+      } else if (selectedFolder) {
+        params.set('folderId', selectedFolder);
       }
       const url = `/api/contracts${params.toString() ? `?${params}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
@@ -535,10 +546,20 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'contracts' && (
-            <>
+            <div className="flex gap-6 -mx-10 -mt-10 -mb-10">
+              {/* Folder Sidebar */}
+              <FolderSidebar
+                selectedFolder={selectedFolder}
+                onSelectFolder={setSelectedFolder}
+              />
+
+              {/* Main Content */}
+              <div className="flex-1 p-10">
               {/* Header with action buttons */}
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-[#660033]">Contracts</h2>
+                <h2 className="text-2xl font-bold text-[#660033]">
+                  {selectedFolder === null ? 'All Contracts' : selectedFolder === 'unfiled' ? 'Unfiled Contracts' : 'Contracts'}
+                </h2>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowUploadContract(true)}
@@ -772,6 +793,18 @@ export default function Dashboard() {
                               </button>
                             )}
                             <button
+                              onClick={() => setMoveContractModal({
+                                contractId: contract.id,
+                                contractName: contract.name,
+                                currentFolderId: contract.folderId || null,
+                              })}
+                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                              title="Move to Folder"
+                              data-testid={`button-move-${contract.id}`}
+                            >
+                              <FolderInput size={18} />
+                            </button>
+                            <button
                               onClick={() => deleteContractMutation.mutate(contract.id)}
                               disabled={deleteContractMutation.isPending}
                               className="p-2.5 rounded-xl bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)] transition-all"
@@ -805,7 +838,23 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </>
+
+              {/* Move to Folder Modal */}
+              {moveContractModal && (
+                <MoveToFolderModal
+                  isOpen={true}
+                  onClose={() => setMoveContractModal(null)}
+                  contractId={moveContractModal.contractId}
+                  contractName={moveContractModal.contractName}
+                  currentFolderId={moveContractModal.currentFolderId}
+                  onMoved={() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
+                    setMoveContractModal(null);
+                  }}
+                />
+              )}
+              </div>
+            </div>
           )}
 
           {activeNav === 'landing' && (

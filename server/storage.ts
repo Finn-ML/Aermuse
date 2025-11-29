@@ -1,12 +1,13 @@
-import { 
-  type User, type InsertUser, 
+import {
+  type User, type InsertUser,
   type Contract, type InsertContract,
+  type ContractFolder, type InsertContractFolder,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
-  users, contracts, landingPages, landingPageLinks
+  users, contracts, contractFolders, landingPages, landingPageLinks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, ilike, desc, gte, lte, type SQL } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, type SQL } from "drizzle-orm";
 
 export interface ContractFilters {
   search?: string;
@@ -14,6 +15,7 @@ export interface ContractFilters {
   type?: string;
   dateFrom?: string;
   dateTo?: string;
+  folderId?: string; // 'null' for unfiled, uuid for specific folder
 }
 
 export interface IStorage {
@@ -34,6 +36,16 @@ export interface IStorage {
   createContract(contract: InsertContract): Promise<Contract>;
   updateContract(id: string, data: Partial<InsertContract>): Promise<Contract | undefined>;
   deleteContract(id: string): Promise<boolean>;
+  moveContractToFolder(contractId: string, folderId: string | null): Promise<boolean>;
+
+  // Contract Folders (Story 8.3)
+  getFoldersByUser(userId: string): Promise<ContractFolder[]>;
+  getFolderWithCounts(userId: string): Promise<{ folders: (ContractFolder & { contractCount: number })[]; unfiledCount: number }>;
+  getFolder(id: string): Promise<ContractFolder | undefined>;
+  createFolder(folder: InsertContractFolder): Promise<ContractFolder>;
+  updateFolder(id: string, data: Partial<InsertContractFolder>): Promise<ContractFolder | undefined>;
+  deleteFolder(id: string): Promise<boolean>;
+  getFolderContractCount(folderId: string): Promise<number>;
   
   // Landing Pages
   getLandingPage(id: string): Promise<LandingPage | undefined>;
@@ -147,6 +159,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(contracts.createdAt, endDate));
     }
 
+    // Folder filter
+    if (filters.folderId === 'null') {
+      conditions.push(isNull(contracts.folderId));
+    } else if (filters.folderId) {
+      conditions.push(eq(contracts.folderId, filters.folderId));
+    }
+
     return db.select()
       .from(contracts)
       .where(and(...conditions))
@@ -169,6 +188,86 @@ export class DatabaseStorage implements IStorage {
   async deleteContract(id: string): Promise<boolean> {
     const result = await db.delete(contracts).where(eq(contracts.id, id)).returning();
     return result.length > 0;
+  }
+
+  async moveContractToFolder(contractId: string, folderId: string | null): Promise<boolean> {
+    const result = await db.update(contracts)
+      .set({ folderId, updatedAt: new Date() })
+      .where(eq(contracts.id, contractId))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Contract Folders (Story 8.3)
+  async getFoldersByUser(userId: string): Promise<ContractFolder[]> {
+    return db.select()
+      .from(contractFolders)
+      .where(eq(contractFolders.userId, userId))
+      .orderBy(asc(contractFolders.sortOrder));
+  }
+
+  async getFolderWithCounts(userId: string): Promise<{ folders: (ContractFolder & { contractCount: number })[]; unfiledCount: number }> {
+    // Get all folders
+    const folders = await db.select()
+      .from(contractFolders)
+      .where(eq(contractFolders.userId, userId))
+      .orderBy(asc(contractFolders.sortOrder));
+
+    // Get contract counts per folder
+    const folderCounts = await db
+      .select({ folderId: contracts.folderId, count: count() })
+      .from(contracts)
+      .where(eq(contracts.userId, userId))
+      .groupBy(contracts.folderId);
+
+    const countMap = new Map(folderCounts.map(fc => [fc.folderId, Number(fc.count)]));
+
+    // Get unfiled count
+    const [unfiledResult] = await db
+      .select({ count: count() })
+      .from(contracts)
+      .where(and(eq(contracts.userId, userId), isNull(contracts.folderId)));
+
+    const foldersWithCounts = folders.map(folder => ({
+      ...folder,
+      contractCount: countMap.get(folder.id) || 0,
+    }));
+
+    return {
+      folders: foldersWithCounts,
+      unfiledCount: Number(unfiledResult?.count || 0),
+    };
+  }
+
+  async getFolder(id: string): Promise<ContractFolder | undefined> {
+    const [folder] = await db.select().from(contractFolders).where(eq(contractFolders.id, id));
+    return folder;
+  }
+
+  async createFolder(folder: InsertContractFolder): Promise<ContractFolder> {
+    const [newFolder] = await db.insert(contractFolders).values(folder).returning();
+    return newFolder;
+  }
+
+  async updateFolder(id: string, data: Partial<InsertContractFolder>): Promise<ContractFolder | undefined> {
+    const [folder] = await db.update(contractFolders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractFolders.id, id))
+      .returning();
+    return folder;
+  }
+
+  async deleteFolder(id: string): Promise<boolean> {
+    const result = await db.delete(contractFolders).where(eq(contractFolders.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getFolderContractCount(folderId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(contracts)
+      .where(eq(contracts.folderId, folderId));
+    return Number(result?.count || 0);
   }
 
   // Landing Pages
