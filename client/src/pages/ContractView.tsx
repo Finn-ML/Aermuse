@@ -3,7 +3,13 @@ import { useParams, useLocation } from 'wouter';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
+import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
+import { RiskScoreCard } from '../components/contracts/RiskScoreCard';
+import { MissingClausesCard } from '../components/contracts/MissingClausesCard';
 import { AnalyzingState } from '../components/contracts/AnalyzingState';
+import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
+import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
+import { ReanalyzeConfirmModal } from '../components/contracts/ReanalyzeConfirmModal';
 import { useContractAnalysis } from '../hooks/useContractAnalysis';
 import { Contract, ContractAnalysis } from '../types';
 import { Button } from '../components/ui/button';
@@ -14,6 +20,7 @@ export default function ContractView() {
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showReanalyzeModal, setShowReanalyzeModal] = useState(false);
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
 
   useEffect(() => {
@@ -52,6 +59,7 @@ export default function ContractView() {
   };
 
   const handleReanalyze = () => {
+    setShowReanalyzeModal(false);
     if (id) {
       analyze(id);
     }
@@ -139,7 +147,11 @@ export default function ContractView() {
                 </Button>
               )}
               {displayAnalysis && !isAnalyzing && (
-                <Button variant="outline" size="sm" onClick={handleReanalyze}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowReanalyzeModal(true)}
+                >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Re-analyze
                 </Button>
@@ -149,23 +161,23 @@ export default function ContractView() {
 
           {/* Analysis Metadata */}
           {displayAnalysis?.metadata && (
-            <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-              Analyzed {new Date(displayAnalysis.metadata.analyzedAt).toLocaleString()}
-              {' '}&bull;{' '}
-              {displayAnalysis.metadata.tokenCount.toLocaleString()} tokens
-              {displayAnalysis.metadata.truncated && ' (truncated)'}
+            <div className="mt-4 pt-4 border-t">
+              <AnalysisMetadata
+                analyzedAt={displayAnalysis.metadata.analyzedAt}
+                version={contract.analysisVersion || 1}
+                modelVersion={displayAnalysis.metadata.modelVersion}
+                processingTime={displayAnalysis.metadata.processingTime}
+                tokenCount={displayAnalysis.metadata.tokenCount}
+                truncated={displayAnalysis.metadata.truncated}
+              />
             </div>
           )}
         </div>
 
         {/* Legal Disclaimer */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-amber-800">
-            <strong>Disclaimer:</strong> This AI analysis is for informational purposes only
-            and does not constitute legal advice. Always consult with a qualified attorney
-            before signing any contract.
-          </p>
-        </div>
+        {(displayAnalysis || isAnalyzing) && (
+          <LegalDisclaimer className="mb-6" />
+        )}
 
         {/* Analysis Content */}
         {isAnalyzing ? (
@@ -175,7 +187,7 @@ export default function ContractView() {
             <p className="text-red-800 font-medium">Analysis Failed</p>
             <p className="text-red-700 mt-1">{analysisError}</p>
             <Button
-              onClick={handleReanalyze}
+              onClick={() => analyze(id!)}
               variant="outline"
               className="mt-4"
             >
@@ -187,10 +199,22 @@ export default function ContractView() {
             {/* Summary */}
             <ContractSummary analysis={displayAnalysis} />
 
-            {/* Key Terms */}
-            <KeyTermsCard keyTerms={displayAnalysis.keyTerms} />
+            {/* Risk Score - Prominent position */}
+            {displayAnalysis.riskAssessment && (
+              <RiskScoreCard riskAssessment={displayAnalysis.riskAssessment} />
+            )}
 
-            {/* Red Flags and Risk Assessment will be added in Story 2.5 */}
+            {/* Red Flags */}
+            <RedFlagsCard redFlags={displayAnalysis.redFlags || []} />
+
+            {/* Key Terms */}
+            <KeyTermsCard keyTerms={displayAnalysis.keyTerms || []} />
+
+            {/* Missing Clauses */}
+            <MissingClausesCard missingClauses={displayAnalysis.missingClauses || []} />
+
+            {/* Footer Disclaimer */}
+            <LegalDisclaimer variant="footer" />
           </div>
         ) : !contract.extractedText ? (
           <div className="bg-gray-50 rounded-lg border p-8 text-center">
@@ -206,12 +230,18 @@ export default function ContractView() {
             <p className="text-gray-600 mb-4">
               This contract has not been analyzed yet.
             </p>
-            <Button onClick={handleReanalyze}>
-              Analyze Contract
-            </Button>
+            <Button onClick={() => analyze(id!)}>Analyze Contract</Button>
           </div>
         )}
       </div>
+
+      {/* Re-analyze Confirmation Modal */}
+      {showReanalyzeModal && (
+        <ReanalyzeConfirmModal
+          onConfirm={handleReanalyze}
+          onCancel={() => setShowReanalyzeModal(false)}
+        />
+      )}
     </div>
   );
 }

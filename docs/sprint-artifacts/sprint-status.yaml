@@ -58,9 +58,9 @@ development_status:
   2-2-text-extraction-from-documents: review
   2-3-openai-gpt4-integration: review
   2-4-ai-contract-summary-generation: review
-  2-5-fairness-analysis-and-clause-flagging: ready-for-dev
-  2-6-legal-disclaimer: ready-for-dev
-  2-7-analysis-history-and-re-analysis: ready-for-dev
+  2-5-fairness-analysis-and-clause-flagging: review
+  2-6-legal-disclaimer: review
+  2-7-analysis-history-and-re-analysis: review
   epic-2-retrospective: optional
 
   # ============================================

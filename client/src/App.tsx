@@ -11,6 +11,7 @@ import Dashboard from "@/pages/Dashboard";
 import ResetPassword from "@/pages/ResetPassword";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ContractView from "@/pages/ContractView";
+import Terms from "@/pages/Terms";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/auth" component={Auth} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/contracts/:id" component={ContractView} />
+      <Route path="/terms" component={Terms} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route component={NotFound} />
