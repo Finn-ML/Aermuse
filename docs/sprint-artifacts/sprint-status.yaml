@@ -102,16 +102,16 @@ development_status:
   # 10 stories, 26 points
   # ============================================
   epic-5: contexted
-  5-1-stripe-integration-setup: ready-for-dev
-  5-2-subscription-data-model: ready-for-dev
-  5-3-pricing-page: ready-for-dev
-  5-4-stripe-checkout-flow: ready-for-dev
-  5-5-stripe-webhook-handler: ready-for-dev
-  5-6-billing-dashboard: ready-for-dev
-  5-7-stripe-customer-portal: ready-for-dev
-  5-8-subscription-paywall: ready-for-dev
-  5-9-subscription-cancellation-handling: ready-for-dev
-  5-10-invoice-generation: ready-for-dev
+  5-1-stripe-integration-setup: done
+  5-2-subscription-data-model: done
+  5-3-pricing-page: done
+  5-4-stripe-checkout-flow: done
+  5-5-stripe-webhook-handler: done
+  5-6-billing-dashboard: done
+  5-7-stripe-customer-portal: done
+  5-8-subscription-paywall: done
+  5-9-subscription-cancellation-handling: done
+  5-10-invoice-generation: done
   epic-5-retrospective: optional
 
   # ============================================
