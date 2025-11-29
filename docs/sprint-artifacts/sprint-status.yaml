@@ -148,7 +148,7 @@ development_status:
   # 6 stories, 21 points
   # ============================================
   epic-8: contexted
-  8-1-contract-search: ready-for-dev
+  8-1-contract-search: review
   8-2-advanced-filtering: ready-for-dev
   8-3-folder-organization: ready-for-dev
   8-4-pdf-export: ready-for-dev

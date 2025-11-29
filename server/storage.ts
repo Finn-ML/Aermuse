@@ -6,7 +6,7 @@ import {
   users, contracts, landingPages, landingPageLinks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, or, ilike, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -21,6 +21,7 @@ export interface IStorage {
   // Contracts
   getContract(id: string): Promise<Contract | undefined>;
   getContractsByUser(userId: string): Promise<Contract[]>;
+  searchContracts(userId: string, searchQuery: string): Promise<Contract[]>;
   createContract(contract: InsertContract): Promise<Contract>;
   updateContract(id: string, data: Partial<InsertContract>): Promise<Contract | undefined>;
   deleteContract(id: string): Promise<boolean>;
@@ -82,7 +83,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContractsByUser(userId: string): Promise<Contract[]> {
-    return db.select().from(contracts).where(eq(contracts.userId, userId));
+    return db.select().from(contracts).where(eq(contracts.userId, userId)).orderBy(desc(contracts.updatedAt));
+  }
+
+  async searchContracts(userId: string, searchQuery: string): Promise<Contract[]> {
+    const searchTerm = `%${searchQuery}%`;
+    return db.select()
+      .from(contracts)
+      .where(
+        and(
+          eq(contracts.userId, userId),
+          or(
+            ilike(contracts.name, searchTerm),
+            ilike(contracts.partnerName, searchTerm),
+            ilike(contracts.type, searchTerm)
+          )
+        )
+      )
+      .orderBy(desc(contracts.updatedAt));
   }
 
   async createContract(contract: InsertContract): Promise<Contract> {

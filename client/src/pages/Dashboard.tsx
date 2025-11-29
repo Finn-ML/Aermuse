@@ -6,6 +6,8 @@ import { VerificationBanner } from '@/components/VerificationBanner';
 import { ChangePasswordForm } from '@/components/ChangePasswordForm';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ContractUpload } from '@/components/contracts/ContractUpload';
+import { ContractSearchBar } from '@/components/contracts/ContractSearchBar';
+import { HighlightText } from '@/components/contracts/HighlightText';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -30,7 +32,8 @@ import {
   X,
   Loader2,
   Trash2,
-  Check
+  Check,
+  SearchX
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'landing' | 'settings';
@@ -47,6 +50,7 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAddContract, setShowAddContract] = useState(false);
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
@@ -67,7 +71,17 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
-    queryKey: ['/api/contracts'],
+    queryKey: ['/api/contracts', searchQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) {
+        params.set('search', searchQuery.trim());
+      }
+      const url = `/api/contracts${params.toString() ? `?${params}` : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch contracts');
+      return res.json();
+    },
     enabled: !!user,
   });
 
@@ -541,6 +555,20 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Search Bar - AC-1 */}
+              <div className="mb-6">
+                <ContractSearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search by name, partner, or content..."
+                />
+                {searchQuery && (
+                  <p className="mt-2 text-sm text-[rgba(102,0,51,0.6)]">
+                    Searching for "{searchQuery}"...
+                  </p>
+                )}
+              </div>
+
               {showUploadContract && (
                 <div
                   className="rounded-[20px] p-7 mb-6"
@@ -629,12 +657,30 @@ export default function Dashboard() {
                   <Loader2 className="animate-spin text-[#660033]" size={32} />
                 </div>
               ) : filteredContracts.length === 0 ? (
-                <div 
+                <div
                   className="rounded-[20px] p-12 text-center"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
-                  <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
-                  <p className="text-[rgba(102,0,51,0.6)] mb-4">No contracts found. Start by adding your first contract!</p>
+                  {searchQuery ? (
+                    <>
+                      <SearchX size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+                      <h3 className="text-lg font-bold text-[#660033] mb-2">No contracts found</h3>
+                      <p className="text-[rgba(102,0,51,0.6)] mb-4">
+                        No contracts match "{searchQuery}". Try different keywords or check the spelling.
+                      </p>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-[#660033] font-semibold hover:underline"
+                      >
+                        Clear search
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+                      <p className="text-[rgba(102,0,51,0.6)] mb-4">No contracts found. Start by adding your first contract!</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -654,9 +700,11 @@ export default function Dashboard() {
                             <FileText size={24} className="text-[#F7E6CA]" />
                           </div>
                           <div>
-                            <div className="font-bold text-lg mb-1">{contract.name}</div>
+                            <div className="font-bold text-lg mb-1">
+                              <HighlightText text={contract.name} highlight={searchQuery} />
+                            </div>
                             <div className="text-sm text-[rgba(102,0,51,0.5)]">
-                              {contract.partnerName || 'No partner specified'} • {contract.type?.replace('_', ' ')}
+                              <HighlightText text={contract.partnerName || 'No partner specified'} highlight={searchQuery} /> • {contract.type?.replace('_', ' ')}
                               {contract.fileName && (
                                 <span className="ml-2 text-[rgba(102,0,51,0.4)]">
                                   • {contract.fileType?.toUpperCase()} {contract.fileSize ? `(${(contract.fileSize / 1024 / 1024).toFixed(2)} MB)` : ''}

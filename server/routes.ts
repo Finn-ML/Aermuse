@@ -387,7 +387,13 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const contracts = await storage.getContractsByUser(userId);
+      const search = req.query.search as string | undefined;
+
+      // If search query provided, use search function; otherwise get all
+      const contracts = search && search.trim()
+        ? await storage.searchContracts(userId, search.trim())
+        : await storage.getContractsByUser(userId);
+
       res.json(contracts);
     } catch (error) {
       console.error("Get contracts error:", error);
