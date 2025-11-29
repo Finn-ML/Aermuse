@@ -46,6 +46,7 @@ export const contracts = pgTable("contracts", {
   filePath: text("file_path"), // Path in Object Storage
   fileSize: integer("file_size"), // Size in bytes
   fileType: text("file_type"), // 'pdf' | 'doc' | 'docx'
+  extractedText: text("extracted_text"), // Text extracted from PDF/DOCX
   aiAnalysis: jsonb("ai_analysis"),
   aiRiskScore: text("ai_risk_score"),
   signedAt: timestamp("signed_at"),

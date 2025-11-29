@@ -55,7 +55,7 @@ development_status:
   # ============================================
   epic-2: contexted
   2-1-contract-file-upload: ready-for-review
-  2-2-text-extraction-from-documents: ready-for-dev
+  2-2-text-extraction-from-documents: review
   2-3-openai-gpt4-integration: ready-for-dev
   2-4-ai-contract-summary-generation: ready-for-dev
   2-5-fairness-analysis-and-clause-flagging: ready-for-dev

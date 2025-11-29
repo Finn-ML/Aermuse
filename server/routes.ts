@@ -11,6 +11,7 @@ import { requireAdmin } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType } from "./services/fileStorage";
+import { extractText } from "./services/extraction";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -586,17 +587,34 @@ export async function registerRoutes(
         verification.type!
       );
 
-      // Update contract with file info
+      // Extract text from document
+      const extraction = await extractText(req.file.buffer, verification.type!);
+
+      console.log(`[EXTRACT] Contract ${contract.id}: ${extraction.charCount} chars extracted`);
+
+      // Update contract with file info and extracted text
       const updatedContract = await storage.updateContract(contract.id, {
         filePath: uploaded.path,
         fileName: req.file.originalname,
         fileSize: uploaded.size,
         fileType: verification.type,
+        extractedText: extraction.text,
+        status: extraction.success ? "uploaded" : "extraction_failed",
       });
 
-      console.log(`[UPLOAD] File uploaded: ${contract.id} (${verification.type}, ${uploaded.size} bytes)`);
+      console.log(`[UPLOAD] Complete: ${contract.id} (${verification.type}, ${uploaded.size} bytes)`);
 
-      res.json({ contract: updatedContract });
+      // Return contract with extraction status
+      res.json({
+        contract: updatedContract,
+        extraction: {
+          success: extraction.success,
+          charCount: extraction.charCount,
+          pageCount: extraction.pageCount,
+          warning: extraction.warning,
+          error: extraction.error,
+        },
+      });
     } catch (error) {
       console.error("[UPLOAD] Failed:", error);
       res.status(500).json({ error: "File upload failed" });
@@ -628,6 +646,50 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[DOWNLOAD] Failed:", error);
       res.status(500).json({ error: "Download failed" });
+    }
+  });
+
+  // Manual Re-extraction endpoint
+  app.post("/api/contracts/:id/extract", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      if (!contract.filePath) {
+        return res.status(404).json({ error: "No file attached to this contract" });
+      }
+
+      // Download file from storage
+      const buffer = await downloadContractFile(contract.filePath);
+
+      // Extract text
+      const extraction = await extractText(buffer, contract.fileType!);
+
+      console.log(`[EXTRACT] Re-extraction for ${contract.id}: ${extraction.charCount} chars`);
+
+      // Update contract
+      await storage.updateContract(contract.id, {
+        extractedText: extraction.text,
+        status: extraction.success ? "uploaded" : "extraction_failed",
+      });
+
+      res.json({
+        success: extraction.success,
+        charCount: extraction.charCount,
+        pageCount: extraction.pageCount,
+        warning: extraction.warning,
+        error: extraction.error,
+      });
+    } catch (error) {
+      console.error("[EXTRACT] Re-extraction failed:", error);
+      res.status(500).json({ error: "Text extraction failed" });
     }
   });
 
