@@ -10,6 +10,9 @@ import {
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
 
+export type SortField = 'name' | 'createdAt' | 'updatedAt' | 'status' | 'type' | 'expiryDate';
+export type SortOrder = 'asc' | 'desc';
+
 export interface ContractFilters {
   search?: string;
   status?: string;
@@ -17,6 +20,8 @@ export interface ContractFilters {
   dateFrom?: string;
   dateTo?: string;
   folderId?: string; // 'null' for unfiled, uuid for specific folder
+  sortField?: SortField;
+  sortOrder?: SortOrder;
 }
 
 export interface IStorage {
@@ -173,10 +178,34 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(contracts.folderId, filters.folderId));
     }
 
+    // Determine sort column and order (Story 8.6)
+    const sortField = filters.sortField || 'updatedAt';
+    const sortOrder = filters.sortOrder || 'desc';
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortOrder === 'asc' ? asc : desc;
+
     return db.select()
       .from(contracts)
       .where(and(...conditions))
-      .orderBy(desc(contracts.updatedAt));
+      .orderBy(orderFn(sortColumn));
+  }
+
+  private getSortColumn(field: SortField) {
+    switch (field) {
+      case 'name':
+        return contracts.name;
+      case 'createdAt':
+        return contracts.createdAt;
+      case 'status':
+        return contracts.status;
+      case 'type':
+        return contracts.type;
+      case 'expiryDate':
+        return contracts.expiryDate;
+      case 'updatedAt':
+      default:
+        return contracts.updatedAt;
+    }
   }
 
   async createContract(contract: InsertContract): Promise<Contract> {

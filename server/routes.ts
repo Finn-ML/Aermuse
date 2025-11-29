@@ -388,7 +388,7 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      // Extract filter parameters
+      // Extract filter and sort parameters (Story 8.6)
       const filters = {
         search: req.query.search as string | undefined,
         status: req.query.status as string | undefined,
@@ -396,15 +396,12 @@ export async function registerRoutes(
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
         folderId: req.query.folderId as string | undefined,
+        sortField: (req.query.sortField as string | undefined) || 'updatedAt',
+        sortOrder: (req.query.sortOrder as string | undefined) || 'desc',
       };
 
-      // Check if any filters are active
-      const hasFilters = Object.values(filters).some(v => v?.trim());
-
-      // Use filterContracts if any filters are active, otherwise get all
-      const contracts = hasFilters
-        ? await storage.filterContracts(userId, filters)
-        : await storage.getContractsByUser(userId);
+      // Always use filterContracts since it handles sorting (Story 8.6)
+      const contracts = await storage.filterContracts(userId, filters as any);
 
       res.json(contracts);
     } catch (error) {

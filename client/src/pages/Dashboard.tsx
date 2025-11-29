@@ -12,6 +12,7 @@ import { ContractFilters, type FilterState } from '@/components/contracts/Contra
 import { ActiveFilters } from '@/components/contracts/ActiveFilters';
 import { FolderSidebar } from '@/components/contracts/FolderSidebar';
 import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
+import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -68,6 +69,8 @@ export default function Dashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, 'unfiled' = unfiled
   const [moveContractModal, setMoveContractModal] = useState<{ contractId: string; contractName: string; currentFolderId: string | null } | null>(null);
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -84,7 +87,7 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
-    queryKey: ['/api/contracts', searchQuery, advancedFilters, selectedFolder],
+    queryKey: ['/api/contracts', searchQuery, advancedFilters, selectedFolder, sortField, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery.trim()) {
@@ -108,6 +111,9 @@ export default function Dashboard() {
       } else if (selectedFolder) {
         params.set('folderId', selectedFolder);
       }
+      // Sorting (Story 8.6)
+      params.set('sortField', sortField);
+      params.set('sortOrder', sortOrder);
       const url = `/api/contracts${params.toString() ? `?${params}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch contracts');
@@ -581,12 +587,22 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="mb-4">
-                <ContractSearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Search by name, partner, or content..."
+              {/* Search Bar and Sort (Story 8.6) */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1">
+                  <ContractSearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search by name, partner, or content..."
+                  />
+                </div>
+                <ContractSortDropdown
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onChange={(field, order) => {
+                    setSortField(field);
+                    setSortOrder(order);
+                  }}
                 />
               </div>
 
