@@ -1,0 +1,134 @@
+<story-context id="5-1-stripe-integration-setup" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5.1</storyId>
+    <title>Stripe Integration Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-1-stripe-integration-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>to configure Stripe integration</iWant>
+    <soThat>payments can be processed</soThat>
+    <tasks>
+      <task id="T1">Install and configure Stripe SDK (npm install stripe)</task>
+      <task id="T2">Set up environment variables for Stripe keys</task>
+      <task id="T3">Create Stripe product and pricing in Dashboard (£9/month)</task>
+      <task id="T4">Implement Stripe service module (server/services/stripe.ts)</task>
+      <task id="T5">Create TypeScript types (server/services/stripe.types.ts)</task>
+      <task id="T6">Configure Stripe Customer Portal in Dashboard</task>
+      <task id="T7">Set up webhook endpoint configuration in Stripe</task>
+      <task id="T8">Testing and verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Stripe SDK installed and configured</criterion>
+    <criterion id="AC-2">API keys stored in environment variables</criterion>
+    <criterion id="AC-3">Test mode working in development</criterion>
+    <criterion id="AC-4">Product "Aermuse Premium" created in Stripe</criterion>
+    <criterion id="AC-5">Price £9/month recurring created in Stripe</criterion>
+    <criterion id="AC-6">Stripe service module with typed methods</criterion>
+    <criterion id="AC-7">Webhook endpoint secret configured</criterion>
+    <criterion id="AC-8">Customer portal configured in Stripe Dashboard</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Stripe Configuration">
+        Stripe product setup, environment variables, webhook events to handle, database schema additions for subscription fields.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-1-stripe-integration-setup.md" title="Story 5.1" section="Implementation">
+        Full implementation code for stripe.ts service and stripe.types.ts with customer, checkout, portal, subscription, invoice operations.
+      </doc>
+      <doc path="docs/architecture-server.md" title="Server Architecture" section="Service Pattern">
+        Express.js layered architecture. Services in server/services/. Pattern example: postmark.ts for external service integration.
+      </doc>
+    </docs>
+    <code>
+      <file path="server/services/postmark.ts" kind="service" symbol="sendPasswordResetEmail" reason="Reference pattern for external service integration - env vars, client init, typed responses">
+        <lines>1-175</lines>
+      </file>
+      <file path="shared/schema.ts" kind="schema" symbol="users" reason="Users table needs subscription fields added in Story 5.2. Current fields for reference.">
+        <lines>7-23</lines>
+      </file>
+      <file path="server/storage.ts" kind="storage" symbol="IStorage" reason="Data access pattern - will need subscription methods in Story 5.2">
+        <lines>1-40</lines>
+      </file>
+      <file path="server/db.ts" kind="database" symbol="db" reason="Drizzle ORM connection to Neon PostgreSQL">
+        <lines>all</lines>
+      </file>
+      <file path="package.json" kind="manifest" symbol="dependencies" reason="Current dependencies - stripe package NOT yet installed">
+        <lines>1-120</lines>
+      </file>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="express" version="^4.21.2" />
+        <package name="drizzle-orm" version="^0.39.1" />
+        <package name="zod" version="^3.24.2" />
+        <package name="postmark" version="^4.0.5" note="Service integration pattern reference" />
+        <package name="stripe" version="to-be-installed" note="REQUIRED - npm install stripe" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface name="Stripe Service API" kind="module-exports">
+      <signature>export { stripe } - Raw Stripe client instance</signature>
+      <signature>export const stripeConfig - Configuration object</signature>
+      <signature>export async function createCustomer(email, metadata): Promise&lt;Stripe.Customer&gt;</signature>
+      <signature>export async function getCustomer(customerId): Promise&lt;Stripe.Customer | null&gt;</signature>
+      <signature>export async function updateCustomer(customerId, data): Promise&lt;Stripe.Customer&gt;</signature>
+      <signature>export async function createCheckoutSession(options): Promise&lt;Stripe.Checkout.Session&gt;</signature>
+      <signature>export async function createPortalSession(customerId, returnUrl?): Promise&lt;Stripe.BillingPortal.Session&gt;</signature>
+      <signature>export async function getSubscription(subscriptionId): Promise&lt;Stripe.Subscription | null&gt;</signature>
+      <signature>export async function cancelSubscriptionAtPeriodEnd(subscriptionId): Promise&lt;Stripe.Subscription&gt;</signature>
+      <signature>export async function cancelSubscriptionImmediately(subscriptionId): Promise&lt;Stripe.Subscription&gt;</signature>
+      <signature>export async function reactivateSubscription(subscriptionId): Promise&lt;Stripe.Subscription&gt;</signature>
+      <signature>export async function listInvoices(customerId, limit?): Promise&lt;Stripe.Invoice[]&gt;</signature>
+      <signature>export async function getUpcomingInvoice(customerId): Promise&lt;Stripe.Invoice | null&gt;</signature>
+      <signature>export function constructWebhookEvent(payload, signature): Stripe.Event</signature>
+      <signature>export async function healthCheck(): Promise&lt;boolean&gt;</signature>
+      <path>server/services/stripe.ts</path>
+    </interface>
+    <interface name="Stripe Types" kind="type-definitions">
+      <signature>export type SubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired'</signature>
+      <signature>export function mapStripeStatus(stripeStatus): SubscriptionStatus</signature>
+      <signature>export interface CheckoutResult { sessionId: string; url: string }</signature>
+      <signature>export interface BillingInfo { status, planName, priceAmount, priceCurrency, currentPeriodEnd, cancelAtPeriodEnd, customerId }</signature>
+      <signature>export interface InvoiceSummary { id, number, status, amount, currency, date, pdfUrl, hostedUrl }</signature>
+      <path>server/services/stripe.types.ts</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint source="architecture">Follow layered architecture: service modules in server/services/</constraint>
+    <constraint source="architecture">Use environment variables for secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID)</constraint>
+    <constraint source="architecture">TypeScript required - all exports must be typed</constraint>
+    <constraint source="tech-spec">Use Stripe API version 2023-10-16</constraint>
+    <constraint source="tech-spec">Webhook verification required for security</constraint>
+    <constraint source="tech-spec">Use Stripe Checkout (hosted) - never handle card details directly</constraint>
+    <constraint source="pattern">Follow postmark.ts pattern: env validation, client init, async functions with typed returns</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit tests. Test files in __tests__/ subdirectories (e.g., server/services/__tests__/stripe.test.ts). Mock external API calls.
+    </standards>
+    <locations>
+      <location>server/services/__tests__/stripe.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test stripe client initializes without error when STRIPE_SECRET_KEY set</idea>
+      <idea ac="AC-2">Test throws error when STRIPE_SECRET_KEY missing</idea>
+      <idea ac="AC-6">Test createCustomer returns customer with id starting cus_</idea>
+      <idea ac="AC-6">Test createCheckoutSession returns session with url containing checkout.stripe.com</idea>
+      <idea ac="AC-7">Test constructWebhookEvent throws on invalid signature</idea>
+      <idea ac="AC-6">Test healthCheck returns true with valid credentials</idea>
+    </ideas>
+  </tests>
+</story-context>
