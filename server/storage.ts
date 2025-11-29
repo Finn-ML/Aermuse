@@ -2,12 +2,13 @@ import {
   type User, type InsertUser,
   type Contract, type InsertContract,
   type ContractFolder, type InsertContractFolder,
+  type ContractVersion, type InsertContractVersion,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
-  users, contracts, contractFolders, landingPages, landingPageLinks
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, type SQL } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
 
 export interface ContractFilters {
   search?: string;
@@ -46,6 +47,12 @@ export interface IStorage {
   updateFolder(id: string, data: Partial<InsertContractFolder>): Promise<ContractFolder | undefined>;
   deleteFolder(id: string): Promise<boolean>;
   getFolderContractCount(folderId: string): Promise<number>;
+
+  // Contract Versions (Story 8.5)
+  createContractVersion(version: InsertContractVersion): Promise<ContractVersion>;
+  getContractVersions(contractId: string): Promise<ContractVersion[]>;
+  getContractVersion(contractId: string, versionNumber: number): Promise<ContractVersion | undefined>;
+  getNextVersionNumber(contractId: string): Promise<number>;
   
   // Landing Pages
   getLandingPage(id: string): Promise<LandingPage | undefined>;
@@ -268,6 +275,37 @@ export class DatabaseStorage implements IStorage {
       .from(contracts)
       .where(eq(contracts.folderId, folderId));
     return Number(result?.count || 0);
+  }
+
+  // Contract Versions (Story 8.5)
+  async createContractVersion(version: InsertContractVersion): Promise<ContractVersion> {
+    const [newVersion] = await db.insert(contractVersions).values(version).returning();
+    return newVersion;
+  }
+
+  async getContractVersions(contractId: string): Promise<ContractVersion[]> {
+    return db.select()
+      .from(contractVersions)
+      .where(eq(contractVersions.contractId, contractId))
+      .orderBy(desc(contractVersions.versionNumber));
+  }
+
+  async getContractVersion(contractId: string, versionNumber: number): Promise<ContractVersion | undefined> {
+    const [version] = await db.select()
+      .from(contractVersions)
+      .where(and(
+        eq(contractVersions.contractId, contractId),
+        eq(contractVersions.versionNumber, versionNumber)
+      ));
+    return version;
+  }
+
+  async getNextVersionNumber(contractId: string): Promise<number> {
+    const [result] = await db
+      .select({ maxVersion: max(contractVersions.versionNumber) })
+      .from(contractVersions)
+      .where(eq(contractVersions.contractId, contractId));
+    return (result?.maxVersion || 0) + 1;
   }
 
   // Landing Pages

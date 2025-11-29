@@ -467,7 +467,30 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      const updatedContract = await storage.updateContract(req.params.id, req.body);
+      // Story 8.5: Create version snapshot before updating
+      const versionNumber = await storage.getNextVersionNumber(req.params.id);
+      const snapshot = {
+        name: contract.name,
+        type: contract.type,
+        status: contract.status,
+        partnerName: contract.partnerName,
+        value: contract.value,
+        folderId: contract.folderId,
+        aiAnalysis: contract.aiAnalysis,
+        aiRiskScore: contract.aiRiskScore,
+      };
+
+      await storage.createContractVersion({
+        contractId: req.params.id,
+        versionNumber,
+        snapshot,
+        changeSummary: req.body.changeSummary || null,
+        changedBy: userId,
+      });
+
+      // Remove changeSummary from update data (it's not a contract field)
+      const { changeSummary, ...updateData } = req.body;
+      const updatedContract = await storage.updateContract(req.params.id, updateData);
       res.json(updatedContract);
     } catch (error) {
       console.error("Update contract error:", error);
@@ -691,6 +714,58 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[PDF] Generation failed:", error);
       res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
+  // Contract Version History (Story 8.5)
+  app.get("/api/contracts/:id/versions", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const versions = await storage.getContractVersions(req.params.id);
+      const currentVersion = versions.length + 1;
+
+      res.json({ versions, currentVersion });
+    } catch (error) {
+      console.error("Get versions error:", error);
+      res.status(500).json({ error: "Failed to get versions" });
+    }
+  });
+
+  app.get("/api/contracts/:id/versions/:version", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const versionNumber = parseInt(req.params.version);
+      if (isNaN(versionNumber)) {
+        return res.status(400).json({ error: "Invalid version number" });
+      }
+
+      const version = await storage.getContractVersion(req.params.id, versionNumber);
+      if (!version) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+
+      res.json(version);
+    } catch (error) {
+      console.error("Get version error:", error);
+      res.status(500).json({ error: "Failed to get version" });
     }
   });
 

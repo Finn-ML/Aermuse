@@ -83,6 +83,27 @@ export const insertContractSchema = createInsertSchema(contracts).omit({
 export type InsertContract = z.infer<typeof insertContractSchema>;
 export type Contract = typeof contracts.$inferSelect;
 
+// Contract Versions table (Story 8.5)
+export const contractVersions = pgTable("contract_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  // Snapshot of contract metadata at this version
+  snapshot: jsonb("snapshot").notNull(),
+  // Change metadata
+  changeSummary: text("change_summary"),
+  changedBy: varchar("changed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContractVersionSchema = createInsertSchema(contractVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractVersion = z.infer<typeof insertContractVersionSchema>;
+export type ContractVersion = typeof contractVersions.$inferSelect;
+
 // Landing pages table
 export const landingPages = pgTable("landing_pages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
