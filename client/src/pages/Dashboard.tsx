@@ -8,6 +8,8 @@ import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ContractUpload } from '@/components/contracts/ContractUpload';
 import { ContractSearchBar } from '@/components/contracts/ContractSearchBar';
 import { HighlightText } from '@/components/contracts/HighlightText';
+import { ContractFilters, type FilterState } from '@/components/contracts/ContractFilters';
+import { ActiveFilters } from '@/components/contracts/ActiveFilters';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -49,8 +51,13 @@ export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
+    status: '',
+    type: '',
+    dateFrom: '',
+    dateTo: '',
+  });
   const [showAddContract, setShowAddContract] = useState(false);
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
@@ -71,11 +78,23 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
-    queryKey: ['/api/contracts', searchQuery],
+    queryKey: ['/api/contracts', searchQuery, advancedFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery.trim()) {
         params.set('search', searchQuery.trim());
+      }
+      if (advancedFilters.status) {
+        params.set('status', advancedFilters.status);
+      }
+      if (advancedFilters.type) {
+        params.set('type', advancedFilters.type);
+      }
+      if (advancedFilters.dateFrom) {
+        params.set('dateFrom', advancedFilters.dateFrom);
+      }
+      if (advancedFilters.dateTo) {
+        params.set('dateTo', advancedFilters.dateTo);
       }
       const url = `/api/contracts${params.toString() ? `?${params}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
@@ -249,9 +268,8 @@ export default function Dashboard() {
     }
   };
 
-  const filteredContracts = activeFilter === 'all' 
-    ? contracts 
-    : contracts.filter(c => c.status === activeFilter);
+  // Filtering is now done server-side via advancedFilters
+  const filteredContracts = contracts;
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A';
@@ -518,23 +536,9 @@ export default function Dashboard() {
 
           {activeNav === 'contracts' && (
             <>
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex gap-3">
-                  {['all', 'pending', 'active', 'completed'].map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setActiveFilter(filter)}
-                      className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                        activeFilter === filter
-                          ? 'bg-[#660033] text-[#F7E6CA]'
-                          : 'bg-[rgba(255,255,255,0.6)] text-[rgba(102,0,51,0.7)] hover:bg-[rgba(255,255,255,0.8)]'
-                      }`}
-                      data-testid={`filter-${filter}`}
-                    >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                    </button>
-                  ))}
-                </div>
+              {/* Header with action buttons */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-[#660033]">Contracts</h2>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowUploadContract(true)}
@@ -555,18 +559,31 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Search Bar - AC-1 */}
-              <div className="mb-6">
+              {/* Search Bar */}
+              <div className="mb-4">
                 <ContractSearchBar
                   value={searchQuery}
                   onChange={setSearchQuery}
                   placeholder="Search by name, partner, or content..."
                 />
-                {searchQuery && (
-                  <p className="mt-2 text-sm text-[rgba(102,0,51,0.6)]">
-                    Searching for "{searchQuery}"...
-                  </p>
-                )}
+              </div>
+
+              {/* Advanced Filters - AC-1 through AC-7 */}
+              <div className="mb-4">
+                <ContractFilters
+                  filters={advancedFilters}
+                  onChange={setAdvancedFilters}
+                />
+              </div>
+
+              {/* Active Filters Pills */}
+              <div className="mb-6">
+                <ActiveFilters
+                  filters={advancedFilters}
+                  searchQuery={searchQuery}
+                  onChange={setAdvancedFilters}
+                  onSearchClear={() => setSearchQuery('')}
+                />
               </div>
 
               {showUploadContract && (

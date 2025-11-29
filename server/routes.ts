@@ -387,11 +387,21 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const search = req.query.search as string | undefined;
+      // Extract filter parameters
+      const filters = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as string | undefined,
+        type: req.query.type as string | undefined,
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+      };
 
-      // If search query provided, use search function; otherwise get all
-      const contracts = search && search.trim()
-        ? await storage.searchContracts(userId, search.trim())
+      // Check if any filters are active
+      const hasFilters = Object.values(filters).some(v => v?.trim());
+
+      // Use filterContracts if any filters are active, otherwise get all
+      const contracts = hasFilters
+        ? await storage.filterContracts(userId, filters)
         : await storage.getContractsByUser(userId);
 
       res.json(contracts);

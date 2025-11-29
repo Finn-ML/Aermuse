@@ -6,7 +6,15 @@ import {
   users, contracts, landingPages, landingPageLinks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, ilike, desc } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, lte, type SQL } from "drizzle-orm";
+
+export interface ContractFilters {
+  search?: string;
+  status?: string;
+  type?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export interface IStorage {
   // Users
@@ -22,6 +30,7 @@ export interface IStorage {
   getContract(id: string): Promise<Contract | undefined>;
   getContractsByUser(userId: string): Promise<Contract[]>;
   searchContracts(userId: string, searchQuery: string): Promise<Contract[]>;
+  filterContracts(userId: string, filters: ContractFilters): Promise<Contract[]>;
   createContract(contract: InsertContract): Promise<Contract>;
   updateContract(id: string, data: Partial<InsertContract>): Promise<Contract | undefined>;
   deleteContract(id: string): Promise<boolean>;
@@ -100,6 +109,47 @@ export class DatabaseStorage implements IStorage {
           )
         )
       )
+      .orderBy(desc(contracts.updatedAt));
+  }
+
+  async filterContracts(userId: string, filters: ContractFilters): Promise<Contract[]> {
+    const conditions: SQL[] = [eq(contracts.userId, userId)];
+
+    // Search filter
+    if (filters.search?.trim()) {
+      const searchTerm = `%${filters.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(contracts.name, searchTerm),
+          ilike(contracts.partnerName, searchTerm),
+          ilike(contracts.type, searchTerm)
+        )!
+      );
+    }
+
+    // Status filter
+    if (filters.status) {
+      conditions.push(eq(contracts.status, filters.status));
+    }
+
+    // Type filter
+    if (filters.type) {
+      conditions.push(eq(contracts.type, filters.type));
+    }
+
+    // Date range filters
+    if (filters.dateFrom) {
+      conditions.push(gte(contracts.createdAt, new Date(filters.dateFrom)));
+    }
+    if (filters.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(contracts.createdAt, endDate));
+    }
+
+    return db.select()
+      .from(contracts)
+      .where(and(...conditions))
       .orderBy(desc(contracts.updatedAt));
   }
 
