@@ -6,10 +6,11 @@ import { VerificationBanner } from '@/components/VerificationBanner';
 import { ChangePasswordForm } from '@/components/ChangePasswordForm';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ContractUpload } from '@/components/contracts/ContractUpload';
+import { TemplateGallery } from '@/components/templates/TemplateGallery';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import type { Contract, LandingPage, LandingPageLink } from '@shared/schema';
+import type { Contract, LandingPage, LandingPageLink, ContractTemplate } from '@shared/schema';
 import {
   LayoutGrid,
   FileText,
@@ -33,7 +34,7 @@ import {
   Check
 } from 'lucide-react';
 
-type NavId = 'dashboard' | 'contracts' | 'landing' | 'settings';
+type NavId = 'dashboard' | 'contracts' | 'templates' | 'landing' | 'settings';
 
 interface LinkItem {
   id: string;
@@ -183,7 +184,8 @@ export default function Dashboard() {
   const navItems = [
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
-    { id: 'landing' as NavId, label: 'Landing Page', icon: Layout },
+    { id: 'templates' as NavId, label: 'Templates', icon: Layout },
+    { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
@@ -349,12 +351,14 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold mb-0.5" data-testid="text-page-title">
               {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
+              {activeNav === 'templates' && 'Contract Templates'}
               {activeNav === 'landing' && 'Landing Page'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
             <p className="text-sm text-[rgba(102,0,51,0.6)] font-medium">
               {activeNav === 'dashboard' && "Here's what's happening with your music career"}
               {activeNav === 'contracts' && 'Manage, analyze, and sign your contracts with AI assistance'}
+              {activeNav === 'templates' && 'Select a template to create a new contract'}
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
               {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
@@ -741,6 +745,19 @@ export default function Dashboard() {
                 </div>
               )}
             </>
+          )}
+
+          {activeNav === 'templates' && (
+            <TemplateGallery
+              onSelectTemplate={(template) => {
+                // Navigate to fill-in form (Story 3.8)
+                // For now, show a toast that template was selected
+                toast({
+                  title: 'Template Selected',
+                  description: `You selected "${template.name}". Fill-in form coming soon!`,
+                });
+              }}
+            />
           )}
 
           {activeNav === 'landing' && (

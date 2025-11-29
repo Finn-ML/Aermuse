@@ -1,12 +1,13 @@
-import { 
-  type User, type InsertUser, 
+import {
+  type User, type InsertUser,
   type Contract, type InsertContract,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
-  users, contracts, landingPages, landingPageLinks
+  type ContractTemplate,
+  users, contracts, landingPages, landingPageLinks, contractTemplates
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -37,6 +38,10 @@ export interface IStorage {
   createLandingPageLink(link: InsertLandingPageLink): Promise<LandingPageLink>;
   updateLandingPageLink(id: string, data: Partial<InsertLandingPageLink>): Promise<LandingPageLink | undefined>;
   deleteLandingPageLink(id: string): Promise<boolean>;
+
+  // Contract Templates
+  getActiveTemplates(category?: string): Promise<ContractTemplate[]>;
+  getTemplate(id: string): Promise<ContractTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -153,6 +158,30 @@ export class DatabaseStorage implements IStorage {
   async deleteLandingPageLink(id: string): Promise<boolean> {
     const result = await db.delete(landingPageLinks).where(eq(landingPageLinks.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Contract Templates
+  async getActiveTemplates(category?: string): Promise<ContractTemplate[]> {
+    if (category && category !== 'all') {
+      return db.select()
+        .from(contractTemplates)
+        .where(and(
+          eq(contractTemplates.isActive, true),
+          eq(contractTemplates.category, category)
+        ))
+        .orderBy(asc(contractTemplates.sortOrder));
+    }
+    return db.select()
+      .from(contractTemplates)
+      .where(eq(contractTemplates.isActive, true))
+      .orderBy(asc(contractTemplates.sortOrder));
+  }
+
+  async getTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.select()
+      .from(contractTemplates)
+      .where(eq(contractTemplates.id, id));
+    return template;
   }
 }
 

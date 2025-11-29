@@ -795,5 +795,53 @@ export async function registerRoutes(
     }
   });
 
+  // Contract Templates routes
+  app.get("/api/templates", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { category, search } = req.query;
+
+      // Get active templates, optionally filtered by category
+      let templates = await storage.getActiveTemplates(category as string);
+
+      // Apply search filter in-memory for simplicity
+      if (search && typeof search === 'string') {
+        const searchLower = search.toLowerCase();
+        templates = templates.filter(t =>
+          t.name.toLowerCase().includes(searchLower) ||
+          (t.description?.toLowerCase().includes(searchLower) ?? false)
+        );
+      }
+
+      res.json({ templates });
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  app.get("/api/templates/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      res.json(template);
+    } catch (error) {
+      console.error("Get template error:", error);
+      res.status(500).json({ error: "Failed to get template" });
+    }
+  });
+
   return httpServer;
 }
