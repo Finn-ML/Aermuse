@@ -520,7 +520,25 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      if (!contract.extractedText) {
+      // Get text content - either from uploaded file or from template-generated content
+      let contractText = contract.extractedText;
+
+      // For template-based contracts, strip HTML from renderedContent
+      if (!contractText && contract.renderedContent) {
+        contractText = contract.renderedContent
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
+          .replace(/<[^>]+>/g, ' ') // Remove HTML tags
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ') // Collapse whitespace
+          .trim();
+      }
+
+      if (!contractText) {
         return res.status(400).json({
           error: 'No text available for analysis. Please upload a text-based document.'
         });
@@ -530,7 +548,7 @@ export async function registerRoutes(
       await storage.updateContract(contract.id, { status: 'analyzing' });
 
       // Truncate if needed
-      const { text, truncated, originalLength } = truncateForAI(contract.extractedText);
+      const { text, truncated, originalLength } = truncateForAI(contractText);
 
       if (truncated) {
         console.log(`[AI] Contract ${contract.id} truncated: ${originalLength} → ${text.length} chars`);
@@ -689,6 +707,44 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[DOWNLOAD] Failed:", error);
       res.status(500).json({ error: "Download failed" });
+    }
+  });
+
+  // Generate PDF for template-based contracts
+  app.get("/api/contracts/:id/pdf", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // For uploaded contracts, redirect to regular download
+      if (contract.filePath && !contract.renderedContent) {
+        return res.redirect(`/api/contracts/${contract.id}/download`);
+      }
+
+      // For template contracts, generate PDF from rendered content
+      if (!contract.renderedContent) {
+        return res.status(400).json({ error: "No content available to generate PDF" });
+      }
+
+      const { generatePDF } = await import("./services/pdfGenerator");
+      const pdfBuffer = await generatePDF(contract.renderedContent);
+
+      const filename = `${contract.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+
+      console.log(`[PDF] Generated PDF for contract ${contract.id}`);
+    } catch (error) {
+      console.error("[PDF] Generation failed:", error);
+      res.status(500).json({ error: "PDF generation failed" });
     }
   });
 

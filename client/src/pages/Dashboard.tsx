@@ -690,11 +690,11 @@ export default function Dashboard() {
                             {contract.status}
                           </span>
                           <div className="flex gap-2">
-                            {contract.filePath && (
+                            {(contract.filePath || contract.renderedContent) && (
                               <a
-                                href={`/api/contracts/${contract.id}/download`}
+                                href={contract.filePath ? `/api/contracts/${contract.id}/download` : `/api/contracts/${contract.id}/pdf`}
                                 className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
-                                title={`Download ${contract.fileName || 'contract'}`}
+                                title={`Download ${contract.fileName || 'contract'} as PDF`}
                                 data-testid={`button-download-${contract.id}`}
                               >
                                 <Download size={18} />

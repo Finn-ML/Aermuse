@@ -35,6 +35,14 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Check if a string is an ISO date format
+ */
+function isISODateString(value: string): boolean {
+  // Match ISO 8601 date formats like "2025-11-30" or "2025-11-30T00:00:00.000Z"
+  return /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/.test(value);
+}
+
+/**
  * Substitute {{variable}} placeholders with values
  */
 export function substituteVariables(
@@ -51,6 +59,11 @@ export function substituteVariables(
     // Format dates nicely
     if (value instanceof Date) {
       return formatDate(value);
+    }
+
+    // Handle ISO date strings (from form inputs)
+    if (typeof value === 'string' && isISODateString(value)) {
+      return formatDate(new Date(value));
     }
 
     // Format currency for amount/fee fields

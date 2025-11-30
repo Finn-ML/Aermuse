@@ -92,6 +92,10 @@ export interface Contract {
   analyzedAt?: string;
   analysisVersion?: number;
   signedAt?: string;
+  // Template-based contract fields
+  templateId?: string;
+  templateData?: Record<string, unknown>;
+  renderedContent?: string;
   createdAt: string;
   updatedAt: string;
 }
