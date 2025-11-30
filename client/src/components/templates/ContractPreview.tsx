@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Download, Send, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, Edit2, Send, Loader2, Printer } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import type { ContractTemplate } from '@shared/schema';
 import type { TemplateFormData } from '@shared/types/templates';

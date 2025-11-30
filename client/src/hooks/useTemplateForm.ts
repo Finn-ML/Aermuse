@@ -156,8 +156,9 @@ export function useTemplateForm(
       }
 
       // Validate number range
-      if (field.type === 'number' && field.validation && formData.fields[field.id] !== undefined) {
-        const value = formData.fields[field.id] as number;
+      const fieldValue = formData.fields[field.id];
+      if (field.type === 'number' && field.validation && fieldValue !== undefined && fieldValue !== null) {
+        const value = fieldValue as number;
         if (field.validation.min !== undefined && value < field.validation.min) {
           newErrors[field.id] = `Must be at least ${field.validation.min}`;
         }
@@ -179,8 +180,9 @@ export function useTemplateForm(
           }
 
           // Validate number range for clause fields
-          if (field.type === 'number' && field.validation && formData.fields[field.id] !== undefined) {
-            const value = formData.fields[field.id] as number;
+          const clauseFieldValue = formData.fields[field.id];
+          if (field.type === 'number' && field.validation && clauseFieldValue !== undefined && clauseFieldValue !== null) {
+            const value = clauseFieldValue as number;
             if (field.validation.min !== undefined && value < field.validation.min) {
               newErrors[field.id] = `Must be at least ${field.validation.min}`;
             }

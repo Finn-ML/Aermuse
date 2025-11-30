@@ -189,6 +189,18 @@ export function renderTemplateContent(
 }
 
 /**
+ * Escape HTML entities to prevent XSS
+ */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Generate HTML from rendered template content
  */
 export function generateHTML(
@@ -208,12 +220,12 @@ export function generateHTML(
   ` : '';
 
   const formatParagraphs = (text: string): string => {
-    return text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    return text.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('');
   };
 
   const sectionsHTML = sections.map(s => `
     <div class="section">
-      <div class="section-heading">${s.heading}</div>
+      <div class="section-heading">${escapeHtml(s.heading)}</div>
       <div class="section-content">${formatParagraphs(s.content)}</div>
     </div>
   `).join('\n');
@@ -227,7 +239,7 @@ export function generateHTML(
     </head>
     <body>
       <div class="contract">
-        <div class="contract-title">${title}</div>
+        <div class="contract-title">${escapeHtml(title)}</div>
         ${sectionsHTML}
       </div>
     </body>
