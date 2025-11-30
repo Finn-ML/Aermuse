@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
 
 // Users table
 export const users = pgTable("users", {
@@ -30,6 +31,32 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Contract Templates table (Epic 3)
+export const contractTemplates = pgTable("contract_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull(), // 'artist' | 'licensing' | 'touring' | 'production' | 'business'
+  content: jsonb("content").notNull().$type<TemplateContent>(),
+  fields: jsonb("fields").notNull().$type<TemplateField[]>().default([]),
+  optionalClauses: jsonb("optional_clauses").$type<OptionalClause[]>().default([]),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  version: integer("version").default(1),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertContractTemplateSchema = createInsertSchema(contractTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractTemplate = z.infer<typeof insertContractTemplateSchema>;
+export type ContractTemplate = typeof contractTemplates.$inferSelect;
+
 // Contracts table
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -52,11 +79,18 @@ export const contracts = pgTable("contracts", {
   analyzedAt: timestamp("analyzed_at"), // When AI analysis was performed
   analysisVersion: integer("analysis_version").default(0), // Version counter for re-analysis
   signedAt: timestamp("signed_at"),
+  // Epic 3: Template-based contracts
+  templateId: varchar("template_id").references(() => contractTemplates.id),
+  templateData: jsonb("template_data").$type<TemplateFormData>(),
+  renderedContent: text("rendered_content"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertContractSchema = createInsertSchema(contracts).omit({
+export const insertContractSchema = createInsertSchema(contracts, {
+  // Override JSONB fields to avoid type inference issues
+  templateData: z.any().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

@@ -9,7 +9,7 @@
 | **Title** | Template Data Model & Storage |
 | **Priority** | P1 - High |
 | **Story Points** | 3 |
-| **Status** | Drafted |
+| **Status** | Approved |
 
 ## User Story
 
@@ -368,52 +368,70 @@ export function validateFormData(
 
 ## Tasks/Subtasks
 
-- [ ] **Task 1: Create database migration**
-  - [ ] Add contract_templates table with all fields
-  - [ ] Add indexes for category, isActive, sortOrder
-  - [ ] Add template_id and template_data to contracts table
-  - [ ] Add rendered_content field to contracts table
-  - [ ] Run migration
+- [x] **Task 1: Create database migration**
+  - [x] Add contract_templates table with all fields
+  - [x] Add indexes for category, isActive, sortOrder
+  - [x] Add template_id and template_data to contracts table
+  - [x] Add rendered_content field to contracts table
+  - [ ] Run migration (pending DB provisioning)
 
-- [ ] **Task 2: Update Drizzle schema**
-  - [ ] Add contractTemplates table in shared/schema.ts
-  - [ ] Define typed JSONB fields with $type
-  - [ ] Add relations between contracts and templates
-  - [ ] Export table for use in queries
+- [x] **Task 2: Update Drizzle schema**
+  - [x] Add contractTemplates table in shared/schema.ts
+  - [x] Define typed JSONB fields with $type
+  - [x] Add relations between contracts and templates
+  - [x] Export table for use in queries
 
-- [ ] **Task 3: Create TypeScript interfaces**
-  - [ ] Create shared/types/templates.ts
-  - [ ] Define TemplateContent and TemplateSection
-  - [ ] Define TemplateField and FieldType
-  - [ ] Define OptionalClause
-  - [ ] Define TemplateFormData
-  - [ ] Define ContractTemplate
-  - [ ] Export all types
+- [x] **Task 3: Create TypeScript interfaces**
+  - [x] Create shared/types/templates.ts
+  - [x] Define TemplateContent and TemplateSection
+  - [x] Define TemplateField and FieldType
+  - [x] Define OptionalClause
+  - [x] Define TemplateFormData
+  - [x] Define ContractTemplate
+  - [x] Export all types
 
-- [ ] **Task 4: Create template renderer service**
-  - [ ] Create server/services/templateRenderer.ts
-  - [ ] Implement substituteVariables function
-  - [ ] Implement formatDate helper
-  - [ ] Implement formatCurrency helper
-  - [ ] Implement extractVariables function
-  - [ ] Implement validateFormData function
+- [x] **Task 4: Create template renderer service**
+  - [x] Create server/services/templateRenderer.ts
+  - [x] Implement substituteVariables function
+  - [x] Implement formatDate helper
+  - [x] Implement formatCurrency helper
+  - [x] Implement extractVariables function
+  - [x] Implement validateFormData function
 
-- [ ] **Task 5: Write tests**
-  - [ ] Unit tests for substituteVariables
-  - [ ] Unit tests for extractVariables
-  - [ ] Unit tests for validateFormData
-  - [ ] Integration tests for template insert/query
-  - [ ] Integration tests for contracts.template_id references
+- [x] **Task 5: Write tests**
+  - [x] Unit tests for substituteVariables
+  - [x] Unit tests for extractVariables
+  - [x] Unit tests for validateFormData
+  - [ ] Integration tests for template insert/query (pending DB)
+  - [ ] Integration tests for contracts.template_id references (pending DB)
 
 ---
 
 ## Dev Agent Record
 
+### Context Reference
+- `docs/sprint-artifacts/3-1-template-data-model-and-storage.context.xml`
+
 ### Debug Log
 <!-- Automatically updated by dev agent during implementation -->
 
 ### Completion Notes
-<!-- Summary of implementation, decisions made, any follow-ups needed -->
+
+**Implementation Summary:**
+- Created comprehensive TypeScript interfaces for template system in `shared/types/templates.ts`
+- Extended Drizzle schema with `contractTemplates` table and added template fields to `contracts` table
+- Implemented template renderer service with variable substitution, date/currency formatting, and form validation
+- Created 34 unit tests covering all template renderer functions with 100% pass rate
+
+**Decisions Made:**
+- Used `z.any().optional()` for templateData in insertContractSchema to avoid drizzle-zod JSONB type inference issues
+- Dates formatted in en-GB locale; currency in GBP format
+- Variable substitution keeps placeholders if value is missing (graceful degradation)
+- Currency formatting auto-applied to fields containing 'amount', 'fee', 'price', or 'value'
+
+**Follow-ups:**
+- Run `npm run db:push` when DATABASE_URL is provisioned
+- Integration tests require database connection
 
 ---
 
@@ -421,7 +439,11 @@ export function validateFormData(
 
 | Action | File Path |
 |--------|-----------|
-| | |
+| Created | shared/types/templates.ts |
+| Modified | shared/schema.ts |
+| Created | server/services/templateRenderer.ts |
+| Created | server/services/__tests__/templateRenderer.test.ts |
+| Created | docs/sprint-artifacts/3-1-template-data-model-and-storage.context.xml |
 
 ---
 
@@ -429,4 +451,4 @@ export function validateFormData(
 
 | Date | Change | Author |
 |------|--------|--------|
-| | | |
+| 2025-11-29 | Implemented template data model, schema, renderer service, and tests | Dev Agent |

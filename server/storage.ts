@@ -4,10 +4,11 @@ import {
   type ContractVersion, type InsertContractVersion,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
-  users, contracts, contractVersions, landingPages, landingPageLinks
+  type ContractTemplate,
+  users, contracts, contractVersions, landingPages, landingPageLinks, contractTemplates
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -44,6 +45,17 @@ export interface IStorage {
   createLandingPageLink(link: InsertLandingPageLink): Promise<LandingPageLink>;
   updateLandingPageLink(id: string, data: Partial<InsertLandingPageLink>): Promise<LandingPageLink | undefined>;
   deleteLandingPageLink(id: string): Promise<boolean>;
+
+  // Contract Templates
+  getActiveTemplates(category?: string): Promise<ContractTemplate[]>;
+  getTemplate(id: string): Promise<ContractTemplate | undefined>;
+
+  // Admin Template Management
+  getAllTemplates(): Promise<ContractTemplate[]>;
+  createTemplate(data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContractTemplate>;
+  updateTemplate(id: string, data: Partial<ContractTemplate>): Promise<ContractTemplate | undefined>;
+  deactivateTemplate(id: string): Promise<boolean>;
+  activateTemplate(id: string): Promise<ContractTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -187,6 +199,68 @@ export class DatabaseStorage implements IStorage {
   async deleteLandingPageLink(id: string): Promise<boolean> {
     const result = await db.delete(landingPageLinks).where(eq(landingPageLinks.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Contract Templates
+  async getActiveTemplates(category?: string): Promise<ContractTemplate[]> {
+    if (category && category !== 'all') {
+      return db.select()
+        .from(contractTemplates)
+        .where(and(
+          eq(contractTemplates.isActive, true),
+          eq(contractTemplates.category, category)
+        ))
+        .orderBy(asc(contractTemplates.sortOrder));
+    }
+    return db.select()
+      .from(contractTemplates)
+      .where(eq(contractTemplates.isActive, true))
+      .orderBy(asc(contractTemplates.sortOrder));
+  }
+
+  async getTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.select()
+      .from(contractTemplates)
+      .where(eq(contractTemplates.id, id));
+    return template;
+  }
+
+  // Admin Template Management
+  async getAllTemplates(): Promise<ContractTemplate[]> {
+    return db.select()
+      .from(contractTemplates)
+      .orderBy(asc(contractTemplates.sortOrder));
+  }
+
+  async createTemplate(data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContractTemplate> {
+    const [template] = await db.insert(contractTemplates)
+      .values(data)
+      .returning();
+    return template;
+  }
+
+  async updateTemplate(id: string, data: Partial<ContractTemplate>): Promise<ContractTemplate | undefined> {
+    const [template] = await db.update(contractTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deactivateTemplate(id: string): Promise<boolean> {
+    const [template] = await db.update(contractTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return !!template;
+  }
+
+  async activateTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.update(contractTemplates)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return template;
   }
 }
 

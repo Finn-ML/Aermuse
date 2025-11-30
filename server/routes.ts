@@ -2,6 +2,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
+import { validateFormData, renderTemplateContent, generateHTML, generateText } from "./services/templateRenderer";
+import { validateTemplateStructure } from "./services/templateValidation";
+import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
@@ -1063,6 +1066,327 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Admin users error:", error);
       res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
+  // Contract Templates routes
+  app.get("/api/templates", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { category, search } = req.query;
+
+      // Get active templates, optionally filtered by category
+      let templates = await storage.getActiveTemplates(category as string);
+
+      // Apply search filter in-memory for simplicity
+      if (search && typeof search === 'string') {
+        const searchLower = search.toLowerCase();
+        templates = templates.filter(t =>
+          t.name.toLowerCase().includes(searchLower) ||
+          (t.description?.toLowerCase().includes(searchLower) ?? false)
+        );
+      }
+
+      res.json({ templates });
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  app.get("/api/templates/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      res.json(template);
+    } catch (error) {
+      console.error("Get template error:", error);
+      res.status(500).json({ error: "Failed to get template" });
+    }
+  });
+
+  // Render template with form data
+  app.post("/api/templates/:id/render", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { formData } = req.body as { formData: TemplateFormData };
+
+      // Validate form data
+      const templateForValidation = {
+        fields: (template.fields || []) as TemplateField[],
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const { valid, errors } = validateFormData(templateForValidation, formData);
+      if (!valid) {
+        return res.status(400).json({ error: "Validation failed", errors });
+      }
+
+      // Render the template
+      const templateForRender = {
+        content: template.content as TemplateContent,
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const rendered = renderTemplateContent(templateForRender, formData);
+
+      // Generate HTML and text
+      const html = generateHTML(rendered.title, rendered.sections);
+      const text = generateText(rendered.title, rendered.sections);
+
+      res.json({
+        html,
+        text,
+        title: rendered.title
+      });
+    } catch (error) {
+      console.error("Render template error:", error);
+      res.status(500).json({ error: "Failed to render template" });
+    }
+  });
+
+  // Create contract from template
+  app.post("/api/contracts/from-template", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { templateId, formData, title } = req.body as {
+        templateId: string;
+        formData: TemplateFormData;
+        title?: string;
+      };
+
+      const template = await storage.getTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      // Validate form data
+      const templateForValidation = {
+        fields: (template.fields || []) as TemplateField[],
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const { valid, errors } = validateFormData(templateForValidation, formData);
+      if (!valid) {
+        return res.status(400).json({ error: "Validation failed", errors });
+      }
+
+      // Render the template
+      const templateForRender = {
+        content: template.content as TemplateContent,
+        optionalClauses: (template.optionalClauses || []) as OptionalClause[]
+      };
+      const rendered = renderTemplateContent(templateForRender, formData);
+      const html = generateHTML(rendered.title, rendered.sections);
+
+      // Create the contract
+      const contract = await storage.createContract({
+        userId,
+        name: title || rendered.title,
+        type: template.category || 'other',
+        status: 'draft',
+        templateId,
+        templateData: formData,
+        renderedContent: html,
+      });
+
+      console.log(`[CONTRACT] Created from template ${templateId}: ${contract.id}`);
+      res.json({ contract });
+    } catch (error) {
+      console.error("Create contract from template error:", error);
+      res.status(500).json({ error: "Failed to create contract" });
+    }
+  });
+
+  // Admin Template Management routes
+  app.get("/api/admin/templates", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const templates = await storage.getAllTemplates();
+      res.json({ templates });
+    } catch (error) {
+      console.error("Admin get templates error:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  app.post("/api/admin/templates", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { name, description, category, content, fields, optionalClauses } = req.body;
+
+      // Validate template structure
+      const validation = validateTemplateStructure({
+        content: content as TemplateContent,
+        fields: (fields || []) as TemplateField[],
+        optionalClauses: (optionalClauses || []) as OptionalClause[]
+      });
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: "Invalid template", details: validation.errors });
+      }
+
+      // Get max sort order
+      const allTemplates = await storage.getAllTemplates();
+      const maxSortOrder = allTemplates.reduce((max, t) => Math.max(max, t.sortOrder ?? 0), 0);
+
+      const template = await storage.createTemplate({
+        name,
+        description,
+        category,
+        content,
+        fields: fields || [],
+        optionalClauses: optionalClauses || [],
+        isActive: true,
+        sortOrder: maxSortOrder + 1,
+        version: 1,
+        createdBy: (req.session as any).userId
+      });
+
+      console.log(`[ADMIN] Template created: ${template.id} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin create template error:", error);
+      res.status(500).json({ error: "Failed to create template" });
+    }
+  });
+
+  app.put("/api/admin/templates/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const existing = await storage.getTemplate(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { name, description, category, content, fields, optionalClauses } = req.body;
+
+      // Validate template structure
+      const validation = validateTemplateStructure({
+        content: content as TemplateContent,
+        fields: (fields || []) as TemplateField[],
+        optionalClauses: (optionalClauses || []) as OptionalClause[]
+      });
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: "Invalid template", details: validation.errors });
+      }
+
+      const template = await storage.updateTemplate(req.params.id, {
+        name,
+        description,
+        category,
+        content,
+        fields: fields || [],
+        optionalClauses: optionalClauses || [],
+        version: (existing.version ?? 1) + 1
+      });
+
+      console.log(`[ADMIN] Template updated: ${template?.id} v${template?.version} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin update template error:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  });
+
+  app.delete("/api/admin/templates/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deactivateTemplate(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      console.log(`[ADMIN] Template deactivated: ${req.params.id} by ${(req.session as any).userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin deactivate template error:", error);
+      res.status(500).json({ error: "Failed to deactivate template" });
+    }
+  });
+
+  app.post("/api/admin/templates/:id/activate", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const template = await storage.activateTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      console.log(`[ADMIN] Template activated: ${template.id} by ${(req.session as any).userId}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Admin activate template error:", error);
+      res.status(500).json({ error: "Failed to activate template" });
+    }
+  });
+
+  app.post("/api/admin/templates/:id/clone", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const original = await storage.getTemplate(req.params.id);
+      if (!original) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const { name } = req.body;
+
+      // Get max sort order
+      const allTemplates = await storage.getAllTemplates();
+      const maxSortOrder = allTemplates.reduce((max, t) => Math.max(max, t.sortOrder ?? 0), 0);
+
+      const cloned = await storage.createTemplate({
+        name: name || `${original.name} (Copy)`,
+        description: original.description,
+        category: original.category,
+        content: original.content,
+        fields: original.fields,
+        optionalClauses: original.optionalClauses,
+        isActive: true,
+        sortOrder: maxSortOrder + 1,
+        version: 1,
+        createdBy: (req.session as any).userId
+      });
+
+      console.log(`[ADMIN] Template cloned: ${original.id} → ${cloned.id} by ${(req.session as any).userId}`);
+      res.json({ template: cloned });
+    } catch (error) {
+      console.error("Admin clone template error:", error);
+      res.status(500).json({ error: "Failed to clone template" });
+    }
+  });
+
+  app.put("/api/admin/templates/reorder", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { ids } = req.body as { ids: string[] };
+
+      // Update sort order for each template
+      for (let i = 0; i < ids.length; i++) {
+        await storage.updateTemplate(ids[i], { sortOrder: i });
+      }
+
+      console.log(`[ADMIN] Templates reordered by ${(req.session as any).userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin reorder templates error:", error);
+      res.status(500).json({ error: "Failed to reorder templates" });
     }
   });
 

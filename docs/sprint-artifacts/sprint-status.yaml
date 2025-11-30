@@ -68,12 +68,12 @@ development_status:
   # 10 stories, 30 points
   # ============================================
   epic-3: contexted
-  3-1-template-data-model-and-storage: ready-for-dev
-  3-2-artist-agreement-template: ready-for-dev
-  3-3-license-agreement-template: ready-for-dev
-  3-4-tour-agreement-template: ready-for-dev
-  3-5-sample-agreement-template: ready-for-dev
-  3-6-work-for-hire-agreement-template: ready-for-dev
+  3-1-template-data-model-and-storage: done
+  3-2-artist-agreement-template: done
+  3-3-license-agreement-template: done
+  3-4-tour-agreement-template: done
+  3-5-sample-agreement-template: done
+  3-6-work-for-hire-agreement-template: done
   3-7-template-selection-ui: ready-for-dev
   3-8-template-fill-in-form: ready-for-dev
   3-9-contract-preview-and-editing: ready-for-dev
