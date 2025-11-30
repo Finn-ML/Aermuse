@@ -10,12 +10,13 @@ import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
-import { requireAdmin } from "./middleware/auth";
+import { requireAdmin, requireAuth } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType } from "./services/fileStorage";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
+import { getUserSubscription } from "./services/subscription";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -1088,6 +1089,231 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Delete link error:", error);
       res.status(500).json({ error: "Failed to delete link" });
+    }
+  });
+
+  // ============================================
+  // BILLING ROUTES (Epic 5)
+  // ============================================
+
+  // Create checkout session
+  app.post("/api/billing/checkout", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // Dynamic import to avoid module load issues when Stripe key not set
+      const stripe = await import("./services/stripe");
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if already subscribed
+      if (user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing") {
+        return res.status(400).json({
+          error: "You already have an active subscription",
+          redirect: "/settings/billing",
+        });
+      }
+
+      let customerId = user.stripeCustomerId;
+
+      // Create Stripe customer if needed
+      if (!customerId) {
+        const customer = await stripe.createCustomer(user.email, {
+          userId: user.id,
+          name: user.name,
+        });
+        customerId = customer.id;
+
+        // Save customer ID to user
+        await storage.updateUser(userId, {
+          stripeCustomerId: customerId,
+        } as any);
+      }
+
+      // Create checkout session
+      const session = await stripe.createCheckoutSession({
+        customerId,
+        userId: user.id,
+        successUrl: `${stripe.stripeConfig.appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${stripe.stripeConfig.appUrl}/pricing?canceled=true`,
+      });
+
+      console.log(`[BILLING] Checkout session created: ${session.id} for user ${userId}`);
+
+      res.json({
+        sessionId: session.id,
+        url: session.url,
+      });
+    } catch (error) {
+      console.error("[BILLING] Checkout session error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Verify checkout success
+  app.get("/api/billing/checkout/verify/:sessionId", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user!.id;
+
+      // Dynamic import
+      const { stripe } = await import("./services/stripe");
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      // Verify session belongs to this user
+      if (session.metadata?.userId !== userId) {
+        return res.status(403).json({ error: "Session does not belong to this user" });
+      }
+
+      // Check payment status
+      if (session.payment_status !== "paid") {
+        return res.status(400).json({
+          success: false,
+          status: session.payment_status,
+          message: "Payment not completed",
+        });
+      }
+
+      res.json({
+        success: true,
+        status: "paid",
+        subscriptionId: session.subscription,
+        customerId: session.customer,
+      });
+    } catch (error) {
+      console.error("[BILLING] Verify checkout error:", error);
+      res.status(500).json({ error: "Failed to verify checkout session" });
+    }
+  });
+
+  // Get subscription status
+  app.get("/api/billing/subscription", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const subscription = await getUserSubscription(userId);
+      res.json(subscription);
+    } catch (error) {
+      console.error("[BILLING] Get subscription error:", error);
+      res.status(500).json({ error: "Failed to get subscription" });
+    }
+  });
+
+  // Create Stripe Customer Portal session
+  app.post("/api/billing/portal", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({
+          error: "No billing account found",
+          message: "You need to subscribe first to access billing management.",
+        });
+      }
+
+      // Dynamic import
+      const { createPortalSession, stripeConfig } = await import("./services/stripe");
+
+      const session = await createPortalSession(
+        user.stripeCustomerId,
+        `${stripeConfig.appUrl}/settings/billing`
+      );
+
+      console.log(`[BILLING] Portal session created for user ${userId}`);
+
+      res.json({
+        url: session.url,
+      });
+    } catch (error) {
+      console.error("[BILLING] Portal session error:", error);
+      res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  // Get invoices for current user
+  app.get("/api/billing/invoices", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const user = await storage.getUser(userId);
+      if (!user?.stripeCustomerId) {
+        return res.json([]);
+      }
+
+      // Dynamic import
+      const { listInvoices } = await import("./services/stripe");
+
+      const invoices = await listInvoices(user.stripeCustomerId, 12);
+
+      // Format for frontend
+      const formatted = invoices.map(inv => ({
+        id: inv.id,
+        number: inv.number,
+        status: inv.status,
+        amount: inv.amount_paid / 100,
+        currency: inv.currency,
+        date: new Date((inv.created || 0) * 1000).toISOString(),
+        pdfUrl: inv.invoice_pdf,
+        hostedUrl: inv.hosted_invoice_url,
+      }));
+
+      res.json(formatted);
+    } catch (error) {
+      console.error("[BILLING] Get invoices error:", error);
+      res.status(500).json({ error: "Failed to get invoices" });
+    }
+  });
+
+  // ============================================
+  // STRIPE WEBHOOK ROUTE (Epic 5)
+  // ============================================
+
+  app.post("/api/webhooks/stripe", async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"] as string;
+
+    if (!signature) {
+      console.error("[STRIPE WEBHOOK] Missing signature header");
+      return res.status(400).json({ error: "Missing signature" });
+    }
+
+    try {
+      // Dynamic import
+      const { constructWebhookEvent } = await import("./services/stripe");
+      const { handleStripeEvent } = await import("./services/stripe-webhook-handlers");
+
+      // Use rawBody for signature verification
+      const rawBody = (req as any).rawBody;
+      if (!rawBody) {
+        console.error("[STRIPE WEBHOOK] No raw body available");
+        return res.status(400).json({ error: "No raw body" });
+      }
+
+      // Verify and construct event
+      const event = constructWebhookEvent(rawBody, signature);
+
+      console.log(`[STRIPE WEBHOOK] Received: ${event.type} (${event.id})`);
+
+      // Process event
+      await handleStripeEvent(event);
+
+      // Acknowledge receipt
+      res.json({ received: true, eventId: event.id });
+    } catch (error) {
+      if ((error as Error).message?.includes("signature")) {
+        console.error("[STRIPE WEBHOOK] Signature verification failed");
+        return res.status(400).json({ error: "Invalid signature" });
+      }
+
+      console.error("[STRIPE WEBHOOK] Error processing event:", error);
+      // Return 200 to prevent retries for processing errors we've logged
+      res.status(200).json({ received: true, error: "Processing error logged" });
     }
   });
 

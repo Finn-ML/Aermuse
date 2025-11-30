@@ -20,6 +20,13 @@ export const users = pgTable("users", {
   passwordResetToken: varchar("password_reset_token"),
   passwordResetExpires: timestamp("password_reset_expires"),
   deletedAt: timestamp("deleted_at"),
+  // Epic 5: Subscription & Billing fields
+  stripeCustomerId: varchar("stripe_customer_id", { length: 50 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 50 }),
+  subscriptionStatus: text("subscription_status").default("none"),
+  subscriptionPriceId: varchar("subscription_price_id", { length: 50 }),
+  subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end", { withTimezone: true }),
+  subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
