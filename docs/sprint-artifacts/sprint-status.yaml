@@ -86,7 +86,7 @@ development_status:
   # ============================================
   epic-4: contexted
   4-1-docuseal-integration-service: review
-  4-2-signature-request-data-model: ready-for-dev
+  4-2-signature-request-data-model: review
   4-3-add-signatories-ui: ready-for-dev
   4-4-signature-request-api: ready-for-dev
   4-5-webhook-handler: ready-for-dev

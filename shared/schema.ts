@@ -170,3 +170,94 @@ export const insertLandingPageLinkSchema = createInsertSchema(landingPageLinks).
 
 export type InsertLandingPageLink = z.infer<typeof insertLandingPageLinkSchema>;
 export type LandingPageLink = typeof landingPageLinks.$inferSelect;
+
+// ============================================
+// SIGNATURE REQUESTS TABLE (Epic 4: E-Signing)
+// ============================================
+
+export const signatureRequests = pgTable("signature_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Foreign keys
+  contractId: varchar("contract_id").notNull().references(() => contracts.id, { onDelete: 'cascade' }),
+  initiatorId: varchar("initiator_id").notNull().references(() => users.id),
+
+  // DocuSeal reference
+  docusealDocumentId: varchar("docuseal_document_id", { length: 100 }),
+
+  // Configuration
+  status: text("status").notNull().default("pending"), // pending, in_progress, completed, expired, cancelled
+  signingOrder: text("signing_order").notNull().default("sequential"), // sequential, parallel
+  message: text("message"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+
+  // Completion tracking
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  signedPdfPath: text("signed_pdf_path"),
+
+  // Timestamps
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertSignatureRequestSchema = createInsertSchema(signatureRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSignatureRequest = z.infer<typeof insertSignatureRequestSchema>;
+export type SignatureRequest = typeof signatureRequests.$inferSelect;
+
+// Status type unions for signature requests
+export type SignatureRequestStatus =
+  | 'pending'      // Created, waiting for first signature
+  | 'in_progress'  // At least one signature collected
+  | 'completed'    // All signatures collected
+  | 'expired'      // Past expiration date
+  | 'cancelled';   // Cancelled by initiator
+
+export type SigningOrder = 'sequential' | 'parallel';
+
+// ============================================
+// SIGNATORIES TABLE (Epic 4: E-Signing)
+// ============================================
+
+export const signatories = pgTable("signatories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Foreign key to signature request
+  signatureRequestId: varchar("signature_request_id").notNull().references(() => signatureRequests.id, { onDelete: 'cascade' }),
+
+  // DocuSeal references
+  docusealRequestId: varchar("docuseal_request_id", { length: 100 }),
+  signingToken: varchar("signing_token", { length: 100 }),
+  signingUrl: text("signing_url"),
+
+  // Signer information
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  userId: varchar("user_id").references(() => users.id), // Optional: link to registered user
+
+  // Order and status
+  signingOrder: integer("signing_order").notNull().default(1),
+  status: text("status").notNull().default("waiting"), // waiting, pending, signed
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+
+  // Timestamps
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertSignatorySchema = createInsertSchema(signatories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSignatory = z.infer<typeof insertSignatorySchema>;
+export type Signatory = typeof signatories.$inferSelect;
+
+// Status type union for signatories
+export type SignatoryStatus =
+  | 'waiting'  // Sequential: waiting for previous signers
+  | 'pending'  // Ready to sign
+  | 'signed';  // Completed
