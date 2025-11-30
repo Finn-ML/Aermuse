@@ -1,12 +1,13 @@
-import { 
-  type User, type InsertUser, 
+import {
+  type User, type InsertUser,
   type Contract, type InsertContract,
+  type ContractVersion, type InsertContractVersion,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
-  users, contracts, landingPages, landingPageLinks
+  users, contracts, contractVersions, landingPages, landingPageLinks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -24,6 +25,12 @@ export interface IStorage {
   createContract(contract: InsertContract): Promise<Contract>;
   updateContract(id: string, data: Partial<InsertContract>): Promise<Contract | undefined>;
   deleteContract(id: string): Promise<boolean>;
+
+  // Contract Versions
+  getContractVersions(contractId: string): Promise<ContractVersion[]>;
+  getContractVersion(id: string): Promise<ContractVersion | undefined>;
+  createContractVersion(version: InsertContractVersion): Promise<ContractVersion>;
+  getLatestVersionNumber(contractId: string): Promise<number>;
   
   // Landing Pages
   getLandingPage(id: string): Promise<LandingPage | undefined>;
@@ -101,6 +108,33 @@ export class DatabaseStorage implements IStorage {
   async deleteContract(id: string): Promise<boolean> {
     const result = await db.delete(contracts).where(eq(contracts.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Contract Versions
+  async getContractVersions(contractId: string): Promise<ContractVersion[]> {
+    return db.select()
+      .from(contractVersions)
+      .where(eq(contractVersions.contractId, contractId))
+      .orderBy(desc(contractVersions.versionNumber));
+  }
+
+  async getContractVersion(id: string): Promise<ContractVersion | undefined> {
+    const [version] = await db.select().from(contractVersions).where(eq(contractVersions.id, id));
+    return version;
+  }
+
+  async createContractVersion(version: InsertContractVersion): Promise<ContractVersion> {
+    const [newVersion] = await db.insert(contractVersions).values(version).returning();
+    return newVersion;
+  }
+
+  async getLatestVersionNumber(contractId: string): Promise<number> {
+    const [latest] = await db.select({ versionNumber: contractVersions.versionNumber })
+      .from(contractVersions)
+      .where(eq(contractVersions.contractId, contractId))
+      .orderBy(desc(contractVersions.versionNumber))
+      .limit(1);
+    return latest?.versionNumber || 0;
   }
 
   // Landing Pages

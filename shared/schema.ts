@@ -65,6 +65,31 @@ export const insertContractSchema = createInsertSchema(contracts).omit({
 export type InsertContract = z.infer<typeof insertContractSchema>;
 export type Contract = typeof contracts.$inferSelect;
 
+// Contract versions table - stores historical versions of contracts
+export const contractVersions = pgTable("contract_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id, { onDelete: 'cascade' }),
+  versionNumber: integer("version_number").notNull(),
+  fileName: text("file_name"),
+  filePath: text("file_path"),
+  fileSize: integer("file_size"),
+  fileType: text("file_type"),
+  extractedText: text("extracted_text"),
+  aiAnalysis: jsonb("ai_analysis"),
+  aiRiskScore: text("ai_risk_score"),
+  analyzedAt: timestamp("analyzed_at"),
+  notes: text("notes"), // User can add notes about what changed in this version
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContractVersionSchema = createInsertSchema(contractVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractVersion = z.infer<typeof insertContractVersionSchema>;
+export type ContractVersion = typeof contractVersions.$inferSelect;
+
 // Landing pages table
 export const landingPages = pgTable("landing_pages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

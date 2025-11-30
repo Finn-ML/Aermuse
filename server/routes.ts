@@ -409,7 +409,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      res.json(contract);
+      res.json({ contract });
     } catch (error) {
       console.error("Get contract error:", error);
       res.status(500).json({ error: "Failed to get contract" });
@@ -730,6 +730,175 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[EXTRACT] Re-extraction failed:", error);
       res.status(500).json({ error: "Text extraction failed" });
+    }
+  });
+
+  // Contract Versions - List all versions
+  app.get("/api/contracts/:id/versions", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const versions = await storage.getContractVersions(req.params.id);
+      res.json({ versions });
+    } catch (error) {
+      console.error("Get contract versions error:", error);
+      res.status(500).json({ error: "Failed to get versions" });
+    }
+  });
+
+  // Contract Versions - Get specific version
+  app.get("/api/contracts/:id/versions/:versionId", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const version = await storage.getContractVersion(req.params.versionId);
+      if (!version || version.contractId !== req.params.id) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+
+      res.json({ version });
+    } catch (error) {
+      console.error("Get contract version error:", error);
+      res.status(500).json({ error: "Failed to get version" });
+    }
+  });
+
+  // Contract Versions - Download version file
+  app.get("/api/contracts/:id/versions/:versionId/download", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const version = await storage.getContractVersion(req.params.versionId);
+      if (!version || version.contractId !== req.params.id) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+
+      if (!version.filePath) {
+        return res.status(404).json({ error: "No file attached to this version" });
+      }
+
+      const buffer = await downloadContractFile(version.filePath);
+
+      res.setHeader("Content-Type", getContentType(version.fileType || "pdf"));
+      res.setHeader("Content-Disposition", `attachment; filename="${version.fileName || "contract"}"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("[VERSION DOWNLOAD] Failed:", error);
+      res.status(500).json({ error: "Download failed" });
+    }
+  });
+
+  // Contract Versions - Upload new version
+  app.post("/api/contracts/:id/versions", upload.single("file"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Verify file type using magic bytes
+      const verification = await verifyFileType(req.file.buffer);
+      if (!verification.valid) {
+        return res.status(400).json({ error: verification.error });
+      }
+
+      // Archive current version before updating
+      const currentVersionNumber = await storage.getLatestVersionNumber(contract.id);
+
+      // Only archive if there's existing file data
+      if (contract.filePath) {
+        await storage.createContractVersion({
+          contractId: contract.id,
+          versionNumber: currentVersionNumber + 1,
+          fileName: contract.fileName,
+          filePath: contract.filePath,
+          fileSize: contract.fileSize,
+          fileType: contract.fileType,
+          extractedText: contract.extractedText,
+          aiAnalysis: contract.aiAnalysis as Record<string, unknown> | null,
+          aiRiskScore: contract.aiRiskScore,
+          analyzedAt: contract.analyzedAt,
+          notes: req.body.notes || null,
+        });
+      }
+
+      // Upload new file to Object Storage
+      const newVersionNumber = currentVersionNumber + 2;
+      const uploaded = await uploadContractFile(
+        userId,
+        contract.id,
+        req.file.buffer,
+        verification.type!,
+        `v${newVersionNumber}`
+      );
+
+      // Extract text from new document
+      const extraction = await extractText(req.file.buffer, verification.type!);
+
+      console.log(`[VERSION] Contract ${contract.id} v${newVersionNumber}: ${extraction.charCount} chars extracted`);
+
+      // Update main contract with new file
+      const updatedContract = await storage.updateContract(contract.id, {
+        filePath: uploaded.path,
+        fileName: req.file.originalname,
+        fileSize: uploaded.size,
+        fileType: verification.type,
+        extractedText: extraction.text,
+        aiAnalysis: null, // Clear previous analysis
+        aiRiskScore: null,
+        analyzedAt: null,
+        status: extraction.success ? "uploaded" : "extraction_failed",
+      });
+
+      console.log(`[VERSION] New version uploaded: ${contract.id} v${newVersionNumber}`);
+
+      res.json({
+        contract: updatedContract,
+        versionNumber: newVersionNumber,
+        extraction: {
+          success: extraction.success,
+          charCount: extraction.charCount,
+          pageCount: extraction.pageCount,
+          warning: extraction.warning,
+          error: extraction.error,
+        },
+      });
+    } catch (error) {
+      console.error("[VERSION UPLOAD] Failed:", error);
+      res.status(500).json({ error: "Version upload failed" });
     }
   });
 

@@ -39,5 +39,12 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
+args = "pkill -f 'tsx|node' 2>/dev/null || true; fuser -k 5000/tcp 2>/dev/null || true; sleep 1"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[objectStorage]
+defaultBucketID = "replit-objstore-ff2f1431-d9f8-4393-9b30-883b8b30fc98"

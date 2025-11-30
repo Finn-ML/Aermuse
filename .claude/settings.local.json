@@ -7,7 +7,10 @@
       "Bash(npm run db:push:*)",
       "Bash(npm test:*)",
       "Bash(npm run check:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(node:*)",
+      "Bash(node -e:*)",
+      "Bash(timeout 15 npm run dev:*)"
     ],
     "deny": [],
     "ask": []

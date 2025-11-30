@@ -39,9 +39,10 @@ export const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: any) => {
-    // Rate limit by user ID, not IP
-    return req.session?.userId || req.ip;
+    // Rate limit by user ID (authenticated users only for AI endpoints)
+    return req.session?.userId || 'anonymous';
   },
+  validate: { xForwardedForHeader: false, ip: false },
   handler: (req: any, res: any) => {
     console.log(`[AI] Rate limit hit for user ${req.session?.userId}`);
     res.status(429).json({

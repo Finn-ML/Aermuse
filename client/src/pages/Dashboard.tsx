@@ -654,7 +654,12 @@ export default function Dashboard() {
                             <FileText size={24} className="text-[#F7E6CA]" />
                           </div>
                           <div>
-                            <div className="font-bold text-lg mb-1">{contract.name}</div>
+                            <Link
+                              href={`/contracts/${contract.id}`}
+                              className="font-bold text-lg mb-1 hover:text-[#660033] hover:underline cursor-pointer transition-colors"
+                            >
+                              {contract.name}
+                            </Link>
                             <div className="text-sm text-[rgba(102,0,51,0.5)]">
                               {contract.partnerName || 'No partner specified'} • {contract.type?.replace('_', ' ')}
                               {contract.fileName && (
@@ -686,15 +691,30 @@ export default function Dashboard() {
                                 <Download size={18} />
                               </a>
                             )}
-                            <button
-                              onClick={() => analyzeContractMutation.mutate(contract.id)}
-                              disabled={analyzeContractMutation.isPending}
-                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
-                              title="AI Analysis"
-                              data-testid={`button-analyze-${contract.id}`}
-                            >
-                              <Sparkles size={18} />
-                            </button>
+                            {contract.aiAnalysis ? (
+                              <Link
+                                href={`/contracts/${contract.id}`}
+                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                title="View Analysis"
+                                data-testid={`button-view-${contract.id}`}
+                              >
+                                <Eye size={18} />
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => analyzeContractMutation.mutate(contract.id)}
+                                disabled={analyzeContractMutation.isPending && analyzeContractMutation.variables === contract.id}
+                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
+                                title="AI Analysis"
+                                data-testid={`button-analyze-${contract.id}`}
+                              >
+                                {analyzeContractMutation.isPending && analyzeContractMutation.variables === contract.id ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <Sparkles size={18} />
+                                )}
+                              </button>
+                            )}
                             {contract.status === 'pending' && (
                               <button
                                 onClick={() => signContractMutation.mutate(contract.id)}
@@ -732,7 +752,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <p className="text-sm text-[rgba(102,0,51,0.7)]">
-                            {(contract.aiAnalysis as any)?.summary}
+                            {(contract.aiAnalysis as any)?.summary?.overview || (contract.aiAnalysis as any)?.riskAssessment?.summary}
                           </p>
                         </div>
                       )}

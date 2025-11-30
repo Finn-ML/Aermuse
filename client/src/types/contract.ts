@@ -101,3 +101,19 @@ export interface AnalysisUsage {
   completionTokens: number;
   totalTokens: number;
 }
+
+export interface ContractVersion {
+  id: string;
+  contractId: string;
+  versionNumber: number;
+  fileName?: string;
+  filePath?: string;
+  fileSize?: number;
+  fileType?: string;
+  extractedText?: string;
+  aiAnalysis?: ContractAnalysis;
+  aiRiskScore?: string;
+  analyzedAt?: string;
+  notes?: string;
+  createdAt: string;
+}

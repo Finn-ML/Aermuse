@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, ExternalLink, Scale } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'wouter';
 
@@ -31,10 +31,10 @@ export function LegalDisclaimer({
 
   if (variant === 'compact') {
     return (
-      <div className={`text-xs text-gray-500 ${className}`}>
+      <div className={`text-xs text-[rgba(102,0,51,0.5)] ${className}`}>
         <AlertCircle className="inline h-3 w-3 mr-1" />
         {DISCLAIMER_SHORT}
-        <Link href="/terms" className="ml-1 text-burgundy hover:underline">
+        <Link href="/terms" className="ml-1 text-[#660033] hover:underline">
           Terms
         </Link>
       </div>
@@ -43,13 +43,28 @@ export function LegalDisclaimer({
 
   if (variant === 'footer') {
     return (
-      <div className={`border-t pt-4 mt-6 ${className}`}>
-        <div className="flex items-start gap-2 text-xs text-gray-500">
-          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <div
+        className={`rounded-[24px] p-6 ${className}`}
+        style={{
+          background: 'rgba(102, 0, 51, 0.05)',
+          border: '1px solid rgba(102, 0, 51, 0.1)'
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(102, 0, 51, 0.1)' }}
+          >
+            <Scale className="h-4 w-4 text-[#660033]" />
+          </div>
           <div>
-            <p>{DISCLAIMER_SHORT}</p>
-            <Link href="/terms" className="text-burgundy hover:underline">
+            <p className="text-sm text-[rgba(102,0,51,0.7)]">{DISCLAIMER_SHORT}</p>
+            <Link
+              href="/terms"
+              className="text-sm text-[#660033] hover:underline mt-2 inline-flex items-center gap-1"
+            >
               View full terms of service
+              <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
         </div>
@@ -60,20 +75,33 @@ export function LegalDisclaimer({
   // Banner variant (default)
   return (
     <div
-      className={`bg-amber-50 border border-amber-200 rounded-lg ${className}`}
+      className={`rounded-[24px] overflow-hidden ${className}`}
+      style={{
+        background: 'linear-gradient(135deg, rgba(102, 0, 51, 0.08) 0%, rgba(139, 0, 69, 0.06) 100%)',
+        border: '1px solid rgba(102, 0, 51, 0.15)'
+      }}
     >
-      <div className="px-4 py-3">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+      <div className="px-6 py-5">
+        <div className="flex items-start gap-4">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+          >
+            <Scale className="h-5 w-5 text-[#F7E6CA]" />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-amber-800 font-medium">
+              <p className="font-semibold text-[#660033]">
                 AI Analysis Disclaimer
               </p>
               {expandable && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-amber-600 hover:text-amber-800 flex items-center gap-1 text-sm"
+                  className="flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                  style={{
+                    background: 'rgba(102, 0, 51, 0.1)',
+                    color: '#660033'
+                  }}
                 >
                   {expanded ? (
                     <>
@@ -87,20 +115,29 @@ export function LegalDisclaimer({
                 </button>
               )}
             </div>
-            <p className="text-sm text-amber-700 mt-1">{DISCLAIMER_SHORT}</p>
+            <p className="text-sm text-[rgba(102,0,51,0.7)] mt-2">{DISCLAIMER_SHORT}</p>
 
-            {expanded && (
-              <div className="mt-3 pt-3 border-t border-amber-200">
-                <p className="text-sm text-amber-700 whitespace-pre-line">
+            <div
+              className="overflow-hidden transition-all duration-300"
+              style={{
+                maxHeight: expanded ? '400px' : '0',
+                opacity: expanded ? 1 : 0,
+              }}
+            >
+              <div
+                className="mt-4 pt-4"
+                style={{ borderTop: '1px solid rgba(102, 0, 51, 0.15)' }}
+              >
+                <p className="text-sm text-[rgba(102,0,51,0.7)] whitespace-pre-line leading-relaxed">
                   {DISCLAIMER_FULL}
                 </p>
               </div>
-            )}
+            </div>
 
-            <div className="mt-2 flex items-center gap-4 text-sm">
+            <div className="mt-3 flex items-center gap-4">
               <Link
                 href="/terms"
-                className="text-amber-600 hover:text-amber-800 flex items-center gap-1"
+                className="text-sm font-medium text-[#660033] hover:underline flex items-center gap-1"
               >
                 Terms of Service
                 <ExternalLink className="h-3 w-3" />
