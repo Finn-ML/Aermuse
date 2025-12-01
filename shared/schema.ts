@@ -198,3 +198,41 @@ export const insertLandingPageLinkSchema = createInsertSchema(landingPageLinks).
 
 export type InsertLandingPageLink = z.infer<typeof insertLandingPageLinkSchema>;
 export type LandingPageLink = typeof landingPageLinks.$inferSelect;
+
+// System Settings table (Epic 6)
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: jsonb("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedBy: varchar("updated_by", { length: 36 }).references(() => users.id),
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;
+
+// Admin Activity Log table (Epic 6)
+export const adminActivityLog = pgTable("admin_activity_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id", { length: 36 }).notNull().references(() => users.id),
+  action: varchar("action", { length: 50 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id", { length: 36 }),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address", { length: 45 }), // Supports IPv6
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertAdminActivitySchema = createInsertSchema(adminActivityLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAdminActivity = z.infer<typeof insertAdminActivitySchema>;
+export type AdminActivity = typeof adminActivityLog.$inferSelect;

@@ -1534,7 +1534,7 @@ export async function registerRoutes(
     }
   });
 
-  // Admin users list (placeholder for Epic 6)
+  // Admin users list
   app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
     try {
       const users = await storage.getAllUsers();
@@ -1546,6 +1546,100 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Admin users error:", error);
       res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
+  // Admin update user (role change)
+  app.patch("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+
+      if (role && !['user', 'admin'].includes(role)) {
+        return res.status(400).json({ error: "Invalid role. Must be 'user' or 'admin'" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.deletedAt) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updated = await storage.updateUser(id, { role } as any);
+      if (!updated) {
+        return res.status(500).json({ error: "Failed to update user" });
+      }
+
+      const { password, ...safeUser } = updated;
+      console.log(`[ADMIN] User ${id} role changed to ${role} by ${(req.session as any).userId}`);
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Admin update user error:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  // Admin dashboard overview stats
+  app.get("/api/admin/overview", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const users = await storage.getAllUsers();
+      const activeUsers = users.filter(u => !u.deletedAt);
+
+      // Get all contracts via direct query (need to add method or use inline)
+      const contracts = await Promise.all(
+        activeUsers.map(u => storage.getContractsByUser(u.id))
+      ).then(results => results.flat());
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const newUsersThisMonth = activeUsers.filter(u =>
+        u.createdAt && new Date(u.createdAt) >= thirtyDaysAgo
+      ).length;
+
+      const newContractsThisMonth = contracts.filter(c =>
+        c.createdAt && new Date(c.createdAt) >= thirtyDaysAgo
+      ).length;
+
+      const activeSubscribers = activeUsers.filter(u =>
+        u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing'
+      ).length;
+
+      res.json({
+        totalUsers: activeUsers.length,
+        activeSubscribers,
+        totalContracts: contracts.length,
+        adminCount: activeUsers.filter(u => u.role === 'admin').length,
+        newUsersThisMonth,
+        newContractsThisMonth,
+      });
+    } catch (error) {
+      console.error("Admin overview error:", error);
+      res.status(500).json({ error: "Failed to get overview stats" });
+    }
+  });
+
+  // Admin contracts list (all users)
+  app.get("/api/admin/contracts", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const users = await storage.getAllUsers();
+      const activeUsers = users.filter(u => !u.deletedAt);
+
+      // Get all contracts from all users
+      const contracts = await Promise.all(
+        activeUsers.map(u => storage.getContractsByUser(u.id))
+      ).then(results => results.flat());
+
+      // Sort by updatedAt desc
+      contracts.sort((a, b) => {
+        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      res.json(contracts);
+    } catch (error) {
+      console.error("Admin contracts error:", error);
+      res.status(500).json({ error: "Failed to get contracts" });
     }
   });
 

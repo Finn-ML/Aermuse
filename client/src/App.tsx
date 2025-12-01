@@ -15,6 +15,17 @@ import Terms from "@/pages/Terms";
 import Pricing from "@/pages/Pricing";
 import Checkout from "@/pages/Checkout";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
+// Admin pages
+import {
+  AdminOverview,
+  AdminUsers,
+  AdminContracts,
+  AdminTemplates,
+  AdminSubscriptions,
+  AdminAnalytics,
+  AdminSettings,
+  AdminActivity,
+} from "@/pages/admin";
 
 function Router() {
   return (
@@ -29,6 +40,19 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
+      {/* Admin routes */}
+      <Route path="/admin" component={AdminOverview} />
+      <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/users/:id" component={AdminUsers} />
+      <Route path="/admin/contracts" component={AdminContracts} />
+      <Route path="/admin/contracts/:id" component={AdminContracts} />
+      <Route path="/admin/templates" component={AdminTemplates} />
+      <Route path="/admin/templates/new" component={AdminTemplates} />
+      <Route path="/admin/templates/:id" component={AdminTemplates} />
+      <Route path="/admin/subscriptions" component={AdminSubscriptions} />
+      <Route path="/admin/analytics" component={AdminAnalytics} />
+      <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/activity" component={AdminActivity} />
       <Route component={NotFound} />
     </Switch>
   );
