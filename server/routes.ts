@@ -17,6 +17,7 @@ import { uploadContractFile, downloadContractFile, getContentType } from "./serv
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription } from "./services/subscription";
+import { generateContractPdf, sanitizeFilename } from "./services/pdfGenerator";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -393,7 +394,21 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const contracts = await storage.getContractsByUser(userId);
+      // Extract filter and sort parameters (Story 8.6)
+      const filters = {
+        search: req.query.search as string | undefined,
+        status: req.query.status as string | undefined,
+        type: req.query.type as string | undefined,
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        folderId: req.query.folderId as string | undefined,
+        sortField: (req.query.sortField as string | undefined) || 'updatedAt',
+        sortOrder: (req.query.sortOrder as string | undefined) || 'desc',
+      };
+
+      // Always use filterContracts since it handles sorting (Story 8.6)
+      const contracts = await storage.filterContracts(userId, filters as any);
+
       res.json(contracts);
     } catch (error) {
       console.error("Get contracts error:", error);
@@ -711,7 +726,7 @@ export async function registerRoutes(
     }
   });
 
-  // Generate PDF for template-based contracts
+  // Contract PDF Export (Story 8.4)
   app.get("/api/contracts/:id/pdf", async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
@@ -724,28 +739,35 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // For uploaded contracts, redirect to regular download
-      if (contract.filePath && !contract.renderedContent) {
-        return res.redirect(`/api/contracts/${contract.id}/download`);
-      }
+      // Generate PDF summary
+      const pdfBuffer = await generateContractPdf({
+        id: contract.id,
+        name: contract.name,
+        type: contract.type,
+        status: contract.status,
+        partnerName: contract.partnerName,
+        value: contract.value,
+        createdAt: contract.createdAt || new Date(),
+        updatedAt: contract.updatedAt || new Date(),
+        signedAt: contract.signedAt,
+        aiRiskScore: contract.aiRiskScore,
+        aiAnalysis: contract.aiAnalysis as any,
+      });
 
-      // For template contracts, generate PDF from rendered content
-      if (!contract.renderedContent) {
-        return res.status(400).json({ error: "No content available to generate PDF" });
-      }
+      // Create safe filename
+      const filename = sanitizeFilename(contract.name);
 
-      const { generatePDF } = await import("./services/pdfGenerator");
-      const pdfBuffer = await generatePDF(contract.renderedContent);
-
-      const filename = `${contract.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}-summary.pdf"`
+      );
       res.send(pdfBuffer);
 
-      console.log(`[PDF] Generated PDF for contract ${contract.id}`);
+      console.log(`[PDF] Generated summary for contract ${contract.id}`);
     } catch (error) {
       console.error("[PDF] Generation failed:", error);
-      res.status(500).json({ error: "PDF generation failed" });
+      res.status(500).json({ error: "Failed to generate PDF" });
     }
   });
 
@@ -793,7 +815,7 @@ export async function registerRoutes(
     }
   });
 
-  // Contract Versions - List all versions
+  // Contract Version History (Story 8.5)
   app.get("/api/contracts/:id/versions", async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
@@ -807,9 +829,11 @@ export async function registerRoutes(
       }
 
       const versions = await storage.getContractVersions(req.params.id);
-      res.json({ versions });
+      const currentVersion = versions.length + 1;
+
+      res.json({ versions, currentVersion });
     } catch (error) {
-      console.error("Get contract versions error:", error);
+      console.error("Get versions error:", error);
       res.status(500).json({ error: "Failed to get versions" });
     }
   });
@@ -962,6 +986,7 @@ export async function registerRoutes(
     }
   });
 
+
   // Multer error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof multer.MulterError) {
@@ -974,6 +999,161 @@ export async function registerRoutes(
       return res.status(400).json({ error: err.message });
     }
     next(err);
+  });
+
+  // Contract Folders routes (Story 8.3)
+  app.get("/api/folders", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const data = await storage.getFolderWithCounts(userId);
+      res.json(data);
+    } catch (error) {
+      console.error("Get folders error:", error);
+      res.status(500).json({ error: "Failed to get folders" });
+    }
+  });
+
+  app.post("/api/folders", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { name, color } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ error: "Folder name is required" });
+      }
+
+      // Validate color format if provided
+      if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        return res.status(400).json({ error: "Invalid color format. Use hex: #RRGGBB" });
+      }
+
+      // Check for duplicate name
+      const existingFolders = await storage.getFoldersByUser(userId);
+      if (existingFolders.some(f => f.name.toLowerCase() === name.trim().toLowerCase())) {
+        return res.status(400).json({ error: "Folder name already exists" });
+      }
+
+      const folder = await storage.createFolder({
+        userId,
+        name: name.trim(),
+        color: color || null,
+        sortOrder: existingFolders.length,
+      });
+
+      res.status(201).json(folder);
+    } catch (error) {
+      console.error("Create folder error:", error);
+      res.status(500).json({ error: "Failed to create folder" });
+    }
+  });
+
+  app.patch("/api/folders/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const folder = await storage.getFolder(req.params.id);
+      if (!folder || folder.userId !== userId) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+
+      const { name, color } = req.body;
+
+      // Validate name if provided
+      if (name !== undefined) {
+        if (typeof name !== "string" || name.trim().length === 0) {
+          return res.status(400).json({ error: "Folder name cannot be empty" });
+        }
+
+        // Check for duplicate name (excluding current folder)
+        const existingFolders = await storage.getFoldersByUser(userId);
+        if (existingFolders.some(f => f.id !== req.params.id && f.name.toLowerCase() === name.trim().toLowerCase())) {
+          return res.status(400).json({ error: "Folder name already exists" });
+        }
+      }
+
+      // Validate color format if provided
+      if (color !== undefined && color !== null && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        return res.status(400).json({ error: "Invalid color format. Use hex: #RRGGBB" });
+      }
+
+      const updated = await storage.updateFolder(req.params.id, {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(color !== undefined && { color }),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update folder error:", error);
+      res.status(500).json({ error: "Failed to update folder" });
+    }
+  });
+
+  app.delete("/api/folders/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const folder = await storage.getFolder(req.params.id);
+      if (!folder || folder.userId !== userId) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+
+      // Check if folder has contracts
+      const contractCount = await storage.getFolderContractCount(req.params.id);
+      if (contractCount > 0) {
+        return res.status(400).json({
+          error: "Cannot delete folder with contracts. Move or delete contracts first."
+        });
+      }
+
+      await storage.deleteFolder(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete folder error:", error);
+      res.status(500).json({ error: "Failed to delete folder" });
+    }
+  });
+
+  app.post("/api/contracts/:id/move", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contract = await storage.getContract(req.params.id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const { folderId } = req.body;
+
+      // Verify folder belongs to user if provided
+      if (folderId) {
+        const folder = await storage.getFolder(folderId);
+        if (!folder || folder.userId !== userId) {
+          return res.status(404).json({ error: "Folder not found" });
+        }
+      }
+
+      await storage.moveContractToFolder(req.params.id, folderId || null);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Move contract error:", error);
+      res.status(500).json({ error: "Failed to move contract" });
+    }
   });
 
   // Landing Page routes
@@ -1183,7 +1363,7 @@ export async function registerRoutes(
       const customerId = session.customer as string;
 
       if (subscriptionId) {
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
         await storage.updateUser(userId, {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,

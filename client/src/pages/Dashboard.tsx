@@ -9,6 +9,13 @@ import { ContractUpload } from '@/components/contracts/ContractUpload';
 import { TemplateGallery } from '@/components/templates/TemplateGallery';
 import { TemplateForm } from '@/components/templates/TemplateForm';
 import { ContractPreview } from '@/components/templates/ContractPreview';
+import { ContractSearchBar } from '@/components/contracts/ContractSearchBar';
+import { HighlightText } from '@/components/contracts/HighlightText';
+import { ContractFilters, type FilterState } from '@/components/contracts/ContractFilters';
+import { ActiveFilters } from '@/components/contracts/ActiveFilters';
+import { FolderSidebar } from '@/components/contracts/FolderSidebar';
+import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
+import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
 import { useAuth } from '@/lib/auth';
 import type { TemplateFormData } from '@shared/types/templates';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +41,10 @@ import {
   X,
   Loader2,
   Trash2,
-  Check
+  Check,
+  SearchX,
+  FolderInput,
+  FileDown
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'templates' | 'landing' | 'settings';
@@ -50,13 +60,23 @@ export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
+    status: '',
+    type: '',
+    dateFrom: '',
+    dateTo: '',
+  });
   const [showAddContract, setShowAddContract] = useState(false);
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   const [previewFormData, setPreviewFormData] = useState<TemplateFormData | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, 'unfiled' = unfiled
+  const [moveContractModal, setMoveContractModal] = useState<{ contractId: string; contractName: string; currentFolderId: string | null } | null>(null);
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -73,7 +93,38 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
-    queryKey: ['/api/contracts'],
+    queryKey: ['/api/contracts', searchQuery, advancedFilters, selectedFolder, sortField, sortOrder],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) {
+        params.set('search', searchQuery.trim());
+      }
+      if (advancedFilters.status) {
+        params.set('status', advancedFilters.status);
+      }
+      if (advancedFilters.type) {
+        params.set('type', advancedFilters.type);
+      }
+      if (advancedFilters.dateFrom) {
+        params.set('dateFrom', advancedFilters.dateFrom);
+      }
+      if (advancedFilters.dateTo) {
+        params.set('dateTo', advancedFilters.dateTo);
+      }
+      // Folder filtering
+      if (selectedFolder === 'unfiled') {
+        params.set('folderId', 'null');
+      } else if (selectedFolder) {
+        params.set('folderId', selectedFolder);
+      }
+      // Sorting (Story 8.6)
+      params.set('sortField', sortField);
+      params.set('sortOrder', sortOrder);
+      const url = `/api/contracts${params.toString() ? `?${params}` : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch contracts');
+      return res.json();
+    },
     enabled: !!user,
   });
 
@@ -242,9 +293,8 @@ export default function Dashboard() {
     }
   };
 
-  const filteredContracts = activeFilter === 'all' 
-    ? contracts 
-    : contracts.filter(c => c.status === activeFilter);
+  // Filtering is now done server-side via advancedFilters
+  const filteredContracts = contracts;
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A';
@@ -512,24 +562,20 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'contracts' && (
-            <>
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex gap-3">
-                  {['all', 'pending', 'active', 'completed'].map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setActiveFilter(filter)}
-                      className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                        activeFilter === filter
-                          ? 'bg-[#660033] text-[#F7E6CA]'
-                          : 'bg-[rgba(255,255,255,0.6)] text-[rgba(102,0,51,0.7)] hover:bg-[rgba(255,255,255,0.8)]'
-                      }`}
-                      data-testid={`filter-${filter}`}
-                    >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex gap-6 -mx-10 -mt-10 -mb-10">
+              {/* Folder Sidebar */}
+              <FolderSidebar
+                selectedFolder={selectedFolder}
+                onSelectFolder={setSelectedFolder}
+              />
+
+              {/* Main Content */}
+              <div className="flex-1 p-10">
+              {/* Header with action buttons */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-[#660033]">
+                  {selectedFolder === null ? 'All Contracts' : selectedFolder === 'unfiled' ? 'Unfiled Contracts' : 'Contracts'}
+                </h2>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowUploadContract(true)}
@@ -548,6 +594,43 @@ export default function Dashboard() {
                     Add Contract
                   </button>
                 </div>
+              </div>
+
+              {/* Search Bar and Sort (Story 8.6) */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1">
+                  <ContractSearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search by name, partner, or content..."
+                  />
+                </div>
+                <ContractSortDropdown
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onChange={(field, order) => {
+                    setSortField(field);
+                    setSortOrder(order);
+                  }}
+                />
+              </div>
+
+              {/* Advanced Filters - AC-1 through AC-7 */}
+              <div className="mb-4">
+                <ContractFilters
+                  filters={advancedFilters}
+                  onChange={setAdvancedFilters}
+                />
+              </div>
+
+              {/* Active Filters Pills */}
+              <div className="mb-6">
+                <ActiveFilters
+                  filters={advancedFilters}
+                  searchQuery={searchQuery}
+                  onChange={setAdvancedFilters}
+                  onSearchClear={() => setSearchQuery('')}
+                />
               </div>
 
               {showUploadContract && (
@@ -638,12 +721,30 @@ export default function Dashboard() {
                   <Loader2 className="animate-spin text-[#660033]" size={32} />
                 </div>
               ) : filteredContracts.length === 0 ? (
-                <div 
+                <div
                   className="rounded-[20px] p-12 text-center"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
-                  <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
-                  <p className="text-[rgba(102,0,51,0.6)] mb-4">No contracts found. Start by adding your first contract!</p>
+                  {searchQuery ? (
+                    <>
+                      <SearchX size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+                      <h3 className="text-lg font-bold text-[#660033] mb-2">No contracts found</h3>
+                      <p className="text-[rgba(102,0,51,0.6)] mb-4">
+                        No contracts match "{searchQuery}". Try different keywords or check the spelling.
+                      </p>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-[#660033] font-semibold hover:underline"
+                      >
+                        Clear search
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+                      <p className="text-[rgba(102,0,51,0.6)] mb-4">No contracts found. Start by adding your first contract!</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -667,10 +768,10 @@ export default function Dashboard() {
                               href={`/contracts/${contract.id}`}
                               className="font-bold text-lg mb-1 hover:text-[#660033] hover:underline cursor-pointer transition-colors"
                             >
-                              {contract.name}
+                              <HighlightText text={contract.name} highlight={searchQuery} />
                             </Link>
                             <div className="text-sm text-[rgba(102,0,51,0.5)]">
-                              {contract.partnerName || 'No partner specified'} • {contract.type?.replace('_', ' ')}
+                              <HighlightText text={contract.partnerName || 'No partner specified'} highlight={searchQuery} /> • {contract.type?.replace('_', ' ')}
                               {contract.fileName && (
                                 <span className="ml-2 text-[rgba(102,0,51,0.4)]">
                                   • {contract.fileType?.toUpperCase()} {contract.fileSize ? `(${(contract.fileSize / 1024 / 1024).toFixed(2)} MB)` : ''}
@@ -698,6 +799,16 @@ export default function Dashboard() {
                                 data-testid={`button-download-${contract.id}`}
                               >
                                 <Download size={18} />
+                              </a>
+                            )}
+                            {!!contract.aiAnalysis && (
+                              <a
+                                href={`/api/contracts/${contract.id}/pdf`}
+                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                title="Download PDF Summary"
+                                data-testid={`button-pdf-${contract.id}`}
+                              >
+                                <FileDown size={18} />
                               </a>
                             )}
                             {contract.aiAnalysis ? (
@@ -736,6 +847,18 @@ export default function Dashboard() {
                               </button>
                             )}
                             <button
+                              onClick={() => setMoveContractModal({
+                                contractId: contract.id,
+                                contractName: contract.name,
+                                currentFolderId: contract.folderId || null,
+                              })}
+                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                              title="Move to Folder"
+                              data-testid={`button-move-${contract.id}`}
+                            >
+                              <FolderInput size={18} />
+                            </button>
+                            <button
                               onClick={() => deleteContractMutation.mutate(contract.id)}
                               disabled={deleteContractMutation.isPending}
                               className="p-2.5 rounded-xl bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)] transition-all"
@@ -769,7 +892,23 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </>
+
+              {/* Move to Folder Modal */}
+              {moveContractModal && (
+                <MoveToFolderModal
+                  isOpen={true}
+                  onClose={() => setMoveContractModal(null)}
+                  contractId={moveContractModal.contractId}
+                  contractName={moveContractModal.contractName}
+                  currentFolderId={moveContractModal.currentFolderId}
+                  onMoved={() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
+                    setMoveContractModal(null);
+                  }}
+                />
+              )}
+              </div>
+            </div>
           )}
 
           {activeNav === 'templates' && (

@@ -64,10 +64,31 @@ export const insertContractTemplateSchema = createInsertSchema(contractTemplates
 export type InsertContractTemplate = z.infer<typeof insertContractTemplateSchema>;
 export type ContractTemplate = typeof contractTemplates.$inferSelect;
 
+// Contract Folders table (Story 8.3)
+export const contractFolders = pgTable("contract_folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: varchar("color", { length: 7 }), // Hex color: #FF5733
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertContractFolderSchema = createInsertSchema(contractFolders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractFolder = z.infer<typeof insertContractFolderSchema>;
+export type ContractFolder = typeof contractFolders.$inferSelect;
+
 // Contracts table
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
+  folderId: varchar("folder_id").references(() => contractFolders.id, { onDelete: "set null" }), // Story 8.3
   name: text("name").notNull(),
   type: text("type").notNull(), // 'record_deal', 'sync_license', 'distribution', 'publishing', 'management'
   status: text("status").notNull().default("pending"), // 'pending', 'active', 'completed', 'expired'

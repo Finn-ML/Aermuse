@@ -1,14 +1,29 @@
 import {
   type User, type InsertUser,
   type Contract, type InsertContract,
+  type ContractFolder, type InsertContractFolder,
   type ContractVersion, type InsertContractVersion,
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
   type ContractTemplate,
-  users, contracts, contractVersions, landingPages, landingPageLinks, contractTemplates
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, asc } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
+
+export type SortField = 'name' | 'createdAt' | 'updatedAt' | 'status' | 'type' | 'expiryDate';
+export type SortOrder = 'asc' | 'desc';
+
+export interface ContractFilters {
+  search?: string;
+  status?: string;
+  type?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  folderId?: string; // 'null' for unfiled, uuid for specific folder
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+}
 
 export interface IStorage {
   // Users
@@ -23,9 +38,21 @@ export interface IStorage {
   // Contracts
   getContract(id: string): Promise<Contract | undefined>;
   getContractsByUser(userId: string): Promise<Contract[]>;
+  searchContracts(userId: string, searchQuery: string): Promise<Contract[]>;
+  filterContracts(userId: string, filters: ContractFilters): Promise<Contract[]>;
   createContract(contract: InsertContract): Promise<Contract>;
   updateContract(id: string, data: Partial<InsertContract>): Promise<Contract | undefined>;
   deleteContract(id: string): Promise<boolean>;
+  moveContractToFolder(contractId: string, folderId: string | null): Promise<boolean>;
+
+  // Contract Folders (Story 8.3)
+  getFoldersByUser(userId: string): Promise<ContractFolder[]>;
+  getFolderWithCounts(userId: string): Promise<{ folders: (ContractFolder & { contractCount: number })[]; unfiledCount: number }>;
+  getFolder(id: string): Promise<ContractFolder | undefined>;
+  createFolder(folder: InsertContractFolder): Promise<ContractFolder>;
+  updateFolder(id: string, data: Partial<InsertContractFolder>): Promise<ContractFolder | undefined>;
+  deleteFolder(id: string): Promise<boolean>;
+  getFolderContractCount(folderId: string): Promise<number>;
 
   // Contract Versions
   getContractVersions(contractId: string): Promise<ContractVersion[]>;
@@ -101,7 +128,96 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContractsByUser(userId: string): Promise<Contract[]> {
-    return db.select().from(contracts).where(eq(contracts.userId, userId));
+    return db.select().from(contracts).where(eq(contracts.userId, userId)).orderBy(desc(contracts.updatedAt));
+  }
+
+  async searchContracts(userId: string, searchQuery: string): Promise<Contract[]> {
+    const searchTerm = `%${searchQuery}%`;
+    return db.select()
+      .from(contracts)
+      .where(
+        and(
+          eq(contracts.userId, userId),
+          or(
+            ilike(contracts.name, searchTerm),
+            ilike(contracts.partnerName, searchTerm),
+            ilike(contracts.type, searchTerm)
+          )
+        )
+      )
+      .orderBy(desc(contracts.updatedAt));
+  }
+
+  async filterContracts(userId: string, filters: ContractFilters): Promise<Contract[]> {
+    const conditions: SQL[] = [eq(contracts.userId, userId)];
+
+    // Search filter
+    if (filters.search?.trim()) {
+      const searchTerm = `%${filters.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(contracts.name, searchTerm),
+          ilike(contracts.partnerName, searchTerm),
+          ilike(contracts.type, searchTerm)
+        )!
+      );
+    }
+
+    // Status filter
+    if (filters.status) {
+      conditions.push(eq(contracts.status, filters.status));
+    }
+
+    // Type filter
+    if (filters.type) {
+      conditions.push(eq(contracts.type, filters.type));
+    }
+
+    // Date range filters
+    if (filters.dateFrom) {
+      conditions.push(gte(contracts.createdAt, new Date(filters.dateFrom)));
+    }
+    if (filters.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(contracts.createdAt, endDate));
+    }
+
+    // Folder filter
+    if (filters.folderId === 'null') {
+      conditions.push(isNull(contracts.folderId));
+    } else if (filters.folderId) {
+      conditions.push(eq(contracts.folderId, filters.folderId));
+    }
+
+    // Determine sort column and order (Story 8.6)
+    const sortField = filters.sortField || 'updatedAt';
+    const sortOrder = filters.sortOrder || 'desc';
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortOrder === 'asc' ? asc : desc;
+
+    return db.select()
+      .from(contracts)
+      .where(and(...conditions))
+      .orderBy(orderFn(sortColumn));
+  }
+
+  private getSortColumn(field: SortField) {
+    switch (field) {
+      case 'name':
+        return contracts.name;
+      case 'createdAt':
+        return contracts.createdAt;
+      case 'status':
+        return contracts.status;
+      case 'type':
+        return contracts.type;
+      case 'expiryDate':
+        return contracts.expiryDate;
+      case 'updatedAt':
+      default:
+        return contracts.updatedAt;
+    }
   }
 
   async createContract(contract: InsertContract): Promise<Contract> {
@@ -122,7 +238,93 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async moveContractToFolder(contractId: string, folderId: string | null): Promise<boolean> {
+    const result = await db.update(contracts)
+      .set({ folderId, updatedAt: new Date() })
+      .where(eq(contracts.id, contractId))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Contract Folders (Story 8.3)
+  async getFoldersByUser(userId: string): Promise<ContractFolder[]> {
+    return db.select()
+      .from(contractFolders)
+      .where(eq(contractFolders.userId, userId))
+      .orderBy(asc(contractFolders.sortOrder));
+  }
+
+  async getFolderWithCounts(userId: string): Promise<{ folders: (ContractFolder & { contractCount: number })[]; unfiledCount: number }> {
+    // Get all folders
+    const folders = await db.select()
+      .from(contractFolders)
+      .where(eq(contractFolders.userId, userId))
+      .orderBy(asc(contractFolders.sortOrder));
+
+    // Get contract counts per folder
+    const folderCounts = await db
+      .select({ folderId: contracts.folderId, count: count() })
+      .from(contracts)
+      .where(eq(contracts.userId, userId))
+      .groupBy(contracts.folderId);
+
+    const countMap = new Map(folderCounts.map(fc => [fc.folderId, Number(fc.count)]));
+
+    // Get unfiled count
+    const [unfiledResult] = await db
+      .select({ count: count() })
+      .from(contracts)
+      .where(and(eq(contracts.userId, userId), isNull(contracts.folderId)));
+
+    const foldersWithCounts = folders.map(folder => ({
+      ...folder,
+      contractCount: countMap.get(folder.id) || 0,
+    }));
+
+    return {
+      folders: foldersWithCounts,
+      unfiledCount: Number(unfiledResult?.count || 0),
+    };
+  }
+
+  async getFolder(id: string): Promise<ContractFolder | undefined> {
+    const [folder] = await db.select().from(contractFolders).where(eq(contractFolders.id, id));
+    return folder;
+  }
+
+  async createFolder(folder: InsertContractFolder): Promise<ContractFolder> {
+    const [newFolder] = await db.insert(contractFolders).values(folder).returning();
+    return newFolder;
+  }
+
+  async updateFolder(id: string, data: Partial<InsertContractFolder>): Promise<ContractFolder | undefined> {
+    const [folder] = await db.update(contractFolders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contractFolders.id, id))
+      .returning();
+    return folder;
+  }
+
+  async deleteFolder(id: string): Promise<boolean> {
+    const result = await db.delete(contractFolders).where(eq(contractFolders.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getFolderContractCount(folderId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(contracts)
+      .where(eq(contracts.folderId, folderId));
+    return Number(result?.count || 0);
+  }
+
   // Contract Versions
+  async createContractVersion(version: InsertContractVersion): Promise<ContractVersion> {
+    const [newVersion] = await db.insert(contractVersions).values(version).returning();
+    return newVersion;
+  }
+
+
   async getContractVersions(contractId: string): Promise<ContractVersion[]> {
     return db.select()
       .from(contractVersions)
@@ -133,11 +335,6 @@ export class DatabaseStorage implements IStorage {
   async getContractVersion(id: string): Promise<ContractVersion | undefined> {
     const [version] = await db.select().from(contractVersions).where(eq(contractVersions.id, id));
     return version;
-  }
-
-  async createContractVersion(version: InsertContractVersion): Promise<ContractVersion> {
-    const [newVersion] = await db.insert(contractVersions).values(version).returning();
-    return newVersion;
   }
 
   async getLatestVersionNumber(contractId: string): Promise<number> {

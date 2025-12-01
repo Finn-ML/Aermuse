@@ -777,10 +777,23 @@ export function MoveToFolderModal({ isOpen, onClose, contractId, currentFolderId
 ## Dev Agent Record
 
 ### Debug Log
-<!-- Automatically updated by dev agent during implementation -->
+- 2025-11-29: Implementation complete. All tests pass (27/27).
 
 ### Completion Notes
-<!-- Summary of implementation, decisions made, any follow-ups needed -->
+Implementation completed with all acceptance criteria met:
+- AC-1: Create custom folders with name - CreateFolderModal component
+- AC-2: Rename folders - Edit mode in CreateFolderModal
+- AC-3: Delete empty folders only - Server-side validation in DELETE /api/folders/:id
+- AC-4: Move contracts between folders - MoveToFolderModal + POST /api/contracts/:id/move
+- AC-5: Folder list in sidebar - FolderSidebar component
+- AC-6: "All Contracts" and "Unfiled" sections - FolderSidebar with special views
+- AC-7: Folder color labels - Color picker in CreateFolderModal
+- AC-8: Contract count per folder - getFolderWithCounts method in storage
+
+Key decisions:
+- Used server-side filtering for folder views (folderId param in filterContracts)
+- 8 preset brand colors for folder color selection
+- Sidebar uses negative margins to extend full height in Dashboard layout
 
 ---
 
@@ -788,7 +801,13 @@ export function MoveToFolderModal({ isOpen, onClose, contractId, currentFolderId
 
 | Action | File Path |
 |--------|-----------|
-| | |
+| Modified | shared/schema.ts |
+| Modified | server/storage.ts |
+| Modified | server/routes.ts |
+| Created | client/src/components/contracts/FolderSidebar.tsx |
+| Created | client/src/components/contracts/CreateFolderModal.tsx |
+| Created | client/src/components/contracts/MoveToFolderModal.tsx |
+| Modified | client/src/pages/Dashboard.tsx |
 
 ---
 
