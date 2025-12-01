@@ -125,6 +125,256 @@ This link will expire in 24 hours.
 }
 
 /**
+ * Send signature request email to signatory
+ */
+export async function sendSignatureRequestEmail(
+  signatoryEmail: string,
+  signatoryName: string,
+  initiatorName: string,
+  contractTitle: string,
+  signingUrl: string,
+  message?: string | null
+): Promise<EmailResult> {
+  if (!client) {
+    console.log('[EMAIL] Signature request email (dev mode):');
+    console.log(`  To: ${signatoryEmail}`);
+    console.log(`  Signatory: ${signatoryName}`);
+    console.log(`  From: ${initiatorName}`);
+    console.log(`  Contract: ${contractTitle}`);
+    console.log(`  Signing URL: ${signingUrl}`);
+    console.log(`  Message: ${message || '(none)'}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: signatoryEmail,
+      Subject: `${initiatorName} has requested your signature on "${contractTitle}"`,
+      HtmlBody: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #660033 0%, #8B0045 100%); padding: 24px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Signature Request</h1>
+          </div>
+          <div style="padding: 32px; background: #f7e6ca;">
+            <p style="font-size: 16px; color: #333;">Hi ${signatoryName},</p>
+            <p style="font-size: 16px; color: #333;"><strong>${initiatorName}</strong> has requested your signature on the following contract:</p>
+            <div style="background: white; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              <h2 style="color: #660033; margin: 0 0 8px 0;">${contractTitle}</h2>
+              ${message ? `<p style="color: #666; margin: 0;">"${message}"</p>` : ''}
+            </div>
+            <p style="text-align: center;">
+              <a href="${signingUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #660033 0%, #8B0045 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Sign Now</a>
+            </p>
+            <p style="font-size: 14px; color: #666; margin-top: 24px;">If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="font-size: 12px; color: #999; word-break: break-all;">${signingUrl}</p>
+          </div>
+          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+            <p>Powered by Aermuse - Music Industry Contract Management</p>
+          </div>
+        </div>
+      `,
+      TextBody: `
+Hi ${signatoryName},
+
+${initiatorName} has requested your signature on the following contract:
+
+Contract: ${contractTitle}
+${message ? `Message: "${message}"` : ''}
+
+Sign here: ${signingUrl}
+
+- The Aermuse Team
+      `,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Signature request email sent to ${signatoryEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send signature request email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send signature completed confirmation to signatory
+ */
+export async function sendSignatureConfirmationEmail(
+  signatoryEmail: string,
+  signatoryName: string,
+  contractTitle: string
+): Promise<EmailResult> {
+  if (!client) {
+    console.log('[EMAIL] Signature confirmation email (dev mode):');
+    console.log(`  To: ${signatoryEmail}`);
+    console.log(`  Signatory: ${signatoryName}`);
+    console.log(`  Contract: ${contractTitle}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: signatoryEmail,
+      Subject: `You've signed "${contractTitle}"`,
+      HtmlBody: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 24px; text-align: center;">
+            <h1 style="color: white; margin: 0;">✓ Signature Confirmed</h1>
+          </div>
+          <div style="padding: 32px; background: #f7e6ca;">
+            <p style="font-size: 16px; color: #333;">Hi ${signatoryName},</p>
+            <p style="font-size: 16px; color: #333;">Your signature on <strong>"${contractTitle}"</strong> has been recorded.</p>
+            <p style="font-size: 14px; color: #666;">You'll receive the final signed copy once all parties have signed.</p>
+          </div>
+          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+            <p>Powered by Aermuse - Music Industry Contract Management</p>
+          </div>
+        </div>
+      `,
+      TextBody: `
+Hi ${signatoryName},
+
+Your signature on "${contractTitle}" has been recorded.
+
+You'll receive the final signed copy once all parties have signed.
+
+- The Aermuse Team
+      `,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Signature confirmation email sent to ${signatoryEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send signature confirmation email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send document completed email with signed copy
+ */
+export async function sendDocumentCompletedEmail(
+  email: string,
+  recipientName: string,
+  contractTitle: string,
+  downloadUrl: string
+): Promise<EmailResult> {
+  if (!client) {
+    console.log('[EMAIL] Document completed email (dev mode):');
+    console.log(`  To: ${email}`);
+    console.log(`  Recipient: ${recipientName}`);
+    console.log(`  Contract: ${contractTitle}`);
+    console.log(`  Download URL: ${downloadUrl}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: email,
+      Subject: `"${contractTitle}" has been fully signed`,
+      HtmlBody: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 24px; text-align: center;">
+            <h1 style="color: white; margin: 0;">✓ Contract Complete</h1>
+          </div>
+          <div style="padding: 32px; background: #f7e6ca;">
+            <p style="font-size: 16px; color: #333;">Hi ${recipientName},</p>
+            <p style="font-size: 16px; color: #333;">All parties have signed <strong>"${contractTitle}"</strong>.</p>
+            <p style="text-align: center; margin: 24px 0;">
+              <a href="${downloadUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #660033 0%, #8B0045 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Download Signed Contract</a>
+            </p>
+            <p style="font-size: 14px; color: #666;">A copy has also been saved to your Aermuse account.</p>
+          </div>
+          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+            <p>Powered by Aermuse - Music Industry Contract Management</p>
+          </div>
+        </div>
+      `,
+      TextBody: `
+Hi ${recipientName},
+
+All parties have signed "${contractTitle}".
+
+Download your signed copy here: ${downloadUrl}
+
+A copy has also been saved to your Aermuse account.
+
+- The Aermuse Team
+      `,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Document completed email sent to ${email}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send document completed email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send cancellation notification email
+ */
+export async function sendSignatureCancelledEmail(
+  email: string,
+  recipientName: string,
+  contractTitle: string,
+  initiatorName: string
+): Promise<EmailResult> {
+  if (!client) {
+    console.log('[EMAIL] Signature cancelled email (dev mode):');
+    console.log(`  To: ${email}`);
+    console.log(`  Recipient: ${recipientName}`);
+    console.log(`  Contract: ${contractTitle}`);
+    console.log(`  Cancelled by: ${initiatorName}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: email,
+      Subject: `Signature request cancelled for "${contractTitle}"`,
+      HtmlBody: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #6c757d; padding: 24px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Request Cancelled</h1>
+          </div>
+          <div style="padding: 32px; background: #f7e6ca;">
+            <p style="font-size: 16px; color: #333;">Hi ${recipientName},</p>
+            <p style="font-size: 16px; color: #333;">The signature request for <strong>"${contractTitle}"</strong> has been cancelled by ${initiatorName}.</p>
+            <p style="font-size: 14px; color: #666;">No action is required from you.</p>
+          </div>
+          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+            <p>Powered by Aermuse - Music Industry Contract Management</p>
+          </div>
+        </div>
+      `,
+      TextBody: `
+Hi ${recipientName},
+
+The signature request for "${contractTitle}" has been cancelled by ${initiatorName}.
+
+No action is required from you.
+
+- The Aermuse Team
+      `,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Signature cancelled email sent to ${email}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send signature cancelled email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
  * Send account deletion confirmation email
  */
 export async function sendAccountDeletionEmail(

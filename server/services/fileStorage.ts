@@ -68,3 +68,23 @@ export function getContentType(extension: string): string {
   };
   return types[extension] || 'application/octet-stream';
 }
+
+export async function uploadSignedPdf(
+  contractId: string,
+  buffer: Buffer,
+  filename: string
+): Promise<UploadResult> {
+  const path = `signed/${contractId}/${filename}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+export async function getSignedPdfUrl(path: string): Promise<string> {
+  // For Replit Object Storage, we need to serve through our API
+  return `/api/files/signed/${encodeURIComponent(path)}`;
+}

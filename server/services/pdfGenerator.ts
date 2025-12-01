@@ -146,3 +146,60 @@ export async function generateContractPDF(
   const arrayBuffer = doc.output('arraybuffer');
   return Buffer.from(arrayBuffer);
 }
+
+/**
+ * Generate PDF from a Contract record
+ * Used by signature request API to create signable documents
+ */
+export async function generateContractPDFFromRecord(
+  contract: {
+    name: string;
+    renderedContent?: string | null;
+    extractedText?: string | null;
+  }
+): Promise<Buffer> {
+  const content = contract.renderedContent || contract.extractedText || '';
+
+  // If content appears to be HTML (from template rendering), use generatePDF
+  if (content.includes('<div') || content.includes('<p>')) {
+    return generatePDF(content);
+  }
+
+  // Otherwise, create a simple PDF from plain text
+  const sections: Section[] = [];
+
+  // Split content into paragraphs and create sections
+  const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
+
+  if (paragraphs.length > 0) {
+    // Group paragraphs into logical sections
+    let currentContent = '';
+    for (const para of paragraphs) {
+      // Check if paragraph looks like a section header (all caps or ends with :)
+      if (para === para.toUpperCase() && para.length < 100) {
+        if (currentContent) {
+          sections.push({ heading: 'TERMS', content: currentContent.trim() });
+          currentContent = '';
+        }
+        sections.push({ heading: para, content: '' });
+      } else if (sections.length > 0 && !sections[sections.length - 1].content) {
+        // Add to the last section's content
+        sections[sections.length - 1].content = para;
+      } else {
+        currentContent += para + '\n\n';
+      }
+    }
+
+    // Add remaining content
+    if (currentContent.trim()) {
+      sections.push({ heading: 'AGREEMENT TERMS', content: currentContent.trim() });
+    }
+  }
+
+  // If no sections were created, create a single section with all content
+  if (sections.length === 0 && content.trim()) {
+    sections.push({ heading: 'CONTRACT TERMS', content: content.trim() });
+  }
+
+  return generateContractPDF(contract.name || 'Contract Agreement', sections);
+}
