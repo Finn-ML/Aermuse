@@ -13,11 +13,15 @@ import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf } from "./services/fileStorage";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription } from "./services/subscription";
-import { generateContractPdf, sanitizeFilename } from "./services/pdfGenerator";
+import { generateContractPdf, sanitizeFilename, generateContractPDFFromRecord } from "./services/pdfGenerator";
+import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, or, desc } from "drizzle-orm";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -1276,6 +1280,14 @@ export async function registerRoutes(
   // BILLING ROUTES (Epic 5)
   // ============================================
 
+  // Helper middleware to require auth (hoisted for billing routes)
+  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!(req.session as any).userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    next();
+  };
+
   // Create checkout session
   app.post("/api/billing/checkout", requireAuth, async (req: Request, res: Response) => {
     try {
@@ -1867,6 +1879,824 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Admin reorder templates error:", error);
       res.status(500).json({ error: "Failed to reorder templates" });
+    }
+  });
+
+  // ============================================
+  // SIGNATURE REQUEST ROUTES (Epic 4)
+  // ============================================
+
+  // Validation schemas
+  const createSignatureRequestSchema = z.object({
+    contractId: z.string().min(1, 'Contract ID is required'),
+    signatories: z.array(z.object({
+      name: z.string().min(1, 'Name is required').max(100),
+      email: z.string().email('Invalid email'),
+    })).min(1, 'At least one signatory required').max(10, 'Maximum 10 signatories'),
+    message: z.string().max(1000).optional(),
+    expiresAt: z.string().datetime().optional(),
+  });
+
+  const remindSignatorySchema = z.object({
+    signatoryId: z.string().min(1, 'Signatory ID is required'),
+  });
+
+  // POST /api/signatures/request - Create signature request
+  app.post("/api/signatures/request", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const input = createSignatureRequestSchema.parse(req.body);
+      const userId = (req.session as any).userId;
+
+      // Check for duplicate emails
+      const emails = input.signatories.map(s => s.email.toLowerCase());
+      if (new Set(emails).size !== emails.length) {
+        return res.status(400).json({ error: 'Duplicate emails are not allowed' });
+      }
+
+      // Get contract
+      const contract = await storage.getContract(input.contractId);
+      if (!contract) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Check ownership
+      if (contract.userId !== userId) {
+        return res.status(403).json({ error: 'You can only request signatures on your own contracts' });
+      }
+
+      // Check contract status
+      if (contract.status === 'signed') {
+        return res.status(400).json({ error: 'Contract is already signed' });
+      }
+
+      // Check for existing pending request
+      const [existingRequest] = await db
+        .select()
+        .from(signatureRequests)
+        .where(and(
+          eq(signatureRequests.contractId, input.contractId),
+          or(
+            eq(signatureRequests.status, 'pending'),
+            eq(signatureRequests.status, 'in_progress')
+          )
+        ));
+
+      if (existingRequest) {
+        return res.status(400).json({
+          error: 'A signature request already exists for this contract',
+          existingRequestId: existingRequest.id,
+        });
+      }
+
+      // Generate PDF from contract
+      console.log(`[SIGNATURES] Generating PDF for contract ${input.contractId}`);
+      const pdfBuffer = await generateContractPDFFromRecord(contract);
+
+      // Upload to DocuSeal
+      console.log(`[SIGNATURES] Uploading to DocuSeal`);
+      const docusealService = getDocuSealService();
+      const filename = `${contract.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
+      const docusealDoc = await docusealService.uploadDocument(pdfBuffer, filename);
+
+      // Calculate expiration
+      const expiresAt = input.expiresAt
+        ? new Date(input.expiresAt)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default
+
+      // Create batch signature requests in DocuSeal
+      console.log(`[SIGNATURES] Creating batch request for ${input.signatories.length} signers`);
+      const batchResponse = await docusealService.createBatchSignatureRequests({
+        documentId: docusealDoc.id,
+        signers: input.signatories.map((s, i) => ({
+          signerName: s.name,
+          signerEmail: s.email.toLowerCase(),
+          signingOrder: i + 1,
+        })),
+        expiresAt: expiresAt.toISOString(),
+      });
+
+      // Create local signature request record
+      const [signatureRequest] = await db
+        .insert(signatureRequests)
+        .values({
+          contractId: input.contractId,
+          initiatorId: userId,
+          docusealDocumentId: docusealDoc.id,
+          status: 'pending',
+          signingOrder: 'sequential',
+          message: input.message || null,
+          expiresAt,
+        })
+        .returning();
+
+      // Create signatory records
+      const signatoryRecords = await Promise.all(
+        batchResponse.signatureRequests.map(async (sr, index) => {
+          const signerInput = input.signatories[index];
+
+          // Check if signer is a registered user
+          const existingUser = await storage.getUserByEmail(signerInput.email.toLowerCase());
+
+          const [signatory] = await db
+            .insert(signatories)
+            .values({
+              signatureRequestId: signatureRequest.id,
+              docusealRequestId: sr.id,
+              signingToken: sr.signingToken,
+              signingUrl: sr.signingUrl,
+              email: signerInput.email.toLowerCase(),
+              name: signerInput.name,
+              userId: existingUser?.id || null,
+              signingOrder: sr.signingOrder,
+              status: sr.signingOrder === 1 ? 'pending' : 'waiting',
+            })
+            .returning();
+
+          return signatory;
+        })
+      );
+
+      // Update contract status
+      await storage.updateContract(input.contractId, { status: 'pending_signature' } as any);
+
+      console.log(`[SIGNATURES] Request created: ${signatureRequest.id}`);
+
+      res.json({
+        signatureRequest: {
+          ...signatureRequest,
+          signatories: signatoryRecords,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: error.errors,
+        });
+      }
+
+      if (error instanceof DocuSealServiceError) {
+        console.error('[SIGNATURES] DocuSeal error:', error.message);
+        return res.status(502).json({ error: 'E-signing service temporarily unavailable' });
+      }
+
+      console.error('[SIGNATURES] Error creating request:', error);
+      res.status(500).json({ error: 'Failed to create signature request' });
+    }
+  });
+
+  // GET /api/signatures/request/:id - Get signature request
+  app.get("/api/signatures/request/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const userEmail = (req.session as any).userEmail;
+
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, req.params.id));
+
+      if (!request) {
+        return res.status(404).json({ error: 'Signature request not found' });
+      }
+
+      // Get signatories
+      const signatoriesList = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.signatureRequestId, request.id))
+        .orderBy(signatories.signingOrder);
+
+      // Get contract
+      const contract = await storage.getContract(request.contractId);
+
+      // Check access: initiator or signatory
+      const isInitiator = request.initiatorId === userId;
+      const isSignatory = signatoriesList.some(
+        s => s.userId === userId || s.email === userEmail
+      );
+
+      if (!isInitiator && !isSignatory) {
+        return res.status(403).json({ error: 'Not authorized to view this request' });
+      }
+
+      // Hide signing URLs from non-initiators
+      const filteredSignatories = isInitiator
+        ? signatoriesList
+        : signatoriesList.map(s => ({
+            ...s,
+            signingUrl: s.email === userEmail ? s.signingUrl : null,
+            signingToken: null,
+          }));
+
+      res.json({
+        signatureRequest: {
+          ...request,
+          signatories: filteredSignatories,
+          contract: contract ? { id: contract.id, name: contract.name, type: contract.type } : null,
+        },
+      });
+    } catch (error) {
+      console.error('[SIGNATURES] Error fetching request:', error);
+      res.status(500).json({ error: 'Failed to fetch signature request' });
+    }
+  });
+
+  // GET /api/signatures/pending - List pending requests (as initiator)
+  app.get("/api/signatures/pending", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+
+      const requests = await db
+        .select()
+        .from(signatureRequests)
+        .where(and(
+          eq(signatureRequests.initiatorId, userId),
+          or(
+            eq(signatureRequests.status, 'pending'),
+            eq(signatureRequests.status, 'in_progress')
+          )
+        ))
+        .orderBy(desc(signatureRequests.createdAt));
+
+      // Get signatories and contracts for each request
+      const requestsWithDetails = await Promise.all(
+        requests.map(async (request) => {
+          const signatoriesList = await db
+            .select()
+            .from(signatories)
+            .where(eq(signatories.signatureRequestId, request.id))
+            .orderBy(signatories.signingOrder);
+
+          const contract = await storage.getContract(request.contractId);
+
+          return {
+            ...request,
+            signatories: signatoriesList,
+            contract: contract ? { id: contract.id, name: contract.name } : null,
+          };
+        })
+      );
+
+      res.json({ signatureRequests: requestsWithDetails });
+    } catch (error) {
+      console.error('[SIGNATURES] Error listing pending:', error);
+      res.status(500).json({ error: 'Failed to fetch pending requests' });
+    }
+  });
+
+  // GET /api/signatures/to-sign - List requests to sign (as signatory)
+  app.get("/api/signatures/to-sign", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Find signatories where user is the signer and status is pending
+      const userSignatories = await db
+        .select()
+        .from(signatories)
+        .where(and(
+          or(
+            eq(signatories.userId, userId),
+            eq(signatories.email, user.email)
+          ),
+          eq(signatories.status, 'pending')
+        ));
+
+      // Get full details for each
+      const toSign = await Promise.all(
+        userSignatories.map(async (s) => {
+          const [request] = await db
+            .select()
+            .from(signatureRequests)
+            .where(eq(signatureRequests.id, s.signatureRequestId));
+
+          if (!request || request.status === 'cancelled' || request.status === 'expired') {
+            return null;
+          }
+
+          const contract = await storage.getContract(request.contractId);
+          const initiator = await storage.getUser(request.initiatorId);
+
+          return {
+            id: request.id,
+            contractId: request.contractId,
+            contractTitle: contract?.name || 'Unknown Contract',
+            initiator: initiator ? { id: initiator.id, name: initiator.name, email: initiator.email } : null,
+            message: request.message,
+            signingUrl: s.signingUrl,
+            expiresAt: request.expiresAt,
+            createdAt: request.createdAt,
+          };
+        })
+      );
+
+      res.json({ toSign: toSign.filter(Boolean) });
+    } catch (error) {
+      console.error('[SIGNATURES] Error listing to-sign:', error);
+      res.status(500).json({ error: 'Failed to fetch requests to sign' });
+    }
+  });
+
+  // DELETE /api/signatures/request/:id - Cancel signature request
+  app.delete("/api/signatures/request/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, req.params.id));
+
+      if (!request) {
+        return res.status(404).json({ error: 'Signature request not found' });
+      }
+
+      if (request.initiatorId !== userId) {
+        return res.status(403).json({ error: 'Only the initiator can cancel a request' });
+      }
+
+      if (request.status === 'completed') {
+        return res.status(400).json({ error: 'Cannot cancel a completed request' });
+      }
+
+      if (request.status === 'cancelled') {
+        return res.status(400).json({ error: 'Request is already cancelled' });
+      }
+
+      // Get signatories and contract info for notifications
+      const requestSignatories = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.signatureRequestId, request.id));
+
+      const contract = await storage.getContract(request.contractId);
+      const initiator = await storage.getUser(userId);
+
+      // Update status
+      await db
+        .update(signatureRequests)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(eq(signatureRequests.id, req.params.id));
+
+      // Update contract status back to draft
+      await storage.updateContract(request.contractId, { status: 'draft' } as any);
+
+      console.log(`[SIGNATURES] Request cancelled: ${request.id}`);
+
+      // Send cancellation notifications to all signatories (fire and forget)
+      const { sendSignatureCancelledEmail } = require('./services/postmark');
+      for (const s of requestSignatories) {
+        if (s.status !== 'signed') {
+          sendSignatureCancelledEmail(
+            s.email,
+            s.name,
+            contract?.name || 'Contract',
+            initiator?.name || 'The initiator'
+          ).catch((err: Error) => console.error('[SIGNATURES] Failed to send cancellation email:', err));
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[SIGNATURES] Error cancelling request:', error);
+      res.status(500).json({ error: 'Failed to cancel request' });
+    }
+  });
+
+  // POST /api/signatures/request/:id/remind - Send reminder
+  app.post("/api/signatures/request/:id/remind", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const input = remindSignatorySchema.parse(req.body);
+      const userId = (req.session as any).userId;
+
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, req.params.id));
+
+      if (!request) {
+        return res.status(404).json({ error: 'Signature request not found' });
+      }
+
+      if (request.initiatorId !== userId) {
+        return res.status(403).json({ error: 'Only the initiator can send reminders' });
+      }
+
+      const [signatory] = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.id, input.signatoryId));
+
+      if (!signatory || signatory.signatureRequestId !== request.id) {
+        return res.status(404).json({ error: 'Signatory not found' });
+      }
+
+      if (signatory.status !== 'pending') {
+        return res.status(400).json({
+          error: signatory.status === 'signed'
+            ? 'Signatory has already signed'
+            : 'Signatory is not ready to sign yet',
+        });
+      }
+
+      // TODO: Send reminder email via postmark
+      console.log(`[SIGNATURES] Reminder would be sent to ${signatory.email} for request ${request.id}`);
+
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: error.errors,
+        });
+      }
+
+      console.error('[SIGNATURES] Error sending reminder:', error);
+      res.status(500).json({ error: 'Failed to send reminder' });
+    }
+  });
+
+  // GET /api/signatures - List all requests (history)
+  app.get("/api/signatures", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { status } = req.query;
+
+      let query = db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.initiatorId, userId));
+
+      const requests = await query.orderBy(desc(signatureRequests.createdAt)).limit(50);
+
+      // Filter by status if provided
+      const filteredRequests = status && typeof status === 'string'
+        ? requests.filter(r => r.status === status)
+        : requests;
+
+      // Get signatories and contracts for each request
+      const requestsWithDetails = await Promise.all(
+        filteredRequests.map(async (request) => {
+          const signatoriesList = await db
+            .select()
+            .from(signatories)
+            .where(eq(signatories.signatureRequestId, request.id))
+            .orderBy(signatories.signingOrder);
+
+          const contract = await storage.getContract(request.contractId);
+
+          return {
+            ...request,
+            signatories: signatoriesList,
+            contract: contract ? { id: contract.id, name: contract.name } : null,
+          };
+        })
+      );
+
+      res.json({ signatureRequests: requestsWithDetails });
+    } catch (error) {
+      console.error('[SIGNATURES] Error listing requests:', error);
+      res.status(500).json({ error: 'Failed to fetch signature requests' });
+    }
+  });
+
+  // ============================================
+  // WEBHOOK HANDLER (Story 4-5)
+  // ============================================
+
+  const WEBHOOK_SECRET = process.env.DOCUSEAL_WEBHOOK_SECRET || '';
+
+  // Verify webhook signature
+  function verifyWebhookSignature(payload: string, signature: string | undefined, secret: string): boolean {
+    if (!signature || !secret) {
+      // In development without secret, allow all webhooks
+      if (!secret) {
+        console.warn('[WEBHOOK] No webhook secret configured - skipping verification (dev mode)');
+        return true;
+      }
+      return false;
+    }
+
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+  }
+
+  // Import email functions for webhooks
+  const {
+    sendSignatureRequestEmail,
+    sendSignatureConfirmationEmail,
+    sendDocumentCompletedEmail,
+  } = require('./services/postmark');
+
+  // POST /api/webhooks/docuseal - Handle DocuSeal webhook events
+  app.post("/api/webhooks/docuseal", async (req: Request, res: Response) => {
+    try {
+      const signature = req.headers['x-webhook-signature'] as string | undefined;
+      const eventType = req.headers['x-webhook-event'] as string || req.body.event_type;
+      const rawBody = JSON.stringify(req.body);
+
+      // Verify webhook signature
+      if (!verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET)) {
+        console.error('[WEBHOOK] Invalid signature');
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+
+      console.log(`[WEBHOOK] Received event: ${eventType}`);
+
+      const payload = req.body.data || req.body;
+
+      switch (eventType) {
+        case 'signature.completed':
+          await handleSignatureCompleted(payload);
+          break;
+        case 'signature.next_signer_ready':
+          await handleNextSignerReady(payload);
+          break;
+        case 'document.completed':
+          await handleDocumentCompleted(payload);
+          break;
+        default:
+          console.log(`[WEBHOOK] Unhandled event type: ${eventType}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error('[WEBHOOK] Error processing webhook:', error);
+      // Always return 200 to prevent retries
+      res.json({ received: true, error: 'Processing error' });
+    }
+  });
+
+  // Handle individual signature completion
+  async function handleSignatureCompleted(payload: any) {
+    try {
+      const { signer_id, signer_email, submission_id } = payload;
+      console.log(`[WEBHOOK] Signature completed by ${signer_email} for submission ${submission_id}`);
+
+      // Find the signatory by DocuSeal request ID or email
+      const [signatory] = await db
+        .select()
+        .from(signatories)
+        .where(
+          or(
+            eq(signatories.docusealRequestId, String(signer_id)),
+            eq(signatories.email, signer_email)
+          )
+        );
+
+      if (!signatory) {
+        console.warn(`[WEBHOOK] Signatory not found for signer_id: ${signer_id}, email: ${signer_email}`);
+        return;
+      }
+
+      // Update signatory status to signed
+      await db
+        .update(signatories)
+        .set({
+          status: 'signed',
+          signedAt: new Date(),
+        })
+        .where(eq(signatories.id, signatory.id));
+
+      console.log(`[WEBHOOK] Updated signatory ${signatory.id} status to signed`);
+
+      // Get request and contract for email
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, signatory.signatureRequestId));
+
+      if (request) {
+        const contract = await storage.getContract(request.contractId);
+
+        // Send confirmation email to the signatory
+        sendSignatureConfirmationEmail(
+          signatory.email,
+          signatory.name,
+          contract?.name || 'Contract'
+        ).catch((err: Error) => console.error('[WEBHOOK] Failed to send confirmation email:', err));
+      }
+    } catch (error) {
+      console.error('[WEBHOOK] Error handling signature.completed:', error);
+    }
+  }
+
+  // Handle next signer ready notification
+  async function handleNextSignerReady(payload: any) {
+    try {
+      const { signer_id, signer_email, signer_name, signing_url, submission_id } = payload;
+      console.log(`[WEBHOOK] Next signer ready: ${signer_email} for submission ${submission_id}`);
+
+      // Find the signatory
+      const [signatory] = await db
+        .select()
+        .from(signatories)
+        .where(
+          or(
+            eq(signatories.docusealRequestId, String(signer_id)),
+            eq(signatories.email, signer_email)
+          )
+        );
+
+      if (!signatory) {
+        console.warn(`[WEBHOOK] Signatory not found for next signer: ${signer_email}`);
+        return;
+      }
+
+      // Update signatory status to pending and set signing URL
+      await db
+        .update(signatories)
+        .set({
+          status: 'pending',
+          signingUrl: signing_url || signatory.signingUrl,
+        })
+        .where(eq(signatories.id, signatory.id));
+
+      console.log(`[WEBHOOK] Updated signatory ${signatory.id} status to pending`);
+
+      // Get request and contract info for email
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, signatory.signatureRequestId));
+
+      if (request) {
+        const contract = await storage.getContract(request.contractId);
+        const initiator = await storage.getUser(request.initiatorId);
+
+        // Send signature request email
+        sendSignatureRequestEmail(
+          signatory.email,
+          signatory.name,
+          initiator?.name || 'Someone',
+          contract?.name || 'Contract',
+          signing_url || signatory.signingUrl || '',
+          request.message
+        ).catch((err: Error) => console.error('[WEBHOOK] Failed to send request email:', err));
+      }
+    } catch (error) {
+      console.error('[WEBHOOK] Error handling signature.next_signer_ready:', error);
+    }
+  }
+
+  // Handle document completion (all signatures done)
+  async function handleDocumentCompleted(payload: any) {
+    try {
+      const { submission_id, document_id } = payload;
+      console.log(`[WEBHOOK] Document completed: ${document_id}`);
+
+      // Find the signature request by DocuSeal document ID
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.docusealDocumentId, String(document_id)));
+
+      if (!request) {
+        console.warn(`[WEBHOOK] Signature request not found for document: ${document_id}`);
+        return;
+      }
+
+      // Download signed PDF from DocuSeal
+      const docusealService = getDocuSealService();
+      let signedPdfPath: string | null = null;
+
+      try {
+        const signedPdfBuffer = await docusealService.downloadSignedDocument(String(document_id));
+
+        // Upload to storage
+        const contract = await storage.getContract(request.contractId);
+        const filename = `signed_${Date.now()}.pdf`;
+
+        const uploadResult = await uploadSignedPdf(request.contractId, signedPdfBuffer, filename);
+        signedPdfPath = uploadResult.path;
+
+        console.log(`[WEBHOOK] Signed PDF stored at: ${signedPdfPath}`);
+      } catch (downloadError) {
+        console.error('[WEBHOOK] Failed to download/store signed PDF:', downloadError);
+      }
+
+      // Update signature request status
+      await db
+        .update(signatureRequests)
+        .set({
+          status: 'completed',
+          completedAt: new Date(),
+          signedPdfPath,
+          updatedAt: new Date(),
+        })
+        .where(eq(signatureRequests.id, request.id));
+
+      // Update contract status to signed
+      await storage.updateContract(request.contractId, { status: 'signed' } as any);
+
+      console.log(`[WEBHOOK] Request ${request.id} marked as completed`);
+
+      // Get all signatories and send completion emails
+      const requestSignatories = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.signatureRequestId, request.id));
+
+      const contract = await storage.getContract(request.contractId);
+      const initiator = await storage.getUser(request.initiatorId);
+      const downloadUrl = signedPdfPath
+        ? `${process.env.BASE_URL || 'http://localhost:5000'}/api/contracts/${request.contractId}/signed-pdf`
+        : '';
+
+      // Send to initiator
+      if (initiator) {
+        sendDocumentCompletedEmail(
+          initiator.email,
+          initiator.name,
+          contract?.name || 'Contract',
+          downloadUrl
+        ).catch((err: Error) => console.error('[WEBHOOK] Failed to send completion email to initiator:', err));
+      }
+
+      // Send to all signatories
+      for (const s of requestSignatories) {
+        sendDocumentCompletedEmail(
+          s.email,
+          s.name,
+          contract?.name || 'Contract',
+          downloadUrl
+        ).catch((err: Error) => console.error('[WEBHOOK] Failed to send completion email to signatory:', err));
+      }
+    } catch (error) {
+      console.error('[WEBHOOK] Error handling document.completed:', error);
+    }
+  }
+
+  // GET /api/contracts/:id/signed-pdf - Download signed PDF
+  app.get("/api/contracts/:id/signed-pdf", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const contractId = req.params.id;
+
+      // Get the contract
+      const contract = await storage.getContract(contractId);
+      if (!contract) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Check if user has access (owner or signatory)
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Get signature request for this contract
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.contractId, contractId));
+
+      if (!request || request.status !== 'completed' || !request.signedPdfPath) {
+        return res.status(404).json({ error: 'Signed document not available' });
+      }
+
+      // Check authorization (initiator or signatory)
+      const isInitiator = request.initiatorId === userId;
+      const [isSignatory] = await db
+        .select()
+        .from(signatories)
+        .where(and(
+          eq(signatories.signatureRequestId, request.id),
+          or(
+            eq(signatories.userId, userId),
+            eq(signatories.email, user.email)
+          )
+        ));
+
+      if (!isInitiator && !isSignatory) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Download and serve the signed PDF
+      try {
+        const pdfBuffer = await downloadContractFile(request.signedPdfPath);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="signed_${contract.name || 'contract'}.pdf"`);
+        return res.send(pdfBuffer);
+      } catch {
+        return res.status(404).json({ error: 'Signed document not found' });
+      }
+    } catch (error) {
+      console.error('[SIGNATURES] Error downloading signed PDF:', error);
+      res.status(500).json({ error: 'Failed to download signed document' });
     }
   });
 

@@ -17,6 +17,7 @@ import { ActiveFilters } from '@/components/contracts/ActiveFilters';
 import { FolderSidebar } from '@/components/contracts/FolderSidebar';
 import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
 import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
+import { AwaitingSignatureList } from '@/components/signatures';
 import { useAuth } from '@/lib/auth';
 import type { TemplateFormData } from '@shared/types/templates';
 import { useToast } from '@/hooks/use-toast';
@@ -535,7 +536,7 @@ export default function Dashboard() {
             <>
               <div className="grid grid-cols-4 gap-6 mb-8">
                 {stats.map((stat, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="rounded-[20px] p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)]"
                     style={{ background: 'rgba(255, 255, 255, 0.6)' }}
@@ -553,6 +554,11 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Awaiting Signatures Section */}
+              <div className="mb-8">
+                <AwaitingSignatureList maxItems={3} />
               </div>
 
               <div className="grid grid-cols-2 gap-6">

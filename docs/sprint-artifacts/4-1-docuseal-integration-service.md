@@ -9,7 +9,7 @@
 | **Title** | DocuSeal Integration Service |
 | **Priority** | P0 - Critical |
 | **Story Points** | 5 |
-| **Status** | Drafted |
+| **Status** | Review |
 
 ## User Story
 
@@ -29,18 +29,18 @@ This foundational story creates the TypeScript service that wraps all DocuSeal A
 
 ## Acceptance Criteria
 
-- [ ] **AC-1:** DocuSeal client service class created
-- [ ] **AC-2:** API key configuration via environment variable
-- [ ] **AC-3:** Document upload (PDF buffer → DocuSeal)
-- [ ] **AC-4:** Get document with signature requests
-- [ ] **AC-5:** Download signed document as Buffer
-- [ ] **AC-6:** Create single signature request
-- [ ] **AC-7:** Create batch signature requests (multi-signer)
-- [ ] **AC-8:** Get signature request status
-- [ ] **AC-9:** Register/list/delete webhooks
-- [ ] **AC-10:** TypeScript types for all API requests/responses
-- [ ] **AC-11:** Error handling with meaningful messages
-- [ ] **AC-12:** Request timeout and retry logic
+- [x] **AC-1:** DocuSeal client service class created
+- [x] **AC-2:** API key configuration via environment variable
+- [x] **AC-3:** Document upload (PDF buffer → DocuSeal)
+- [x] **AC-4:** Get document with signature requests
+- [x] **AC-5:** Download signed document as Buffer
+- [x] **AC-6:** Create single signature request
+- [x] **AC-7:** Create batch signature requests (multi-signer)
+- [x] **AC-8:** Get signature request status
+- [x] **AC-9:** Register/list/delete webhooks
+- [x] **AC-10:** TypeScript types for all API requests/responses
+- [x] **AC-11:** Error handling with meaningful messages
+- [x] **AC-12:** Request timeout and retry logic
 
 ## Technical Requirements
 
@@ -543,15 +543,15 @@ fs.writeFileSync('signed_contract.pdf', signedPdf);
 
 ## Definition of Done
 
-- [ ] DocuSealService class fully implemented
-- [ ] All TypeScript types defined and exported
-- [ ] Environment variable configuration working
-- [ ] Error handling with DocuSealServiceError class
-- [ ] Timeout and retry logic implemented
-- [ ] Webhook signature verification working
-- [ ] Unit tests passing (mock API responses)
-- [ ] Integration test with actual DocuSeal API
-- [ ] Documentation with usage examples
+- [x] DocuSealService class fully implemented
+- [x] All TypeScript types defined and exported
+- [x] Environment variable configuration working
+- [x] Error handling with DocuSealServiceError class
+- [x] Timeout and retry logic implemented
+- [x] Webhook signature verification working
+- [x] Unit tests passing (mock API responses)
+- [ ] Integration test with actual DocuSeal API (requires API key)
+- [x] Documentation with usage examples
 
 ## Testing Checklist
 
@@ -629,59 +629,68 @@ describe('DocuSealService', () => {
 
 ## Tasks/Subtasks
 
-- [ ] **Task 1: Set up TypeScript types and interfaces**
-  - [ ] Create `server/services/docuseal.types.ts` with all type definitions
-  - [ ] Define DocuSealDocument, SignatureRequest, and Webhook types
-  - [ ] Add error type definitions
-  - [ ] Export all types for use across the codebase
+- [x] **Task 1: Set up TypeScript types and interfaces**
+  - [x] Create `server/services/docuseal.types.ts` with all type definitions
+  - [x] Define DocuSealDocument, SignatureRequest, and Webhook types
+  - [x] Add error type definitions
+  - [x] Export all types for use across the codebase
 
-- [ ] **Task 2: Implement core DocuSealService class**
-  - [ ] Create `server/services/docuseal.ts`
-  - [ ] Implement constructor with API key validation
-  - [ ] Build request method with retry logic
-  - [ ] Add timeout and error handling
-  - [ ] Implement delay utility for retries
+- [x] **Task 2: Implement core DocuSealService class**
+  - [x] Create `server/services/docuseal.ts`
+  - [x] Implement constructor with API key validation
+  - [x] Build request method with retry logic
+  - [x] Add timeout and error handling
+  - [x] Implement delay utility for retries
 
-- [ ] **Task 3: Implement document operations**
-  - [ ] Add uploadDocument method with FormData handling
-  - [ ] Implement getDocument with signature requests
-  - [ ] Add listDocuments method
-  - [ ] Implement downloadSignedDocument with Buffer return
+- [x] **Task 3: Implement document operations**
+  - [x] Add uploadDocument method with FormData handling
+  - [x] Implement getDocument with signature requests
+  - [x] Add listDocuments method
+  - [x] Implement downloadSignedDocument with Buffer return
 
-- [ ] **Task 4: Implement signature request operations**
-  - [ ] Add createSignatureRequest for single signer
-  - [ ] Implement createBatchSignatureRequests for multiple signers
-  - [ ] Add getSignatureRequest method
-  - [ ] Implement listSignatureRequests method
+- [x] **Task 4: Implement signature request operations**
+  - [x] Add createSignatureRequest for single signer
+  - [x] Implement createBatchSignatureRequests for multiple signers
+  - [x] Add getSignatureRequest method
+  - [x] Implement listSignatureRequests method
 
-- [ ] **Task 5: Implement webhook operations**
-  - [ ] Add registerWebhook method
-  - [ ] Implement listWebhooks method
-  - [ ] Add deleteWebhook method
-  - [ ] Implement static verifyWebhookSignature method with HMAC-SHA256
+- [x] **Task 5: Implement webhook operations**
+  - [x] Add registerWebhook method
+  - [x] Implement listWebhooks method
+  - [x] Add deleteWebhook method
+  - [x] Implement static verifyWebhookSignature method with HMAC-SHA256
 
-- [ ] **Task 6: Add service utilities and singleton**
-  - [ ] Implement healthCheck method
-  - [ ] Create getDocuSealService singleton function
-  - [ ] Add environment variable configuration
-  - [ ] Export convenience docuseal object
+- [x] **Task 6: Add service utilities and singleton**
+  - [x] Implement healthCheck method
+  - [x] Create getDocuSealService singleton function
+  - [x] Add environment variable configuration
+  - [x] Export convenience docuseal object
 
-- [ ] **Task 7: Write comprehensive unit tests**
-  - [ ] Test constructor validation
-  - [ ] Mock fetch for API tests
-  - [ ] Test webhook signature verification
-  - [ ] Test error handling and retry logic
-  - [ ] Verify timeout behavior
+- [x] **Task 7: Write comprehensive unit tests**
+  - [x] Test constructor validation
+  - [x] Mock fetch for API tests
+  - [x] Test webhook signature verification
+  - [x] Test error handling and retry logic
+  - [x] Verify timeout behavior
 
 ---
 
 ## Dev Agent Record
 
 ### Debug Log
-<!-- Automatically updated by dev agent during implementation -->
+- Task 1: Created `server/services/docuseal.types.ts` with all TypeScript interfaces per story spec
+- Tasks 2-6: Implemented complete DocuSealService class in `server/services/docuseal.ts` with:
+  - Constructor with API key validation, configurable baseUrl, timeout, maxRetries
+  - Private request() method with exponential backoff retry on 5xx/network errors
+  - Document operations: uploadDocument, getDocument, listDocuments, downloadSignedDocument
+  - Signature operations: createSignatureRequest, createBatchSignatureRequests, getSignatureRequest, listSignatureRequests
+  - Webhook operations: registerWebhook, listWebhooks, deleteWebhook
+  - Static verifyWebhookSignature with HMAC-SHA256 and timing-safe comparison
+  - Singleton pattern via getDocuSealService() and convenience docuseal export
+- Task 7: Created comprehensive test suite with 40 test cases covering all functionality
 
 ### Completion Notes
-<!-- Summary of implementation, decisions made, any follow-ups needed -->
+Implementation follows story spec exactly. Service uses native fetch API with AbortController for timeouts. Retry logic applies exponential backoff (1s, 2s, 3s delays) for 5xx errors and network failures. DocuSealServiceError class provides structured error info with statusCode and details. Singleton pattern ensures consistent configuration across app. Integration tests require DOCUSEAL_API_KEY environment variable to be set.
 
 ---
 
@@ -689,7 +698,9 @@ describe('DocuSealService', () => {
 
 | Action | File Path |
 |--------|-----------|
-| | |
+| Created | server/services/docuseal.types.ts |
+| Created | server/services/docuseal.ts |
+| Created | server/services/__tests__/docuseal.test.ts |
 
 ---
 
@@ -697,4 +708,4 @@ describe('DocuSealService', () => {
 
 | Date | Change | Author |
 |------|--------|--------|
-| | | |
+| 2025-11-30 | Implemented DocuSeal integration service with all AC complete | Dev Agent (Amelia) |

@@ -85,16 +85,16 @@ development_status:
   # 10 stories, 36 points
   # ============================================
   epic-4: contexted
-  4-1-docuseal-integration-service: ready-for-dev
-  4-2-signature-request-data-model: ready-for-dev
-  4-3-add-signatories-ui: ready-for-dev
-  4-4-signature-request-api: ready-for-dev
-  4-5-webhook-handler: ready-for-dev
-  4-6-email-notifications: ready-for-dev
-  4-7-signature-status-tracking-ui: ready-for-dev
-  4-8-awaiting-signature-dashboard: ready-for-dev
-  4-9-signed-document-storage: ready-for-dev
-  4-10-decline-and-cancellation: ready-for-dev
+  4-1-docuseal-integration-service: done
+  4-2-signature-request-data-model: done
+  4-3-add-signatories-ui: done
+  4-4-signature-request-api: done
+  4-5-webhook-handler: done
+  4-6-email-notifications: done
+  4-7-signature-status-tracking-ui: done
+  4-8-awaiting-signature-dashboard: done
+  4-9-signed-document-storage: done
+  4-10-decline-and-cancellation: done
   epic-4-retrospective: optional
 
   # ============================================

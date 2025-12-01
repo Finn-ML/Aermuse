@@ -12,7 +12,9 @@
       "Bash(node -e:*)",
       "Bash(timeout 15 npm run dev:*)",
       "Bash(git fetch:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

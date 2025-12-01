@@ -399,3 +399,72 @@ export function sanitizeFilename(name: string): string {
     .replace(/\s+/g, '-')
     .substring(0, 50);
 }
+
+/**
+ * Generate PDF from a Contract record
+ * Used by signature request API to create signable documents
+ */
+export async function generateContractPDFFromRecord(
+  contract: {
+    name: string;
+    renderedContent?: string | null;
+    extractedText?: string | null;
+  }
+): Promise<Buffer> {
+  const content = contract.renderedContent || contract.extractedText || '';
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      bufferPages: true,
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    // Header
+    doc
+      .fillColor(BRAND_BURGUNDY)
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text(contract.name || 'Contract Agreement', { align: 'center' });
+
+    doc.moveDown(2);
+
+    // Content
+    doc
+      .fillColor('#333333')
+      .fontSize(11)
+      .font('Helvetica');
+
+    // Strip HTML tags if present and render as plain text
+    const plainText = content
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+
+    if (plainText) {
+      doc.text(plainText, {
+        align: 'left',
+        lineGap: 4,
+      });
+    } else {
+      doc
+        .fillColor(GRAY_TEXT)
+        .text('No contract content available.', { align: 'center' });
+    }
+
+    doc.end();
+  });
+}

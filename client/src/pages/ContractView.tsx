@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
 import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
@@ -10,6 +10,7 @@ import { AnalyzingState } from '../components/contracts/AnalyzingState';
 import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
 import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
+import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { useContractAnalysis } from '../hooks/useContractAnalysis';
 import { Contract, ContractAnalysis, ContractVersion } from '../types';
 import GrainOverlay from '../components/GrainOverlay';
@@ -22,6 +23,8 @@ export default function ContractView() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showSignatureStatus, setShowSignatureStatus] = useState(false);
   const [versions, setVersions] = useState<ContractVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [viewingVersion, setViewingVersion] = useState<ContractVersion | null>(null);
@@ -286,10 +289,41 @@ export default function ContractView() {
                   Download
                 </button>
               )}
+              {contract.status === 'pending_signature' || contract.status === 'signed' ? (
+                <button
+                  onClick={() => setShowSignatureStatus(true)}
+                  className="px-4 py-2.5 rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-2 text-sm hover:scale-105"
+                  style={{
+                    background: contract.status === 'signed'
+                      ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
+                      : 'linear-gradient(135deg, #660033 0%, #8B0045 100%)'
+                  }}
+                >
+                  {contract.status === 'signed' ? (
+                    <>
+                      <Clock className="h-4 w-4" />
+                      Signed - View Details
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-4 w-4" />
+                      View Signature Status
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSignatureModal(true)}
+                  className="px-4 py-2.5 rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-2 text-sm hover:scale-105"
+                  style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                >
+                  <Send className="h-4 w-4" />
+                  Request Signatures
+                </button>
+              )}
               <button
                 onClick={handleOpenVersionModal}
-                className="px-4 py-2.5 rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-2 text-sm hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                className="px-4 py-2.5 rounded-xl font-semibold text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-2 text-sm"
               >
                 <History className="h-4 w-4" />
                 Versions
@@ -527,6 +561,37 @@ export default function ContractView() {
           </div>
         )}
       </div>
+
+      {/* Add Signatories Modal */}
+      {contract && (
+        <AddSignatoriesModal
+          contract={contract}
+          isOpen={showSignatureModal}
+          onClose={() => setShowSignatureModal(false)}
+          onSuccess={(requestId) => {
+            setShowSignatureModal(false);
+            toast({
+              title: "Signature Request Sent",
+              description: "Emails have been sent to all signatories.",
+            });
+            // Refresh contract and show status
+            fetchContract();
+            setShowSignatureStatus(true);
+          }}
+        />
+      )}
+
+      {/* Signature Status Modal */}
+      {showSignatureStatus && contract && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <SignatureStatusPanel
+              contractId={contract.id}
+              onClose={() => setShowSignatureStatus(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Version History Modal */}
       {showVersionModal && contract && (
