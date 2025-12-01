@@ -1,0 +1,177 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>1</storyId>
+    <title>Theme Presets</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-1-theme-presets.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to choose from pre-built themes for my landing page</iWant>
+    <soThat>I can quickly style my page without design skills</soThat>
+    <tasks>
+      <task id="1">Create Theme Presets Module - shared/themes.ts with ThemePreset interface, types, 7 presets, SUPPORTED_FONTS, getThemeById helper</task>
+      <task id="2">Extend Database Schema - Add 9 new columns to landingPages table (themeId, accentColor, textColor, headingFont, bodyFont, buttonStyle, backgroundType, backgroundValue, backgroundOverlay)</task>
+      <task id="3">Add Themes API Endpoint - GET /api/themes returning theme presets array</task>
+      <task id="4">Create ThemeSelector Component - Theme cards with preview, grid layout, selection callback</task>
+      <task id="5">Integrate ThemeSelector into Editor - Add to Dashboard landing page section, handle theme selection</task>
+      <task id="6">Update ArtistPage for Theme Rendering - Apply colors, fonts, buttons, background styles</task>
+      <task id="7">Testing - Verify all themes render, persistence works, type check passes</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">6-8 theme preset options visible in landing page editor</criterion>
+    <criterion id="AC-2">Each theme has a preview card showing colors, sample button, and font name</criterion>
+    <criterion id="AC-3">Clicking a theme shows live preview in the editor</criterion>
+    <criterion id="AC-4">Applying theme updates all related fields (colors, fonts, buttonStyle, background)</criterion>
+    <criterion id="AC-5">Theme selection persists after save and page reload</criterion>
+    <criterion id="AC-6">Public artist page renders with applied theme styles</criterion>
+    <criterion id="AC-7">API endpoint returns theme presets list</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Detailed Design - Data Models and Contracts</section>
+        <snippet>Defines ThemePreset interface, schema extensions for landingPages table, THEME_PRESETS array structure, ButtonStyle/BackgroundType types.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-9-landing-page-customization.md</path>
+        <title>Epic 9: Landing Page Customization</title>
+        <section>Story 9.1: Theme Presets</section>
+        <snippet>Acceptance criteria and technical notes for theme presets implementation including 7 preset themes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Aermuse MVP Architecture</title>
+        <section>Technology Stack, Project Structure</section>
+        <snippet>React 18, Vite 5, TailwindCSS 3, Express 4, Drizzle ORM, TypeScript 5. Frontend in client/src/, backend in server/.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>156-171</lines>
+        <reason>Existing landingPages table to extend with new theme columns (themeId, accentColor, textColor, headingFont, bodyFont, buttonStyle, backgroundType, backgroundValue, backgroundOverlay)</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>1-196</lines>
+        <reason>Public landing page renderer - needs to apply theme styles (colors, fonts, buttons, background). Currently uses primaryColor/secondaryColor only.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor section - needs ThemeSelector integration. Contains landingPageData state and updateLandingPageMutation.</reason>
+      </file>
+      <file>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>PATCH /api/landing-page</symbol>
+        <lines>1195-1230</lines>
+        <reason>Landing page update endpoint - already handles partial updates, will accept new theme fields automatically after schema update.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/SendProposalButton.tsx</path>
+        <kind>component</kind>
+        <symbol>SendProposalButton</symbol>
+        <lines>1-50</lines>
+        <reason>Example of existing landing component using primaryColor/secondaryColor props - pattern to follow for theming.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.39.1</version>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>^5.60.5</version>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.453.0</version>
+      </node>
+      <node>
+        <package>tailwindcss</package>
+        <version>^3.4.17</version>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^3.24.2</version>
+      </node>
+      <note>No new dependencies required - react-colorful mentioned in tech spec is for Story 9.2 (Custom Colors)</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Theme presets stored client-side in shared/themes.ts - no database table for presets themselves</constraint>
+    <constraint>User's selected theme stored via themeId + individual field values in landing_pages table</constraint>
+    <constraint>Google Fonts loaded via standard link tags, not self-hosted</constraint>
+    <constraint>Use existing updateLandingPageMutation pattern in Dashboard for saving</constraint>
+    <constraint>Schema changes via Drizzle - run npm run db:push after modifying shared/schema.ts</constraint>
+    <constraint>All paths in shared/ are accessible from both client and server</constraint>
+    <constraint>Follow existing Aermuse burgundy styling for editor UI components</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/themes</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/themes → ThemePreset[]</signature>
+      <path>server/routes.ts (new)</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/landing-page</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/landing-page { themeId?, accentColor?, textColor?, headingFont?, bodyFont?, buttonStyle?, backgroundType?, backgroundValue?, backgroundOverlay? }</signature>
+      <path>server/routes.ts:1195</path>
+    </interface>
+    <interface>
+      <name>ThemePreset</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface ThemePreset { id: string; name: string; description: string; primaryColor: string; secondaryColor: string; accentColor: string; textColor: string; headingFont: string; bodyFont: string; buttonStyle: ButtonStyle; backgroundType: BackgroundType; backgroundValue: string; backgroundOverlay: BackgroundOverlay; }</signature>
+      <path>shared/themes.ts (new)</path>
+    </interface>
+    <interface>
+      <name>ThemeSelector props</name>
+      <kind>React component props</kind>
+      <signature>interface ThemeSelectorProps { selectedThemeId?: string; onThemeSelect: (theme: ThemePreset) => void; }</signature>
+      <path>client/src/components/landing/ThemeSelector.tsx (new)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Tests located in test files alongside source or in dedicated test directories. Run tests with npm test or npm run test:watch. Type checking via npm run check (tsc).</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Verify THEME_PRESETS array has 6-8 entries</idea>
+      <idea ac="AC-4">Test getThemeById helper returns correct theme</idea>
+      <idea ac="AC-5">Integration test: save landing page with themeId, reload, verify persisted</idea>
+      <idea ac="AC-6">Visual test: ArtistPage applies all theme styles correctly</idea>
+      <idea ac="AC-7">API test: GET /api/themes returns array of presets</idea>
+    </ideas>
+  </tests>
+</story-context>

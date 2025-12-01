@@ -1,0 +1,196 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>10</storyId>
+    <title>Landing Page Editor Redesign</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-10-landing-page-editor-redesign.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>a redesigned editor with organized tabs and live preview</iWant>
+    <soThat>I can efficiently customize my landing page</soThat>
+    <tasks>
+      <task id="1">Create tab components: DesignTab, LinksTab, SocialTab, SettingsTab</task>
+      <task id="2">Create EditorPreview component with desktop/mobile toggle</task>
+      <task id="3">Create LandingPageEditor component with tabbed navigation</task>
+      <task id="4">Integrate LandingPageEditor in Dashboard replacing current editor</task>
+      <task id="5">Add UX enhancements: unsaved changes warning, keyboard shortcuts, auto-save</task>
+      <task id="6">Testing - test tabs, preview, responsiveness, keyboard shortcuts</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Editor has tabbed navigation (Design, Links, Social, Settings)</criterion>
+    <criterion id="AC-2">Live preview panel shows changes in real-time</criterion>
+    <criterion id="AC-3">Preview is responsive (mobile/desktop toggle)</criterion>
+    <criterion id="AC-4">Unsaved changes warning on navigation</criterion>
+    <criterion id="AC-5">Save button with loading state</criterion>
+    <criterion id="AC-6">Mobile-friendly editor (tabs collapse to dropdown)</criterion>
+    <criterion id="AC-7">Keyboard shortcuts for save (Cmd/Ctrl+S)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Editor Redesign</section>
+        <snippet>Tabbed sidebar with live preview, consolidates all customization features</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-10-landing-page-editor-redesign.md</path>
+        <title>Story 9.10: Editor Redesign</title>
+        <section>Editor Tab Structure, EditorPreview component</section>
+        <snippet>Detailed component structure for tabs and preview panel</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page section</symbol>
+        <lines>1213-1400</lines>
+        <reason>Current landing page editor section to be replaced with LandingPageEditor component</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>1-196</lines>
+        <reason>Reference for preview rendering - EditorPreview reuses similar markup</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/ThemeSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>ThemeSelector</symbol>
+        <lines>from 9.1</lines>
+        <reason>Goes in DesignTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/ColorPicker.tsx</path>
+        <kind>component</kind>
+        <symbol>ColorPicker</symbol>
+        <lines>from 9.2</lines>
+        <reason>Goes in DesignTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/FontSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>FontSelector</symbol>
+        <lines>from 9.3</lines>
+        <reason>Goes in DesignTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/ButtonStylePicker.tsx</path>
+        <kind>component</kind>
+        <symbol>ButtonStylePicker</symbol>
+        <lines>from 9.4</lines>
+        <reason>Goes in DesignTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/BackgroundEditor.tsx</path>
+        <kind>component</kind>
+        <symbol>BackgroundEditor</symbol>
+        <lines>from 9.5</lines>
+        <reason>Goes in DesignTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/SocialIconsEditor.tsx</path>
+        <kind>component</kind>
+        <symbol>SocialIconsEditor</symbol>
+        <lines>from 9.6</lines>
+        <reason>Goes in SocialTab</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/LayoutSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>LayoutSelector</symbol>
+        <lines>from 9.8</lines>
+        <reason>Goes in SettingsTab</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@radix-ui/react-tabs</package>
+        <version>existing via shadcn</version>
+        <note>Tabs component from shadcn/ui</note>
+      </node>
+      <node>
+        <package>@radix-ui/react-select</package>
+        <version>existing via shadcn</version>
+        <note>Select component for mobile tab dropdown</note>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.453.0</version>
+        <note>Icons for tabs: Palette, Link, Share2, Settings, Monitor, Smartphone</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All previous Epic 9 stories (9.1-9.9) must be completed - this story consolidates all components</constraint>
+    <constraint>Use shadcn Tabs component for tabbed navigation</constraint>
+    <constraint>Use shadcn Select for mobile tab dropdown (when viewport smaller than md breakpoint)</constraint>
+    <constraint>Preview panel should render actual ArtistPage-like content, not just placeholder</constraint>
+    <constraint>Keyboard shortcut must use Cmd on Mac, Ctrl on Windows/Linux</constraint>
+    <constraint>Unsaved changes use beforeunload event for browser navigation warning</constraint>
+    <constraint>Draft state managed in component state, not persisted until save</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>LandingPageEditor props</name>
+      <kind>React component props</kind>
+      <signature>interface LandingPageEditorProps { initialPage: LandingPage; onSave: (page: LandingPage) => Promise&lt;void&gt;; isSaving: boolean; }</signature>
+      <path>client/src/components/landing/LandingPageEditor.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>EditorPreview props</name>
+      <kind>React component props</kind>
+      <signature>interface EditorPreviewProps { page: LandingPage; }</signature>
+      <path>client/src/components/landing/EditorPreview.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>DesignTab props</name>
+      <kind>React component props</kind>
+      <signature>interface DesignTabProps { page: LandingPage; onChange: (updates: Partial&lt;LandingPage&gt;) => void; }</signature>
+      <path>client/src/components/landing/DesignTab.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>EDITOR_TABS</name>
+      <kind>constant</kind>
+      <signature>const EDITOR_TABS: Array&lt;{ id: string; label: string; icon: LucideIcon }&gt;</signature>
+      <path>client/src/components/landing/LandingPageEditor.tsx</path>
+    </interface>
+    <interface>
+      <name>useUnsavedChanges hook</name>
+      <kind>React hook</kind>
+      <signature>function useUnsavedChanges(hasChanges: boolean): void</signature>
+      <path>client/src/hooks/use-unsaved-changes.ts (new)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test all 4 tabs render and switch correctly</idea>
+      <idea ac="AC-2">Test preview updates when draft state changes</idea>
+      <idea ac="AC-3">Test preview toggle switches between desktop and mobile widths</idea>
+      <idea ac="AC-4">Test beforeunload event fires when hasChanges is true</idea>
+      <idea ac="AC-5">Test save button shows loading spinner when isSaving</idea>
+      <idea ac="AC-6">Test tabs collapse to Select dropdown on mobile viewport</idea>
+      <idea ac="AC-7">Test Cmd/Ctrl+S triggers save handler</idea>
+    </ideas>
+  </tests>
+</story-context>

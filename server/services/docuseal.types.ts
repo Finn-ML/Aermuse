@@ -11,6 +11,11 @@ export interface DocuSealDocument {
   status: string;
   pageCount?: number;
   createdAt: string;
+  // Optional fields that may be present when document is completed
+  result_url?: string;
+  resultUrl?: string;
+  download_url?: string;
+  downloadUrl?: string;
 }
 
 export interface DocumentWithRequests extends DocuSealDocument {

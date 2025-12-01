@@ -15,6 +15,7 @@ import Terms from "@/pages/Terms";
 import Pricing from "@/pages/Pricing";
 import Checkout from "@/pages/Checkout";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
+import ArtistPage from "@/pages/ArtistPage";
 // Admin pages
 import {
   AdminOverview,
@@ -53,6 +54,8 @@ function Router() {
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/activity" component={AdminActivity} />
+      {/* Public artist landing pages */}
+      <Route path="/artist/:slug" component={ArtistPage} />
       <Route component={NotFound} />
     </Switch>
   );

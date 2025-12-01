@@ -135,12 +135,12 @@ development_status:
   # 6 stories, 12 points
   # ============================================
   epic-7: contexted
-  7-1-proposal-data-model: ready-for-dev
-  7-2-send-proposal-button: ready-for-dev
-  7-3-proposal-submission-form: ready-for-dev
-  7-4-proposal-notification: ready-for-dev
-  7-5-proposal-management-dashboard: ready-for-dev
-  7-6-proposal-to-contract-flow: ready-for-dev
+  7-1-proposal-data-model: done
+  7-2-send-proposal-button: done
+  7-3-proposal-submission-form: done
+  7-4-proposal-notification: done
+  7-5-proposal-management-dashboard: done
+  7-6-proposal-to-contract-flow: done
   epic-7-retrospective: optional
 
   # ============================================
@@ -155,3 +155,20 @@ development_status:
   8-5-version-history: review
   8-6-contract-sorting: review
   epic-8-retrospective: optional
+
+  # ============================================
+  # EPIC 9: Landing Page Customization (P2)
+  # 10 stories, 33 points
+  # ============================================
+  epic-9: contexted
+  9-1-theme-presets: review
+  9-2-custom-colors: ready-for-dev
+  9-3-font-selection: ready-for-dev
+  9-4-button-styles: ready-for-dev
+  9-5-background-customization: ready-for-dev
+  9-6-social-icons-bar: ready-for-dev
+  9-7-link-sections-headers: ready-for-dev
+  9-8-layout-options: ready-for-dev
+  9-9-video-embeds: ready-for-dev
+  9-10-landing-page-editor-redesign: ready-for-dev
+  epic-9-retrospective: optional

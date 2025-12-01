@@ -1,0 +1,148 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>9</storyId>
+    <title>Video Embeds (Pro Feature)</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-9-video-embeds.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Pro subscriber artist</asA>
+    <iWant>to embed video content on my landing page</iWant>
+    <soThat>I can showcase my music videos and performances</soThat>
+    <tasks>
+      <task id="1">Update landingPageLinks schema with videoUrl field</task>
+      <task id="2">Create video URL parser for YouTube, Vimeo, Spotify</task>
+      <task id="3">Create VideoEmbedEditor component with URL input and preview</task>
+      <task id="4">Integrate in Dashboard with Pro subscription check</task>
+      <task id="5">Render video embeds in ArtistPage as responsive iframes</task>
+      <task id="6">Testing - test URL parsing, subscription gating, embed rendering</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Video embed option only visible to Pro subscribers</criterion>
+    <criterion id="AC-2">Supported platforms: YouTube, Vimeo, Spotify</criterion>
+    <criterion id="AC-3">URL parsed to extract video/track ID</criterion>
+    <criterion id="AC-4">Embed renders as iframe on public page</criterion>
+    <criterion id="AC-5">Free users see upgrade prompt when attempting</criterion>
+    <criterion id="AC-6">Video embeds can be reordered with links</criterion>
+    <criterion id="AC-7">Embed has responsive sizing</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Video Embed Flow</section>
+        <snippet>Pro feature gated by subscription check. URL parsing for YouTube, Vimeo, Spotify. Embed iframe with allowlist validation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-5-subscription-system.md</path>
+        <title>Epic 5: Subscription System</title>
+        <section>Subscription Paywall</section>
+        <snippet>requireSubscription middleware and useSubscription hook for Pro feature gating</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPageLinks</symbol>
+        <lines>183-200</lines>
+        <reason>Need to add videoUrl text field for video embeds</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - links editor</symbol>
+        <lines>1320-1370</lines>
+        <reason>Links management UI - needs "Add Video" button with subscription check</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage - links section</symbol>
+        <lines>112-136</lines>
+        <reason>Links rendering - needs to handle type='video_embed' with iframe rendering</reason>
+      </file>
+      <file>
+        <path>client/src/hooks/use-subscription.ts</path>
+        <kind>hook</kind>
+        <symbol>useSubscription</symbol>
+        <lines>varies</lines>
+        <reason>Existing subscription hook to check if user has active Pro subscription</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>^5.60.5</version>
+      </node>
+      <note>No new dependencies - video embed is iframe-based</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Story 9.7 must be completed first - establishes type field pattern on landingPageLinks</constraint>
+    <constraint>Pro feature - requires active subscription (status === 'active')</constraint>
+    <constraint>Only allow embeds from trusted domains: youtube.com, youtu.be, vimeo.com, spotify.com</constraint>
+    <constraint>Video type uses type='video_embed' in landingPageLinks</constraint>
+    <constraint>Iframe sandbox attributes for security</constraint>
+    <constraint>Responsive aspect ratio: 16:9 for YouTube/Vimeo, compact for Spotify</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>VideoEmbed</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface VideoEmbed { platform: 'youtube' | 'vimeo' | 'spotify'; embedUrl: string; aspectRatio: '16:9' | '1:1'; }</signature>
+      <path>client/src/lib/video-parser.ts (new)</path>
+    </interface>
+    <interface>
+      <name>parseVideoUrl</name>
+      <kind>utility function</kind>
+      <signature>function parseVideoUrl(url: string): VideoEmbed | null</signature>
+      <path>client/src/lib/video-parser.ts (new)</path>
+    </interface>
+    <interface>
+      <name>VideoEmbedEditor props</name>
+      <kind>React component props</kind>
+      <signature>interface VideoEmbedEditorProps { onAdd: (url: string, title: string) => void; onCancel: () => void; }</signature>
+      <path>client/src/components/landing/VideoEmbedEditor.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>useSubscription</name>
+      <kind>React hook</kind>
+      <signature>function useSubscription(): { data: { status: string } | undefined; isLoading: boolean }</signature>
+      <path>client/src/hooks/use-subscription.ts (existing)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test "Add Video" button hidden when subscription inactive</idea>
+      <idea ac="AC-2">Test parseVideoUrl handles YouTube, Vimeo, Spotify URL formats</idea>
+      <idea ac="AC-3">Test URL parsing extracts correct video/track IDs</idea>
+      <idea ac="AC-4">Visual test: iframe renders with correct embed URL</idea>
+      <idea ac="AC-5">Test upgrade prompt shown to free users</idea>
+      <idea ac="AC-6">Test video items reorderable with drag-and-drop</idea>
+      <idea ac="AC-7">Test responsive sizing with aspect-ratio CSS</idea>
+    </ideas>
+  </tests>
+</story-context>

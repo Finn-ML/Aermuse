@@ -18,6 +18,10 @@ import { FolderSidebar } from '@/components/contracts/FolderSidebar';
 import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
 import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
 import { AwaitingSignatureList } from '@/components/signatures';
+import { ProposalCard, ProposalDetail } from '@/components/proposals';
+import { ThemeSelector } from '@/components/landing/ThemeSelector';
+import { useTemplates } from '@/hooks/useTemplates';
+import type { ThemePreset } from '@shared/themes';
 import { useAuth } from '@/lib/auth';
 import type { TemplateFormData } from '@shared/types/templates';
 import { useToast } from '@/hooks/use-toast';
@@ -46,10 +50,13 @@ import {
   Check,
   SearchX,
   FolderInput,
-  FileDown
+  FileDown,
+  Mail,
+  Filter,
+  Inbox
 } from 'lucide-react';
 
-type NavId = 'dashboard' | 'contracts' | 'templates' | 'landing' | 'settings';
+type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
 
 interface LinkItem {
   id: string;
@@ -96,6 +103,12 @@ export default function Dashboard() {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [draggingContract, setDraggingContract] = useState<Contract | null>(null);
+  // Proposals state (Story 7.5)
+  const [proposalStatusFilter, setProposalStatusFilter] = useState('all');
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  // Story 7.6: Proposal to Contract flow
+  const [showTemplateSelection, setShowTemplateSelection] = useState(false);
+  const [creatingContractFromProposal, setCreatingContractFromProposal] = useState(false);
 
   // Configure drag sensor with activation constraint to prevent accidental drags
   const sensors = useSensors(
@@ -109,6 +122,8 @@ export default function Dashboard() {
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  // Templates for proposal-to-contract flow (Story 7.6)
+  const { templates } = useTemplates();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -159,6 +174,57 @@ export default function Dashboard() {
   const { data: landingPageData, isLoading: landingPageLoading } = useQuery<LandingPage & { links: LandingPageLink[] }>({
     queryKey: ['/api/landing-page'],
     enabled: !!user,
+  });
+
+  // Fetch unread proposal count for badge (Story 7.4)
+  const { data: proposalCountData } = useQuery<{ count: number }>({
+    queryKey: ['/api/proposals/unread-count'],
+    enabled: !!user,
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
+  const unreadProposalCount = proposalCountData?.count || 0;
+
+  // Proposal types (Story 7.5)
+  interface Proposal {
+    id: string;
+    senderName: string;
+    senderEmail: string;
+    senderCompany: string | null;
+    proposalType: string;
+    message: string;
+    status: 'new' | 'viewed' | 'responded' | 'archived';
+    createdAt: string;
+    viewedAt: string | null;
+    respondedAt: string | null;
+    contractId: string | null;
+    landingPage: { id: string; artistName: string } | null;
+  }
+
+  // Fetch proposals list (Story 7.5)
+  const { data: proposalsData, isLoading: proposalsLoading } = useQuery<{ proposals: Proposal[] }>({
+    queryKey: ['/api/proposals', proposalStatusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (proposalStatusFilter !== 'all') {
+        params.set('status', proposalStatusFilter);
+      }
+      const res = await fetch(`/api/proposals?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch proposals');
+      return res.json();
+    },
+    enabled: !!user && activeNav === 'proposals',
+  });
+  const proposals = proposalsData?.proposals || [];
+
+  // Fetch single proposal detail (Story 7.5)
+  const { data: selectedProposal, isLoading: proposalDetailLoading } = useQuery<Proposal>({
+    queryKey: ['/api/proposals', selectedProposalId],
+    queryFn: async () => {
+      const res = await fetch(`/api/proposals/${selectedProposalId}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch proposal');
+      return res.json();
+    },
+    enabled: !!user && !!selectedProposalId,
   });
 
   const createContractMutation = useMutation({
@@ -291,6 +357,96 @@ export default function Dashboard() {
     },
   });
 
+  // Proposal mutations (Story 7.5)
+  const updateProposalMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await apiRequest('PATCH', `/api/proposals/${id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals/unread-count'] });
+    },
+  });
+
+  const deleteProposalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/proposals/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals/unread-count'] });
+      setSelectedProposalId(null);
+      toast({ title: "Proposal deleted" });
+    },
+  });
+
+  const handleProposalStatusChange = (id: string, status: string) => {
+    updateProposalMutation.mutate({ id, status });
+  };
+
+  const handleProposalDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this proposal?')) {
+      deleteProposalMutation.mutate(id);
+    }
+  };
+
+  // Story 7.6: Create contract from proposal
+  const createContractFromProposalMutation = useMutation({
+    mutationFn: async ({ proposalId, templateId }: { proposalId: string; templateId: string }) => {
+      const res = await apiRequest('POST', `/api/proposals/${proposalId}/contract`, { templateId });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create contract');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/proposals/unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      setShowTemplateSelection(false);
+      setCreatingContractFromProposal(false);
+      toast({
+        title: 'Contract Created',
+        description: 'The contract has been created from the proposal. Redirecting to contract...',
+      });
+      // Navigate to contracts section and show the new contract
+      setActiveNav('contracts');
+      setSelectedProposalId(null);
+    },
+    onError: (error: Error) => {
+      setCreatingContractFromProposal(false);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCreateContractFromProposal = () => {
+    setShowTemplateSelection(true);
+  };
+
+  const handleSelectTemplateForContract = (template: ContractTemplate) => {
+    if (!selectedProposalId) return;
+    setCreatingContractFromProposal(true);
+    createContractFromProposalMutation.mutate({
+      proposalId: selectedProposalId,
+      templateId: template.id,
+    });
+  };
+
+  const handleViewContractFromProposal = (contractId: string) => {
+    // Navigate to contracts section
+    setActiveNav('contracts');
+    setSelectedProposalId(null);
+    // Ideally we'd select the contract, but for now just navigate to contracts
+  };
+
   const handleLogout = async () => {
     await logout();
     setLocation('/');
@@ -306,6 +462,7 @@ export default function Dashboard() {
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
     { id: 'templates' as NavId, label: 'Templates', icon: Layout },
+    { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined },
     { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
@@ -426,14 +583,23 @@ export default function Dashboard() {
                 key={item.id}
                 onClick={() => setActiveNav(item.id)}
                 className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl cursor-pointer transition-all duration-300 font-medium text-[15px] mb-1 ${
-                  activeNav === item.id 
-                    ? 'bg-[#660033] text-[#F7E6CA]' 
+                  activeNav === item.id
+                    ? 'bg-[#660033] text-[#F7E6CA]'
                     : 'text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.06)] hover:text-[#660033]'
                 }`}
                 data-testid={`nav-${item.id}`}
               >
                 <Icon size={20} />
-                {item.label}
+                <span className="flex-1 text-left">{item.label}</span>
+                {'badge' in item && item.badge !== undefined && (
+                  <span className={`ml-auto min-w-[20px] h-5 px-1.5 flex items-center justify-center text-xs font-bold rounded-full ${
+                    activeNav === item.id
+                      ? 'bg-[#F7E6CA] text-[#660033]'
+                      : 'bg-[#660033] text-[#F7E6CA]'
+                  }`}>
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -472,6 +638,7 @@ export default function Dashboard() {
               {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'templates' && 'Contract Templates'}
+              {activeNav === 'proposals' && 'Proposals'}
               {activeNav === 'landing' && 'Landing Page'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
@@ -479,6 +646,7 @@ export default function Dashboard() {
               {activeNav === 'dashboard' && "Here's what's happening with your music career"}
               {activeNav === 'contracts' && 'Manage, analyze, and sign your contracts with AI assistance'}
               {activeNav === 'templates' && 'Select a template to create a new contract'}
+              {activeNav === 'proposals' && 'Review and respond to proposals from your landing page'}
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
               {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
@@ -1113,7 +1281,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => updateLandingPageMutation.mutate({ isPublished: !landingPageData.isPublished })}
                           className={`flex-1 px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
-                            landingPageData.isPublished 
+                            landingPageData.isPublished
                               ? 'bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)]'
                               : 'bg-[#660033] text-[#F7E6CA] hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)]'
                           }`}
@@ -1138,7 +1306,7 @@ export default function Dashboard() {
                   ) : null}
                 </div>
 
-                <div 
+                <div
                   className="rounded-[20px] p-7"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
@@ -1194,7 +1362,197 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Theme Selector Section (Epic 9) */}
+              <div
+                className="rounded-[20px] p-7 mt-6"
+                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+              >
+                <h3 className="text-lg font-bold mb-6">Page Theme</h3>
+                {landingPageData && (
+                  <ThemeSelector
+                    selectedThemeId={landingPageData.themeId}
+                    onThemeSelect={(theme: ThemePreset) => {
+                      updateLandingPageMutation.mutate({
+                        themeId: theme.id,
+                        primaryColor: theme.primaryColor,
+                        secondaryColor: theme.secondaryColor,
+                        accentColor: theme.accentColor,
+                        textColor: theme.textColor,
+                        headingFont: theme.headingFont,
+                        bodyFont: theme.bodyFont,
+                        buttonStyle: theme.buttonStyle,
+                        backgroundType: theme.backgroundType,
+                        backgroundValue: theme.backgroundValue,
+                        backgroundOverlay: theme.backgroundOverlay,
+                      });
+                    }}
+                  />
+                )}
+              </div>
             </>
+          )}
+
+          {activeNav === 'proposals' && (
+            selectedProposalId && selectedProposal ? (
+              // Proposal Detail View
+              proposalDetailLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-[#660033]" size={32} />
+                </div>
+              ) : (
+                <>
+                <ProposalDetail
+                  proposal={selectedProposal}
+                  onStatusChange={(status) => handleProposalStatusChange(selectedProposalId, status)}
+                  onDelete={() => handleProposalDelete(selectedProposalId)}
+                  onBack={() => {
+                    setSelectedProposalId(null);
+                    setShowTemplateSelection(false);
+                  }}
+                  onCreateContract={handleCreateContractFromProposal}
+                  onViewContract={handleViewContractFromProposal}
+                />
+
+                {/* Template Selection Modal for creating contract from proposal (Story 7.6) */}
+                {showTemplateSelection && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div
+                      className="absolute inset-0 bg-black/50"
+                      onClick={() => setShowTemplateSelection(false)}
+                    />
+                    <div
+                      className="relative rounded-[20px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+                      style={{ background: '#FDF8F3' }}
+                    >
+                      <h2 className="text-2xl font-bold text-[#660033] mb-2">Select a Template</h2>
+                      <p className="text-[rgba(102,0,51,0.6)] mb-6">
+                        Choose a template for the contract. The proposal details will be pre-filled.
+                      </p>
+
+                      {templates && templates.length > 0 ? (
+                        <div className="space-y-3">
+                          {templates.map((template) => (
+                            <button
+                              key={template.id}
+                              onClick={() => handleSelectTemplateForContract(template)}
+                              disabled={creatingContractFromProposal}
+                              className="w-full text-left p-5 rounded-xl border-2 border-[rgba(102,0,51,0.1)] hover:border-[#660033] hover:bg-[rgba(102,0,51,0.04)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h3 className="font-bold text-[#660033]">{template.name}</h3>
+                                  {template.description && (
+                                    <p className="text-sm text-[rgba(102,0,51,0.6)] mt-1">
+                                      {template.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.6)]">
+                                  {template.category}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
+                          No templates available. Please create a template first.
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-3 mt-6">
+                        <button
+                          onClick={() => setShowTemplateSelection(false)}
+                          disabled={creatingContractFromProposal}
+                          className="px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      {creatingContractFromProposal && (
+                        <div className="absolute inset-0 bg-white/80 rounded-[20px] flex items-center justify-center">
+                          <div className="flex items-center gap-3 text-[#660033]">
+                            <Loader2 className="animate-spin" size={24} />
+                            <span className="font-semibold">Creating contract...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+              )
+            ) : (
+              // Proposals List View
+              <div className="space-y-6">
+                {/* Status Filters */}
+                <div className="flex items-center gap-3">
+                  <Filter size={16} className="text-[rgba(102,0,51,0.5)]" />
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'all', label: 'All' },
+                      { value: 'new', label: 'New' },
+                      { value: 'viewed', label: 'Viewed' },
+                      { value: 'responded', label: 'Responded' },
+                      { value: 'archived', label: 'Archived' },
+                    ].map((filter) => (
+                      <button
+                        key={filter.value}
+                        onClick={() => setProposalStatusFilter(filter.value)}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                          proposalStatusFilter === filter.value
+                            ? 'bg-[#660033] text-[#F7E6CA]'
+                            : 'bg-[rgba(102,0,51,0.06)] text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.1)] hover:text-[#660033]'
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Proposals List */}
+                {proposalsLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="animate-spin text-[#660033]" size={32} />
+                  </div>
+                ) : proposals.length === 0 ? (
+                  <div
+                    className="rounded-[20px] p-12 text-center"
+                    style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                  >
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                      style={{ background: 'rgba(102, 0, 51, 0.06)' }}
+                    >
+                      <Inbox size={32} className="text-[rgba(102,0,51,0.3)]" />
+                    </div>
+                    <h3 className="text-lg font-bold text-[#660033] mb-2">
+                      No proposals yet
+                    </h3>
+                    <p className="text-[rgba(102,0,51,0.6)]">
+                      {proposalStatusFilter === 'all'
+                        ? "When someone sends a proposal through your landing page, it will appear here."
+                        : `No ${proposalStatusFilter} proposals found.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {proposals.map((proposal) => (
+                      <ProposalCard
+                        key={proposal.id}
+                        proposal={proposal}
+                        onStatusChange={handleProposalStatusChange}
+                        onDelete={handleProposalDelete}
+                        onSelect={setSelectedProposalId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           {activeNav === 'settings' && (

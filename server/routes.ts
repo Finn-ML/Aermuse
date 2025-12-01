@@ -8,7 +8,7 @@ import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent }
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
-import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail } from "./services/postmark";
+import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth } from "./middleware/auth";
 import multer from "multer";
@@ -19,9 +19,9 @@ import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription } from "./services/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFFromRecord } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
-import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema } from "@shared/schema";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or, desc, count } from "drizzle-orm";
 import crypto from "crypto";
 import { sendSignatureRequestEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 
@@ -30,6 +30,15 @@ const resendLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 1,
   message: { error: 'Please wait 5 minutes before requesting another verification email' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiter for proposal submissions (5 per hour per IP)
+const proposalRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 proposals per hour per IP
+  message: { error: 'Too many proposals submitted. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -1159,6 +1168,17 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Move contract error:", error);
       res.status(500).json({ error: "Failed to move contract" });
+    }
+  });
+
+  // Theme Presets (Epic 9) - public endpoint
+  app.get("/api/themes", async (_req: Request, res: Response) => {
+    try {
+      const { THEME_PRESETS } = await import("@shared/themes");
+      res.json(THEME_PRESETS);
+    } catch (error) {
+      console.error("Get themes error:", error);
+      res.status(500).json({ error: "Failed to get themes" });
     }
   });
 
@@ -2880,6 +2900,382 @@ export async function registerRoutes(
     } catch (error) {
       console.error('[SIGNATURES] Error downloading signed PDF:', error);
       res.status(500).json({ error: 'Failed to download signed document' });
+    }
+  });
+
+  // ============================================
+  // PROPOSAL ROUTES (Epic 7)
+  // ============================================
+
+  // GET /api/proposals/unread-count - Get count of new proposals for current user
+  app.get("/api/proposals/unread-count", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const [result] = await db
+        .select({ count: count() })
+        .from(proposals)
+        .where(
+          and(
+            eq(proposals.userId, userId),
+            eq(proposals.status, 'new')
+          )
+        );
+
+      res.json({ count: result?.count || 0 });
+    } catch (error) {
+      console.error('[PROPOSALS] Unread count error:', error);
+      res.status(500).json({ error: 'Failed to fetch unread count' });
+    }
+  });
+
+  // Zod schema for proposal submission
+  const proposalSubmissionSchema = z.object({
+    landingPageId: z.string().min(1, 'Landing page ID is required'),
+    senderName: z.string().min(1, 'Name is required').max(255),
+    senderEmail: z.string().email('Invalid email format').max(255),
+    senderCompany: z.string().max(255).optional().nullable(),
+    proposalType: z.enum(PROPOSAL_TYPES),
+    message: z.string().min(1, 'Message is required').max(1000, 'Message must be 1000 characters or less'),
+  });
+
+  // POST /api/proposals - Submit new proposal (public, rate limited)
+  app.post("/api/proposals", proposalRateLimiter, async (req: Request, res: Response) => {
+    try {
+      const parsed = proposalSubmissionSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const { landingPageId, senderName, senderEmail, senderCompany, proposalType, message } = parsed.data;
+
+      // Find landing page
+      const landingPage = await storage.getLandingPage(landingPageId);
+
+      if (!landingPage) {
+        return res.status(404).json({ error: 'Landing page not found' });
+      }
+
+      if (!landingPage.isPublished) {
+        return res.status(400).json({ error: 'This page is not accepting proposals' });
+      }
+
+      // Create proposal
+      const [proposal] = await db
+        .insert(proposals)
+        .values({
+          landingPageId,
+          userId: landingPage.userId,
+          senderName,
+          senderEmail,
+          senderCompany: senderCompany || null,
+          proposalType,
+          message,
+          ipAddress: req.ip || null,
+          userAgent: req.headers['user-agent'] || null,
+        })
+        .returning();
+
+      console.log(`[PROPOSALS] New proposal submitted: ${proposal.id} for landing page ${landingPageId}`);
+
+      // Send notification email to artist (Story 7.4)
+      const artist = await storage.getUser(landingPage.userId);
+      if (artist) {
+        sendProposalNotificationEmail({
+          artistEmail: artist.email,
+          artistName: artist.name,
+          landingPageTitle: landingPage.artistName,
+          senderName,
+          senderEmail,
+          senderCompany,
+          proposalType,
+          message,
+          proposalId: proposal.id,
+        }).catch((err) => {
+          // Log but don't fail the request if email fails
+          console.error('[PROPOSALS] Failed to send notification email:', err);
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Proposal submitted successfully',
+      });
+    } catch (error) {
+      console.error('[PROPOSALS] Submit error:', error);
+      res.status(500).json({ error: 'Failed to submit proposal' });
+    }
+  });
+
+  // GET /api/proposals - List user's proposals (authenticated)
+  app.get("/api/proposals", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const status = req.query.status as string | undefined;
+
+      let whereConditions;
+      if (status && status !== 'all') {
+        whereConditions = and(
+          eq(proposals.userId, userId),
+          eq(proposals.status, status)
+        );
+      } else {
+        whereConditions = eq(proposals.userId, userId);
+      }
+
+      const results = await db
+        .select({
+          id: proposals.id,
+          senderName: proposals.senderName,
+          senderEmail: proposals.senderEmail,
+          senderCompany: proposals.senderCompany,
+          proposalType: proposals.proposalType,
+          message: proposals.message,
+          status: proposals.status,
+          createdAt: proposals.createdAt,
+          viewedAt: proposals.viewedAt,
+          respondedAt: proposals.respondedAt,
+          landingPageId: proposals.landingPageId,
+        })
+        .from(proposals)
+        .where(whereConditions)
+        .orderBy(desc(proposals.createdAt));
+
+      // Get landing page info for each proposal
+      const proposalsWithLandingPage = await Promise.all(
+        results.map(async (proposal) => {
+          const landingPage = await storage.getLandingPage(proposal.landingPageId);
+          return {
+            ...proposal,
+            landingPage: landingPage ? {
+              id: landingPage.id,
+              artistName: landingPage.artistName,
+            } : null,
+          };
+        })
+      );
+
+      res.json({ proposals: proposalsWithLandingPage });
+    } catch (error) {
+      console.error('[PROPOSALS] List error:', error);
+      res.status(500).json({ error: 'Failed to fetch proposals' });
+    }
+  });
+
+  // GET /api/proposals/:id - Get proposal detail (authenticated)
+  app.get("/api/proposals/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      // Mark as viewed if new
+      if (proposal.status === 'new') {
+        await db
+          .update(proposals)
+          .set({ status: 'viewed', viewedAt: new Date(), updatedAt: new Date() })
+          .where(eq(proposals.id, id));
+      }
+
+      // Get landing page info
+      const landingPage = await storage.getLandingPage(proposal.landingPageId);
+
+      res.json({
+        ...proposal,
+        status: proposal.status === 'new' ? 'viewed' : proposal.status,
+        viewedAt: proposal.status === 'new' ? new Date() : proposal.viewedAt,
+        landingPage: landingPage ? {
+          id: landingPage.id,
+          artistName: landingPage.artistName,
+        } : null,
+      });
+    } catch (error) {
+      console.error('[PROPOSALS] Get error:', error);
+      res.status(500).json({ error: 'Failed to fetch proposal' });
+    }
+  });
+
+  // PATCH /api/proposals/:id - Update proposal status (authenticated)
+  app.patch("/api/proposals/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      const validStatuses = ['new', 'viewed', 'responded', 'archived'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      // Check proposal exists and belongs to user
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      // Build update data
+      const updateData: Record<string, unknown> = { status, updatedAt: new Date() };
+      if (status === 'viewed' && !proposal.viewedAt) {
+        updateData.viewedAt = new Date();
+      }
+      if (status === 'responded' && !proposal.respondedAt) {
+        updateData.respondedAt = new Date();
+      }
+
+      await db
+        .update(proposals)
+        .set(updateData)
+        .where(eq(proposals.id, id));
+
+      console.log(`[PROPOSALS] Status updated: ${id} -> ${status}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[PROPOSALS] Update error:', error);
+      res.status(500).json({ error: 'Failed to update proposal' });
+    }
+  });
+
+  // DELETE /api/proposals/:id - Delete proposal (authenticated)
+  app.delete("/api/proposals/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+
+      // Check proposal exists and belongs to user
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      await db.delete(proposals).where(eq(proposals.id, id));
+
+      console.log(`[PROPOSALS] Deleted: ${id}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[PROPOSALS] Delete error:', error);
+      res.status(500).json({ error: 'Failed to delete proposal' });
+    }
+  });
+
+  // POST /api/proposals/:id/contract - Create contract from proposal (Story 7.6)
+  app.post("/api/proposals/:id/contract", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+      const { templateId } = req.body;
+
+      if (!templateId) {
+        return res.status(400).json({ error: 'Template ID is required' });
+      }
+
+      // Verify proposal exists and belongs to user
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      // Check if contract already exists for this proposal
+      if (proposal.contractId) {
+        return res.status(400).json({
+          error: 'Contract already created from this proposal',
+          contractId: proposal.contractId
+        });
+      }
+
+      // Get template
+      const template = await storage.getTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+
+      // Create contract with pre-filled data from proposal
+      const contractName = `${template.name} - ${proposal.senderName}`;
+
+      const contract = await storage.createContract({
+        userId,
+        name: contractName,
+        type: template.category || 'other',
+        status: 'draft',
+        templateId,
+        partnerName: proposal.senderName,
+        // Store sender info in templateData for form pre-fill
+        templateData: {
+          fields: {
+            counterpartyName: proposal.senderName,
+            counterpartyEmail: proposal.senderEmail,
+            ...(proposal.senderCompany ? { counterpartyCompany: proposal.senderCompany } : {}),
+          },
+          enabledClauses: [],
+        },
+      });
+
+      // Update proposal with contract link and status
+      await db
+        .update(proposals)
+        .set({
+          contractId: contract.id,
+          status: 'responded',
+          respondedAt: proposal.respondedAt || new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(proposals.id, id));
+
+      console.log(`[PROPOSALS] Created contract ${contract.id} from proposal ${id}`);
+      res.status(201).json({
+        success: true,
+        contractId: contract.id,
+      });
+    } catch (error) {
+      console.error('[PROPOSALS] Create contract error:', error);
+      res.status(500).json({ error: 'Failed to create contract from proposal' });
     }
   });
 

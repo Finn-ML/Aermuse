@@ -1,0 +1,132 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>3</storyId>
+    <title>Font Selection</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-3-font-selection.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to choose fonts for my landing page</iWant>
+    <soThat>the typography matches my aesthetic</soThat>
+    <tasks>
+      <task id="1">Create FontSelector component with dropdown and live preview</task>
+      <task id="2">Preload all supported fonts in Dashboard editor for preview</task>
+      <task id="3">Integrate font selection in Dashboard for headingFont and bodyFont</task>
+      <task id="4">Add dynamic Google Fonts loading in ArtistPage</task>
+      <task id="5">Testing - verify dropdown, preview, font loading, fallbacks</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">8-10 font options displayed with live preview</criterion>
+    <criterion id="AC-2">Separate selection for heading and body fonts</criterion>
+    <criterion id="AC-3">Selected fonts load on public page via Google Fonts</criterion>
+    <criterion id="AC-4">Fallback fonts render if Google Fonts unavailable</criterion>
+    <criterion id="AC-5">Font selection persists after save</criterion>
+    <criterion id="AC-6">Font preview shows sample text in selected font</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>SUPPORTED_FONTS constant</section>
+        <snippet>8 curated Google Fonts: Inter, Montserrat, Poppins, Roboto, Playfair Display, Lora, Space Grotesk, DM Sans</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>155-171</lines>
+        <reason>Story 9.1 adds headingFont and bodyFont text fields with 'Inter' default</reason>
+      </file>
+      <file>
+        <path>shared/themes.ts</path>
+        <kind>theme module</kind>
+        <symbol>SUPPORTED_FONTS</symbol>
+        <lines>new file from 9.1</lines>
+        <reason>Font list defined in themes module created by Story 9.1</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page editor</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor UI where font selectors will be integrated</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>1-196</lines>
+        <reason>Public landing page - needs dynamic Google Fonts loading via useEffect and font-family CSS application</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>^5.60.5</version>
+      </node>
+      <note>No new dependencies - Google Fonts loaded via link tag injection</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Story 9.1 must be completed first - adds headingFont and bodyFont schema fields and SUPPORTED_FONTS constant</constraint>
+    <constraint>Google Fonts loaded via standard link tags, not self-hosted</constraint>
+    <constraint>Load fonts with weights 400, 600, 700 for heading and body usage</constraint>
+    <constraint>Always provide system-ui fallback in font-family declarations</constraint>
+    <constraint>Preload all fonts in Dashboard editor so preview works immediately</constraint>
+    <constraint>Clean up dynamically added link tags in useEffect cleanup</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>FontSelector props</name>
+      <kind>React component props</kind>
+      <signature>interface FontSelectorProps { label: string; value: string; onChange: (font: string) => void; }</signature>
+      <path>client/src/components/landing/FontSelector.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>SUPPORTED_FONTS</name>
+      <kind>constant</kind>
+      <signature>const SUPPORTED_FONTS: Array&lt;{ name: string; category: string; weights: string }&gt;</signature>
+      <path>shared/themes.ts (from 9.1)</path>
+    </interface>
+    <interface>
+      <name>Google Fonts URL pattern</name>
+      <kind>external API</kind>
+      <signature>https://fonts.googleapis.com/css2?family=FontName:wght@400;600;700&amp;display=swap</signature>
+      <path>External - fonts.googleapis.com</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Verify FontSelector dropdown shows all 8 font options</idea>
+      <idea ac="AC-3">Test Google Fonts link tag is added to document.head with correct URL</idea>
+      <idea ac="AC-4">Test font-family CSS includes system-ui fallback</idea>
+      <idea ac="AC-5">Integration test: save font selection, reload, verify persisted</idea>
+      <idea ac="AC-6">Visual test: preview text updates to show selected font</idea>
+    </ideas>
+  </tests>
+</story-context>

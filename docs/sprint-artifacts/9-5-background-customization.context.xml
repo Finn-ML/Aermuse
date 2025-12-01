@@ -1,0 +1,159 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>5</storyId>
+    <title>Background Customization</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-5-background-customization.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to set a custom background for my landing page</iWant>
+    <soThat>my page has visual impact and matches my brand</soThat>
+    <tasks>
+      <task id="1">Create background image upload endpoint POST /api/landing-page/background-image</task>
+      <task id="2">Create BackgroundEditor component with solid/gradient/image options</task>
+      <task id="3">Integrate BackgroundEditor in Dashboard landing editor</task>
+      <task id="4">Apply background styles in ArtistPage (solid, gradient, image with overlay)</task>
+      <task id="5">Testing - test all background types, image validation, overlay options</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Background type options: Solid color, Gradient, Image</criterion>
+    <criterion id="AC-2">Gradient builder allows 2 colors and direction selection</criterion>
+    <criterion id="AC-3">Image upload validates size (2MB max) and type (jpg/png/webp)</criterion>
+    <criterion id="AC-4">Image positioning options: cover, contain</criterion>
+    <criterion id="AC-5">Overlay options (none/dark/light) available and functional</criterion>
+    <criterion id="AC-6">Background persists and displays on public page</criterion>
+    <criterion id="AC-7">Preview shows background changes immediately</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Background Image Upload</section>
+        <snippet>POST /api/landing-page/background-image with 2MB max, jpg/png/webp allowed, stored in Replit Object Storage</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Aermuse Architecture</title>
+        <section>Replit Object Storage</section>
+        <snippet>Pattern established in Epic 2/8 for file uploads to object storage</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>155-171</lines>
+        <reason>Story 9.1 adds backgroundType, backgroundValue, backgroundOverlay fields</reason>
+      </file>
+      <file>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>file upload routes</symbol>
+        <lines>varies</lines>
+        <reason>Existing file upload patterns with multer can be referenced for background image upload</reason>
+      </file>
+      <file>
+        <path>server/storage.ts</path>
+        <kind>storage service</kind>
+        <symbol>Replit Object Storage functions</symbol>
+        <lines>varies</lines>
+        <reason>Existing storage patterns for uploading files to Replit Object Storage</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page editor</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor UI where background editor will be integrated</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>49-60</lines>
+        <reason>Page background styling - currently uses secondaryColor. Needs to apply backgroundType/backgroundValue/backgroundOverlay.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/ColorPicker.tsx</path>
+        <kind>component</kind>
+        <symbol>ColorPicker</symbol>
+        <lines>from 9.2</lines>
+        <reason>Reuse ColorPicker from Story 9.2 for solid color and gradient color selection</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>multer</package>
+        <version>existing</version>
+        <note>Already installed for file uploads</note>
+      </node>
+      <node>
+        <package>@replit/object-storage</package>
+        <version>existing</version>
+        <note>Already configured for file storage</note>
+      </node>
+      <node>
+        <package>react-colorful</package>
+        <version>^5.6.1</version>
+        <note>From Story 9.2 - for gradient color pickers</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Stories 9.1 and 9.2 must be completed first - 9.1 adds schema fields, 9.2 provides ColorPicker</constraint>
+    <constraint>Background image max size: 2MB</constraint>
+    <constraint>Allowed image types: image/jpeg, image/png, image/webp</constraint>
+    <constraint>Store images at path: landing-pages/{userId}/{landingPageId}/background.{ext}</constraint>
+    <constraint>Gradient CSS format: linear-gradient(direction, color1 0%, color2 100%)</constraint>
+    <constraint>Overlay implemented as ::before pseudo-element with rgba background</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/landing-page/background-image</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/landing-page/background-image (multipart/form-data with 'image' field) returns { success: true, url: string }</signature>
+      <path>server/routes.ts (new)</path>
+    </interface>
+    <interface>
+      <name>BackgroundEditor props</name>
+      <kind>React component props</kind>
+      <signature>interface BackgroundEditorProps { backgroundType: string; backgroundValue: string; backgroundOverlay: string; onChange: (updates: Partial&lt;LandingPage&gt;) => void; }</signature>
+      <path>client/src/components/landing/BackgroundEditor.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>GradientConfig</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface GradientConfig { color1: string; color2: string; direction: 'to-right' | 'to-bottom' | 'to-bottom-right' | 'to-bottom-left'; }</signature>
+      <path>client/src/components/landing/BackgroundEditor.tsx (new)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test BackgroundEditor shows all 3 type options</idea>
+      <idea ac="AC-2">Test gradient CSS generation produces valid linear-gradient string</idea>
+      <idea ac="AC-3">API test: reject files over 2MB, reject non-image types</idea>
+      <idea ac="AC-5">Test overlay CSS classes apply correct rgba backgrounds</idea>
+      <idea ac="AC-6">Integration test: upload background, save, verify renders on public page</idea>
+    </ideas>
+  </tests>
+</story-context>

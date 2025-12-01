@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, integer } from "drizzle-orm/pg-core";
+import { sql, relations } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, inet } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
@@ -166,6 +166,16 @@ export const landingPages = pgTable("landing_pages", {
   secondaryColor: text("secondary_color").default("#F7E6CA"),
   socialLinks: jsonb("social_links"),
   isPublished: boolean("is_published").default(false),
+  // Epic 9: Theme customization fields
+  themeId: text("theme_id"),
+  accentColor: text("accent_color").default("#FFD700"),
+  textColor: text("text_color").default("#FFFFFF"),
+  headingFont: text("heading_font").default("Inter"),
+  bodyFont: text("body_font").default("Inter"),
+  buttonStyle: text("button_style").default("rounded"),
+  backgroundType: text("background_type").default("solid"),
+  backgroundValue: text("background_value"),
+  backgroundOverlay: text("background_overlay").default("none"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -333,3 +343,78 @@ export const insertAdminActivitySchema = createInsertSchema(adminActivityLog).om
 
 export type InsertAdminActivity = z.infer<typeof insertAdminActivitySchema>;
 export type AdminActivity = typeof adminActivityLog.$inferSelect;
+
+// ============================================
+// PROPOSALS TABLE (Epic 7: Landing Page Enhancements)
+// ============================================
+
+// Proposal type enum values
+export const PROPOSAL_TYPES = ['collaboration', 'licensing', 'booking', 'recording', 'distribution', 'other'] as const;
+export type ProposalType = typeof PROPOSAL_TYPES[number];
+
+// Proposal status enum values
+export const PROPOSAL_STATUSES = ['new', 'viewed', 'responded', 'archived'] as const;
+export type ProposalStatus = typeof PROPOSAL_STATUSES[number];
+
+export const proposals = pgTable("proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Foreign keys
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Sender information
+  senderName: varchar("sender_name", { length: 255 }).notNull(),
+  senderEmail: varchar("sender_email", { length: 255 }).notNull(),
+  senderCompany: varchar("sender_company", { length: 255 }),
+
+  // Proposal content
+  proposalType: text("proposal_type").notNull().default('other'), // collaboration, licensing, booking, recording, distribution, other
+  message: text("message").notNull(),
+
+  // Status tracking
+  status: text("status").notNull().default('new'), // new, viewed, responded, archived
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+
+  // Link to created contract (if converted)
+  contractId: varchar("contract_id").references(() => contracts.id),
+
+  // Metadata for spam prevention
+  ipAddress: inet("ip_address"),
+  userAgent: text("user_agent"),
+
+  // Timestamps
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  landingPageIdx: index('idx_proposals_landing_page').on(table.landingPageId),
+  userIdIdx: index('idx_proposals_user_id').on(table.userId),
+  statusIdx: index('idx_proposals_status').on(table.status),
+  createdAtIdx: index('idx_proposals_created_at').on(table.createdAt),
+}));
+
+export const insertProposalSchema = createInsertSchema(proposals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertProposal = z.infer<typeof insertProposalSchema>;
+export type Proposal = typeof proposals.$inferSelect;
+
+// Proposals relations
+export const proposalsRelations = relations(proposals, ({ one }) => ({
+  landingPage: one(landingPages, {
+    fields: [proposals.landingPageId],
+    references: [landingPages.id],
+  }),
+  user: one(users, {
+    fields: [proposals.userId],
+    references: [users.id],
+  }),
+  contract: one(contracts, {
+    fields: [proposals.contractId],
+    references: [contracts.id],
+  }),
+}));

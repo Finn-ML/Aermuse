@@ -1,0 +1,138 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>6</storyId>
+    <title>Social Icons Bar</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-6-social-icons-bar.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>a dedicated social media icons section</iWant>
+    <soThat>my main links get more focus and socials are easily accessible</soThat>
+    <tasks>
+      <task id="1">Update schema with socialIcons JSONB and showSocialBar boolean fields</task>
+      <task id="2">Create SocialIconsEditor component with platform selector and drag-and-drop reordering</task>
+      <task id="3">Integrate SocialIconsEditor in Dashboard with show/hide toggle</task>
+      <task id="4">Render social icons bar in ArtistPage with theme-colored icons</task>
+      <task id="5">Testing - add icons, reorder, toggle visibility, verify public page rendering</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">User can add social icons from 10 supported platforms</criterion>
+    <criterion id="AC-2">Icons display without text labels (icon-only)</criterion>
+    <criterion id="AC-3">Icons can be reordered via drag-and-drop</criterion>
+    <criterion id="AC-4">Social bar can be shown/hidden via toggle</criterion>
+    <criterion id="AC-5">Icons render correctly on public page</criterion>
+    <criterion id="AC-6">Clicking icon opens link in new tab</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>SOCIAL_PLATFORMS constant</section>
+        <snippet>10 platforms: Spotify, Apple Music, SoundCloud, YouTube, Instagram, TikTok, Twitter/X, Facebook, Bandcamp, Website</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-6-social-icons-bar.md</path>
+        <title>Story 9.6: Social Icons Bar</title>
+        <section>SocialIcon interface</section>
+        <snippet>interface SocialIcon { id: string; platform: string; url: string; order: number; }</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>155-171</lines>
+        <reason>Need to add socialIcons JSONB field and showSocialBar boolean field</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page editor</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor UI where social icons editor will be integrated</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage - social links section</symbol>
+        <lines>138-158</lines>
+        <reason>Current social links section using text labels. Will be replaced/enhanced with icon-only social bar.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@hello-pangea/dnd</package>
+        <version>existing</version>
+        <note>Already installed - drag-and-drop library for reordering</note>
+      </node>
+      <node>
+        <package>react-icons</package>
+        <version>existing</version>
+        <note>Already installed - use Simple Icons (Si*) for platform icons</note>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.453.0</version>
+        <note>Already installed - use Globe icon for generic website</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use react-icons/si for social platform icons (SiSpotify, SiYoutube, etc.)</constraint>
+    <constraint>Use lucide-react Globe for generic website icon</constraint>
+    <constraint>Use @hello-pangea/dnd for drag-and-drop reordering (already installed)</constraint>
+    <constraint>Icons should open links in new tab (target="_blank" with rel="noopener noreferrer")</constraint>
+    <constraint>Social bar hidden when showSocialBar is false or socialIcons array is empty</constraint>
+    <constraint>Icons inherit theme primary color for consistent styling</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>SocialIcon</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface SocialIcon { id: string; platform: string; url: string; order: number; }</signature>
+      <path>shared/types/landing.ts or inline</path>
+    </interface>
+    <interface>
+      <name>SOCIAL_PLATFORMS</name>
+      <kind>constant</kind>
+      <signature>const SOCIAL_PLATFORMS: Array&lt;{ id: string; name: string; icon: string }&gt;</signature>
+      <path>shared/themes.ts or SocialIconsEditor.tsx</path>
+    </interface>
+    <interface>
+      <name>SocialIconsEditor props</name>
+      <kind>React component props</kind>
+      <signature>interface SocialIconsEditorProps { icons: SocialIcon[]; showSocialBar: boolean; onChange: (icons: SocialIcon[]) => void; onToggleVisibility: (show: boolean) => void; }</signature>
+      <path>client/src/components/landing/SocialIconsEditor.tsx (new)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test platform selector shows all 10 platforms</idea>
+      <idea ac="AC-2">Visual test: icons render without text labels</idea>
+      <idea ac="AC-3">Test drag-and-drop updates order values correctly</idea>
+      <idea ac="AC-4">Test toggle hides/shows social bar section</idea>
+      <idea ac="AC-5">Integration test: add icons, save, verify on public page</idea>
+      <idea ac="AC-6">Test links have target="_blank" attribute</idea>
+    </ideas>
+  </tests>
+</story-context>

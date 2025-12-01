@@ -422,3 +422,149 @@ We're sorry to see you go. If you ever want to return, you can create a new acco
     return { success: false, error: String(error) };
   }
 }
+
+interface ProposalNotificationParams {
+  artistEmail: string;
+  artistName: string;
+  landingPageTitle: string;
+  senderName: string;
+  senderEmail: string;
+  senderCompany?: string | null;
+  proposalType: string;
+  message: string;
+  proposalId: string;
+}
+
+/**
+ * Send new proposal notification email to artist
+ */
+export async function sendProposalNotificationEmail(
+  params: ProposalNotificationParams
+): Promise<EmailResult> {
+  const {
+    artistEmail,
+    artistName,
+    landingPageTitle,
+    senderName,
+    senderEmail,
+    senderCompany,
+    proposalType,
+    message,
+    proposalId,
+  } = params;
+
+  const proposalTypeLabels: Record<string, string> = {
+    collaboration: 'Collaboration',
+    licensing: 'Licensing',
+    booking: 'Booking',
+    recording: 'Recording',
+    distribution: 'Distribution',
+    other: 'Other',
+  };
+
+  const typeLabel = proposalTypeLabels[proposalType] || 'Other';
+  const messagePreview = message.length > 200 ? message.substring(0, 200) + '...' : message;
+  const viewProposalUrl = `${BASE_URL}/dashboard?tab=proposals&id=${proposalId}`;
+
+  if (!client) {
+    console.log('[EMAIL] Proposal notification email (dev mode):');
+    console.log(`  To: ${artistEmail}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Landing Page: ${landingPageTitle}`);
+    console.log(`  From: ${senderName} <${senderEmail}>`);
+    console.log(`  Company: ${senderCompany || '(none)'}`);
+    console.log(`  Type: ${typeLabel}`);
+    console.log(`  Message: ${messagePreview}`);
+    console.log(`  View URL: ${viewProposalUrl}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: artistEmail,
+      Subject: `New ${typeLabel} Proposal for ${landingPageTitle}`,
+      HtmlBody: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #722F37 0%, #8B3A42 100%); padding: 24px; text-align: center;">
+            <h1 style="color: white; margin: 0;">New Proposal Received</h1>
+          </div>
+          <div style="padding: 32px; background: #f7e6ca;">
+            <p style="font-size: 16px; color: #333;">Hi ${artistName || 'there'},</p>
+            <p style="font-size: 16px; color: #333;">
+              You've received a new <strong>${typeLabel}</strong> proposal through your Aermuse page "<strong>${landingPageTitle}</strong>"!
+            </p>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 14px;">From:</td>
+                  <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${senderName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Email:</td>
+                  <td style="padding: 8px 0;"><a href="mailto:${senderEmail}" style="color: #722F37; font-size: 14px;">${senderEmail}</a></td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Company:</td>
+                  <td style="padding: 8px 0; color: #333; font-size: 14px;">${senderCompany || 'Not specified'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Type:</td>
+                  <td style="padding: 8px 0;">
+                    <span style="display: inline-block; background-color: #722F37; color: #fff; font-size: 12px; padding: 4px 12px; border-radius: 12px;">${typeLabel}</span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+              <p style="margin: 0 0 8px; color: #666; font-size: 14px; font-weight: 600;">Message:</p>
+              <p style="margin: 0; color: #333; font-size: 14px; line-height: 1.6; background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #722F37;">
+                ${messagePreview}
+              </p>
+            </div>
+
+            <p style="text-align: center;">
+              <a href="${viewProposalUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #722F37 0%, #8B3A42 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">View Full Proposal</a>
+            </p>
+
+            <p style="margin: 24px 0 0; color: #666; font-size: 14px; text-align: center;">
+              You can reply directly to <a href="mailto:${senderEmail}" style="color: #722F37;">${senderEmail}</a>
+            </p>
+          </div>
+          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px; background: #f5f5f5;">
+            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Aermuse. All rights reserved.</p>
+            <p style="margin: 8px 0 0;">You received this because someone submitted a proposal through your Aermuse page.</p>
+          </div>
+        </div>
+      `,
+      TextBody: `
+Hi ${artistName || 'there'},
+
+You've received a new ${typeLabel} proposal through your Aermuse page "${landingPageTitle}"!
+
+From: ${senderName}
+Email: ${senderEmail}
+Company: ${senderCompany || 'Not specified'}
+Type: ${typeLabel}
+
+Message:
+${messagePreview}
+
+View full proposal: ${viewProposalUrl}
+
+You can reply directly to ${senderEmail}
+
+- The Aermuse Team
+      `,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Proposal notification email sent to ${artistEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send proposal notification email:', error);
+    return { success: false, error: String(error) };
+  }
+}

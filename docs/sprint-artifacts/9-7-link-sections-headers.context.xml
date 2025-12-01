@@ -1,0 +1,126 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>7</storyId>
+    <title>Link Sections and Headers</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-7-link-sections-headers.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to organize my links under headings</iWant>
+    <soThat>visitors can find what they need easily</soThat>
+    <tasks>
+      <task id="1">Update landingPageLinks schema with type field ('link' | 'header')</task>
+      <task id="2">Update link editor in Dashboard with "Add Header" button and header editing</task>
+      <task id="3">Ensure drag-and-drop works for both links and headers</task>
+      <task id="4">Render headers differently in ArtistPage (h3 with theme styling)</task>
+      <task id="5">Testing - add headers, reorder, verify rendering, test empty header hiding</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">User can add section header between links</criterion>
+    <criterion id="AC-2">Headers display with theme styling (heading font, colors)</criterion>
+    <criterion id="AC-3">Sections and links can be reordered together via drag-and-drop</criterion>
+    <criterion id="AC-4">Empty sections hidden on public page</criterion>
+    <criterion id="AC-5">Headers have no URL (display-only)</criterion>
+    <criterion id="AC-6">Delete header option available</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Extended Landing Page Links Schema</section>
+        <snippet>type: text("type").default("link") // 'link' | 'header' | 'video_embed'</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPageLinks</symbol>
+        <lines>183-200</lines>
+        <reason>Need to add type field with default 'link' for backward compatibility</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - links editor section</symbol>
+        <lines>1320-1370</lines>
+        <reason>Links management UI - needs "Add Header" button and header item rendering</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage - links section</symbol>
+        <lines>112-136</lines>
+        <reason>Links rendering - needs to check type field and render headers as h3 elements</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@hello-pangea/dnd</package>
+        <version>existing</version>
+        <note>Already installed and used for link reordering</note>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.39.1</version>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Default type to 'link' for backward compatibility with existing links</constraint>
+    <constraint>Headers use title field for text, url field ignored/empty</constraint>
+    <constraint>Use same order field for positioning both links and headers</constraint>
+    <constraint>Apply headingFont from theme to header elements</constraint>
+    <constraint>Filter out empty/untitled headers on public page render</constraint>
+    <constraint>Run npm run db:push after schema change</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>LinkType</name>
+      <kind>TypeScript type</kind>
+      <signature>type LinkType = 'link' | 'header'</signature>
+      <path>shared/schema.ts or shared/types</path>
+    </interface>
+    <interface>
+      <name>Extended LandingPageLink</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface LandingPageLink { id: string; landingPageId: string; title: string; url: string; icon?: string; enabled: boolean; order: string; type: LinkType; }</signature>
+      <path>shared/schema.ts</path>
+    </interface>
+    <interface>
+      <name>visibleItems filter</name>
+      <kind>utility logic</kind>
+      <signature>const visibleItems = links.filter(item => item.type === 'header' ? item.title?.trim() : item.enabled)</signature>
+      <path>client/src/pages/ArtistPage.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test "Add Header" button creates link item with type='header'</idea>
+      <idea ac="AC-2">Visual test: headers render as h3 with heading font</idea>
+      <idea ac="AC-3">Test drag-and-drop maintains correct order for mixed items</idea>
+      <idea ac="AC-4">Test empty/untitled headers filtered from public view</idea>
+      <idea ac="AC-5">Test header items don't show URL input field</idea>
+      <idea ac="AC-6">Test delete button works for header items</idea>
+    </ideas>
+  </tests>
+</story-context>

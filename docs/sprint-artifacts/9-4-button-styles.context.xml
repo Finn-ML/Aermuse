@@ -1,0 +1,135 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>4</storyId>
+    <title>Button Styles</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-4-button-styles.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to customize how my link buttons look</iWant>
+    <soThat>they match my page design</soThat>
+    <tasks>
+      <task id="1">Create ButtonStylePicker component with 6 style options and visual previews</task>
+      <task id="2">Integrate ButtonStylePicker in Dashboard landing editor</task>
+      <task id="3">Apply button styles in ArtistPage via CSS classes</task>
+      <task id="4">Testing - verify all styles render, selection persists, hover effects work</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">6 button style options available (rounded, pill, square, outline, filled, shadow)</criterion>
+    <criterion id="AC-2">Preview shows each style variant</criterion>
+    <criterion id="AC-3">Selected style applies to all link buttons on public page</criterion>
+    <criterion id="AC-4">Button style persists after save</criterion>
+    <criterion id="AC-5">Hover effects appropriate for each style</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>ButtonStyle type</section>
+        <snippet>type ButtonStyle = 'rounded' | 'pill' | 'square' | 'outline' | 'filled' | 'shadow'</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-4-button-styles.md</path>
+        <title>Story 9.4: Button Styles</title>
+        <section>CSS Implementation</section>
+        <snippet>Detailed CSS for each button style including hover effects and CSS variables for colors</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>155-171</lines>
+        <reason>Story 9.1 adds buttonStyle text field with 'rounded' default</reason>
+      </file>
+      <file>
+        <path>shared/themes.ts</path>
+        <kind>theme module</kind>
+        <symbol>ButtonStyle type, BUTTON_STYLES constant</symbol>
+        <lines>new file from 9.1</lines>
+        <reason>Button style type and definitions from Story 9.1</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page editor</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor UI where button style picker will be integrated</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage - links section</symbol>
+        <lines>112-136</lines>
+        <reason>Link buttons rendering - needs to apply buttonStyle CSS class. Currently uses rounded-full.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>tailwindcss</package>
+        <version>^3.4.17</version>
+      </node>
+      <note>No new dependencies required</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Story 9.1 must be completed first - adds buttonStyle schema field</constraint>
+    <constraint>Use CSS variables (--primary-color, --secondary-color) for button colors</constraint>
+    <constraint>Button styles should be applied via className, not inline styles for maintainability</constraint>
+    <constraint>Default to 'rounded' if buttonStyle is null/undefined for backward compatibility</constraint>
+    <constraint>All styles need appropriate hover effects (transform, opacity, shadow changes)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ButtonStylePicker props</name>
+      <kind>React component props</kind>
+      <signature>interface ButtonStylePickerProps { value: string; onChange: (style: string) => void; primaryColor?: string; secondaryColor?: string; }</signature>
+      <path>client/src/components/landing/ButtonStylePicker.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>BUTTON_STYLES</name>
+      <kind>constant</kind>
+      <signature>const BUTTON_STYLES: Array&lt;{ id: string; name: string; description: string }&gt;</signature>
+      <path>shared/themes.ts (from 9.1) or ButtonStylePicker.tsx</path>
+    </interface>
+    <interface>
+      <name>getButtonClass helper</name>
+      <kind>utility function</kind>
+      <signature>function getButtonClass(style: string): string</signature>
+      <path>client/src/pages/ArtistPage.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Verify ButtonStylePicker displays all 6 style options</idea>
+      <idea ac="AC-2">Visual test: each preview button renders with correct style</idea>
+      <idea ac="AC-3">Test ArtistPage applies correct CSS class based on buttonStyle value</idea>
+      <idea ac="AC-4">Integration test: save button style, reload, verify persisted</idea>
+      <idea ac="AC-5">Visual test: hover effects work for each style variant</idea>
+    </ideas>
+  </tests>
+</story-context>

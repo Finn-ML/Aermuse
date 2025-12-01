@@ -1,0 +1,142 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>2</storyId>
+    <title>Custom Colors</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-2-custom-colors.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to customize my page colors beyond preset themes</iWant>
+    <soThat>my page matches my exact brand colors</soThat>
+    <tasks>
+      <task id="1">Install react-colorful package</task>
+      <task id="2">Create ColorPicker component with HexColorPicker and hex input validation</task>
+      <task id="3">Add contrast validation utility (WCAG AA 4.5:1 ratio check)</task>
+      <task id="4">Integrate color pickers in Dashboard for primary, secondary, accent, text colors</task>
+      <task id="5">Testing - verify color picker, hex input, contrast warning, persistence</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Color picker available for primary, secondary, accent, and text colors</criterion>
+    <criterion id="AC-2">Hex code input accepts valid hex values (#RGB or #RRGGBB)</criterion>
+    <criterion id="AC-3">Preview updates immediately on color change</criterion>
+    <criterion id="AC-4">Warning shown if text/background contrast ratio less than 4.5:1 (WCAG AA)</criterion>
+    <criterion id="AC-5">Colors persist after save and reload</criterion>
+    <criterion id="AC-6">Selecting custom colors clears themeId (marks as "custom")</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9 Technical Specification</title>
+        <section>Dependencies - react-colorful</section>
+        <snippet>react-colorful ^5.6.1 for lightweight color picker component</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-1-theme-presets.md</path>
+        <title>Story 9.1: Theme Presets</title>
+        <section>Schema Changes</section>
+        <snippet>Schema fields primaryColor, secondaryColor, accentColor, textColor already created in Story 9.1</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>database schema</kind>
+        <symbol>landingPages</symbol>
+        <lines>155-171</lines>
+        <reason>Landing pages table with existing primaryColor, secondaryColor fields. Story 9.1 adds accentColor, textColor fields.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page component</kind>
+        <symbol>Dashboard - landing page editor section</symbol>
+        <lines>1213-1340</lines>
+        <reason>Landing page editor UI where color pickers will be integrated. Uses updateLandingPageMutation for saving.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page component</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>45-47</lines>
+        <reason>Extracts primaryColor and secondaryColor from page data. Will need to also use accentColor and textColor.</reason>
+      </file>
+      <file>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>PATCH /api/landing-page</symbol>
+        <lines>1195-1230</lines>
+        <reason>Landing page update endpoint - already handles partial updates including color fields.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react-colorful</package>
+        <version>^5.6.1</version>
+        <note>NEW - lightweight color picker, needs to be installed</note>
+      </node>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>^5.60.5</version>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Story 9.1 must be completed first - adds accentColor and textColor schema fields</constraint>
+    <constraint>Use react-colorful HexColorPicker component for color selection</constraint>
+    <constraint>Validate hex input for #RGB or #RRGGBB format</constraint>
+    <constraint>WCAG AA contrast ratio threshold is 4.5:1 for normal text</constraint>
+    <constraint>Clear themeId when user manually changes colors (marks as custom theme)</constraint>
+    <constraint>Color changes should update preview immediately (controlled component)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ColorPicker props</name>
+      <kind>React component props</kind>
+      <signature>interface ColorPickerProps { label: string; value: string; onChange: (color: string) => void; }</signature>
+      <path>client/src/components/landing/ColorPicker.tsx (new)</path>
+    </interface>
+    <interface>
+      <name>getContrastRatio</name>
+      <kind>utility function</kind>
+      <signature>function getContrastRatio(color1: string, color2: string): number</signature>
+      <path>client/src/lib/color-utils.ts (new)</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/landing-page</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/landing-page { primaryColor?, secondaryColor?, accentColor?, textColor?, themeId? }</signature>
+      <path>server/routes.ts:1195</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Project uses Vitest for testing. Run npm run check for TypeScript validation.</standards>
+    <locations>
+      <location>**/*.test.ts</location>
+      <location>**/*.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-2">Test hex validation accepts #RGB, #RRGGBB formats, rejects invalid</idea>
+      <idea ac="AC-4">Test getContrastRatio returns correct values for known color pairs</idea>
+      <idea ac="AC-4">Test warning displays when contrast ratio below 4.5</idea>
+      <idea ac="AC-5">Integration test: save colors, reload page, verify persisted</idea>
+      <idea ac="AC-6">Test themeId cleared when color manually changed</idea>
+    </ideas>
+  </tests>
+</story-context>

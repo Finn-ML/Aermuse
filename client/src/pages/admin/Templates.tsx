@@ -14,14 +14,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -31,12 +23,13 @@ import {
 import { Search, Plus, MoreVertical, Loader2, Eye, EyeOff, Copy, Pencil, FileEdit } from 'lucide-react';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { TemplateEditor } from '@/components/admin/TemplateEditor';
 import type { ContractTemplate } from '@shared/schema';
 
 export default function AdminTemplates() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
 
   const { data, isLoading } = useQuery<{ templates: ContractTemplate[] }>({
@@ -103,7 +96,7 @@ export default function AdminTemplates() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-lg">Contract Templates ({templates.length})</CardTitle>
-            <Button size="sm" disabled>
+            <Button size="sm" onClick={() => { setSelectedTemplate(null); setEditorOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Create Template
             </Button>
@@ -195,7 +188,7 @@ export default function AdminTemplates() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem disabled>
+                              <DropdownMenuItem onClick={() => { setSelectedTemplate(template); setEditorOpen(true); }}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit Template
                               </DropdownMenuItem>
@@ -230,6 +223,12 @@ export default function AdminTemplates() {
           )}
         </CardContent>
       </Card>
+
+      <TemplateEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        template={selectedTemplate}
+      />
     </AdminLayout>
   );
 }
