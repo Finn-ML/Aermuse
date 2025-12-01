@@ -160,6 +160,8 @@ export class DocuSealService {
       new Blob([pdfBuffer], { type: 'application/pdf' }),
       filename
     );
+    // DocuSeal requires a 'name' field for the document
+    formData.append('name', filename.replace(/\.pdf$/i, ''));
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -403,7 +405,7 @@ export function getDocuSealService(): DocuSealService {
     }
     instance = new DocuSealService({
       apiKey,
-      baseUrl: process.env.DOCUSEAL_BASE_URL,
+      baseUrl: process.env.DOCUSEAL_API_URL || process.env.DOCUSEAL_BASE_URL,
     });
   }
   return instance;

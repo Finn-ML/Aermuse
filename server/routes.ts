@@ -2370,7 +2370,55 @@ export async function registerRoutes(
   // WEBHOOK HANDLER (Story 4-5)
   // ============================================
 
-  const WEBHOOK_SECRET = process.env.DOCUSEAL_WEBHOOK_SECRET || '';
+  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || process.env.DOCUSEAL_WEBHOOK_SECRET || '';
+
+  // Register webhook with DocuSeal on startup
+  async function registerDocuSealWebhook() {
+    try {
+      const appUrl = process.env.APP_URL || process.env.BASE_URL ||
+        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000');
+      const webhookUrl = `${appUrl}/api/webhooks/docuseal`;
+
+      console.log(`[WEBHOOK] Registering webhook with DocuSeal at: ${webhookUrl}`);
+
+      const docusealService = getDocuSealService();
+
+      // First, list existing webhooks
+      const existingWebhooks = await docusealService.listWebhooks();
+      console.log(`[WEBHOOK] Found ${existingWebhooks.length} existing webhooks:`);
+      existingWebhooks.forEach(w => console.log(`  - ${w.id}: ${w.url} (events: ${w.events?.join(', ') || 'all'})`));
+
+      const existingWebhook = existingWebhooks.find(w => w.url === webhookUrl);
+
+      if (existingWebhook) {
+        console.log(`[WEBHOOK] Webhook already registered: ${existingWebhook.id}`);
+        return;
+      }
+
+      // Register new webhook for signature events
+      const registration = await docusealService.registerWebhook({
+        url: webhookUrl,
+        events: [
+          'signature.completed',
+          'signature.next_signer_ready',
+          'document.completed',
+        ],
+      });
+
+      console.log(`[WEBHOOK] Successfully registered webhook: ${registration.id}`);
+      if (registration.secret) {
+        console.log(`[WEBHOOK] IMPORTANT: Set WEBHOOK_SECRET=${registration.secret} in your environment`);
+      }
+    } catch (error) {
+      console.error('[WEBHOOK] Failed to register webhook with DocuSeal:', error);
+      // Don't crash the server if webhook registration fails
+    }
+  }
+
+  // Register webhook after a short delay to ensure server is ready
+  setTimeout(() => {
+    registerDocuSealWebhook();
+  }, 5000);
 
   // Verify webhook signature
   function verifyWebhookSignature(payload: string, signature: string | undefined, secret: string): boolean {
@@ -2380,26 +2428,46 @@ export async function registerRoutes(
         console.warn('[WEBHOOK] No webhook secret configured - skipping verification (dev mode)');
         return true;
       }
+      console.warn(`[WEBHOOK] Missing signature or secret. Signature present: ${!!signature}, Secret present: ${!!secret}`);
       return false;
     }
 
+    // Compute expected signature
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(payload)
       .digest('hex');
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    // Log for debugging (remove in production)
+    console.log(`[WEBHOOK] Signature verification:`);
+    console.log(`  Received: ${signature}`);
+    console.log(`  Expected: ${expectedSignature}`);
+    console.log(`  Secret (first 10 chars): ${secret.substring(0, 10)}...`);
+
+    // Handle both formats: "sha256=hash" or just "hash"
+    const receivedHash = signature.startsWith('sha256=') ? signature.slice(7) : signature;
+
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(receivedHash),
+        Buffer.from(expectedSignature)
+      );
+    } catch (e) {
+      // Length mismatch
+      console.error(`[WEBHOOK] Signature length mismatch: received ${receivedHash.length}, expected ${expectedSignature.length}`);
+      return false;
+    }
   }
 
   // POST /api/webhooks/docuseal - Handle DocuSeal webhook events
   app.post("/api/webhooks/docuseal", async (req: Request, res: Response) => {
     try {
       const signature = req.headers['x-webhook-signature'] as string | undefined;
-      const eventType = req.headers['x-webhook-event'] as string || req.body.event_type;
+      const eventType = req.headers['x-webhook-event'] as string || req.body.event_type || req.body.event;
       const rawBody = JSON.stringify(req.body);
+
+      console.log(`[WEBHOOK] Incoming request - event header: ${req.headers['x-webhook-event']}, body event_type: ${req.body.event_type}, body event: ${req.body.event}`);
+      console.log(`[WEBHOOK] Body structure: ${JSON.stringify(Object.keys(req.body))}`);
 
       // Verify webhook signature
       if (!verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET)) {
@@ -2410,6 +2478,8 @@ export async function registerRoutes(
       console.log(`[WEBHOOK] Received event: ${eventType}`);
 
       const payload = req.body.data || req.body;
+      console.log(`[WEBHOOK] Payload keys: ${JSON.stringify(Object.keys(payload))}`);
+      console.log(`[WEBHOOK] Full payload: ${JSON.stringify(payload).substring(0, 500)}`);
 
       switch (eventType) {
         case 'signature.completed':
@@ -2436,8 +2506,14 @@ export async function registerRoutes(
   // Handle individual signature completion
   async function handleSignatureCompleted(payload: any) {
     try {
-      const { signer_id, signer_email, submission_id } = payload;
-      console.log(`[WEBHOOK] Signature completed by ${signer_email} for submission ${submission_id}`);
+      // Handle both possible field naming conventions from DocuSeal
+      // signatureRequestId (documented) or signer_id (alternative)
+      const signatureRequestId = payload.signatureRequestId || payload.signature_request_id || payload.signer_id;
+      const signerEmail = payload.signerEmail || payload.signer_email;
+      const submissionId = payload.submissionId || payload.submission_id || payload.documentId;
+
+      console.log(`[WEBHOOK] Signature completed - payload keys: ${Object.keys(payload).join(', ')}`);
+      console.log(`[WEBHOOK] Signature completed by ${signerEmail} for submission ${submissionId}, requestId: ${signatureRequestId}`);
 
       // Find the signatory by DocuSeal request ID or email
       const [signatory] = await db
@@ -2445,13 +2521,14 @@ export async function registerRoutes(
         .from(signatories)
         .where(
           or(
-            eq(signatories.docusealRequestId, String(signer_id)),
-            eq(signatories.email, signer_email)
+            eq(signatories.docusealRequestId, String(signatureRequestId)),
+            eq(signatories.email, signerEmail?.toLowerCase())
           )
         );
 
       if (!signatory) {
-        console.warn(`[WEBHOOK] Signatory not found for signer_id: ${signer_id}, email: ${signer_email}`);
+        console.warn(`[WEBHOOK] Signatory not found for signatureRequestId: ${signatureRequestId}, email: ${signerEmail}`);
+        console.warn(`[WEBHOOK] Full payload: ${JSON.stringify(payload)}`);
         return;
       }
 
@@ -2490,8 +2567,15 @@ export async function registerRoutes(
   // Handle next signer ready notification
   async function handleNextSignerReady(payload: any) {
     try {
-      const { signer_id, signer_email, signer_name, signing_url, submission_id } = payload;
-      console.log(`[WEBHOOK] Next signer ready: ${signer_email} for submission ${submission_id}`);
+      // Handle both possible field naming conventions from DocuSeal
+      const signatureRequestId = payload.signatureRequestId || payload.signature_request_id || payload.signer_id;
+      const signerEmail = payload.signerEmail || payload.signer_email;
+      const signerName = payload.signerName || payload.signer_name;
+      const signingUrl = payload.signingUrl || payload.signing_url;
+      const submissionId = payload.submissionId || payload.submission_id || payload.documentId;
+
+      console.log(`[WEBHOOK] Next signer ready - payload keys: ${Object.keys(payload).join(', ')}`);
+      console.log(`[WEBHOOK] Next signer ready: ${signerEmail} for submission ${submissionId}, requestId: ${signatureRequestId}`);
 
       // Find the signatory
       const [signatory] = await db
@@ -2499,13 +2583,14 @@ export async function registerRoutes(
         .from(signatories)
         .where(
           or(
-            eq(signatories.docusealRequestId, String(signer_id)),
-            eq(signatories.email, signer_email)
+            eq(signatories.docusealRequestId, String(signatureRequestId)),
+            eq(signatories.email, signerEmail?.toLowerCase())
           )
         );
 
       if (!signatory) {
-        console.warn(`[WEBHOOK] Signatory not found for next signer: ${signer_email}`);
+        console.warn(`[WEBHOOK] Signatory not found for next signer: ${signerEmail}, requestId: ${signatureRequestId}`);
+        console.warn(`[WEBHOOK] Full payload: ${JSON.stringify(payload)}`);
         return;
       }
 
@@ -2514,7 +2599,7 @@ export async function registerRoutes(
         .update(signatories)
         .set({
           status: 'pending',
-          signingUrl: signing_url || signatory.signingUrl,
+          signingUrl: signingUrl || signatory.signingUrl,
         })
         .where(eq(signatories.id, signatory.id));
 
@@ -2536,7 +2621,7 @@ export async function registerRoutes(
           signatory.name,
           initiator?.name || 'Someone',
           contract?.name || 'Contract',
-          signing_url || signatory.signingUrl || '',
+          signingUrl || signatory.signingUrl || '',
           request.message
         ).catch((err: Error) => console.error('[WEBHOOK] Failed to send request email:', err));
       }
@@ -2548,26 +2633,52 @@ export async function registerRoutes(
   // Handle document completion (all signatures done)
   async function handleDocumentCompleted(payload: any) {
     try {
-      const { submission_id, document_id } = payload;
-      console.log(`[WEBHOOK] Document completed: ${document_id}`);
+      // Handle both possible field naming conventions from DocuSeal
+      const documentId = payload.documentId || payload.document_id;
+      const submissionId = payload.submissionId || payload.submission_id;
+      const signedContent = payload.signedContent || payload.signed_content;
+
+      console.log(`[WEBHOOK] Document completed - payload keys: ${Object.keys(payload).join(', ')}`);
+      console.log(`[WEBHOOK] Document completed: ${documentId}, submissionId: ${submissionId}`);
+      console.log(`[WEBHOOK] Has signedContent: ${!!signedContent}`);
 
       // Find the signature request by DocuSeal document ID
       const [request] = await db
         .select()
         .from(signatureRequests)
-        .where(eq(signatureRequests.docusealDocumentId, String(document_id)));
+        .where(eq(signatureRequests.docusealDocumentId, String(documentId)));
 
       if (!request) {
-        console.warn(`[WEBHOOK] Signature request not found for document: ${document_id}`);
+        console.warn(`[WEBHOOK] Signature request not found for document: ${documentId}`);
+        console.warn(`[WEBHOOK] Full payload: ${JSON.stringify(payload)}`);
         return;
       }
 
-      // Download signed PDF from DocuSeal
-      const docusealService = getDocuSealService();
+      // Get signed PDF - either from webhook payload or by downloading from DocuSeal
       let signedPdfPath: string | null = null;
 
       try {
-        const signedPdfBuffer = await docusealService.downloadSignedDocument(String(document_id));
+        let signedPdfBuffer: Buffer;
+
+        if (signedContent) {
+          // Use base64-encoded PDF from webhook payload
+          console.log(`[WEBHOOK] Using signedContent from webhook payload`);
+          signedPdfBuffer = Buffer.from(signedContent, 'base64');
+        } else {
+          // Download from DocuSeal API
+          console.log(`[WEBHOOK] Downloading signed PDF from DocuSeal API`);
+          const docusealService = getDocuSealService();
+          signedPdfBuffer = await docusealService.downloadSignedDocument(String(documentId));
+        }
+
+        console.log(`[WEBHOOK] Signed PDF buffer size: ${signedPdfBuffer.length} bytes`);
+
+        // Verify it looks like a PDF
+        const pdfHeader = signedPdfBuffer.slice(0, 5).toString();
+        if (!pdfHeader.startsWith('%PDF')) {
+          console.error(`[WEBHOOK] Downloaded content is not a valid PDF. Header: ${pdfHeader}`);
+          console.error(`[WEBHOOK] First 100 bytes: ${signedPdfBuffer.slice(0, 100).toString()}`);
+        }
 
         // Upload to storage
         const contract = await storage.getContract(request.contractId);
@@ -2606,7 +2717,7 @@ export async function registerRoutes(
       const contract = await storage.getContract(request.contractId);
       const initiator = await storage.getUser(request.initiatorId);
       const downloadUrl = signedPdfPath
-        ? `${process.env.BASE_URL || 'http://localhost:5000'}/api/contracts/${request.contractId}/signed-pdf`
+        ? `${process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000'}/api/contracts/${request.contractId}/signed-pdf`
         : '';
 
       // Send to initiator
