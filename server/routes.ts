@@ -1581,14 +1581,12 @@ export async function registerRoutes(
   // Admin dashboard overview stats
   app.get("/api/admin/overview", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const users = await storage.getAllUsers();
+      const [users, contracts] = await Promise.all([
+        storage.getAllUsers(),
+        storage.getAllContracts(),
+      ]);
+
       const activeUsers = users.filter(u => !u.deletedAt);
-
-      // Get all contracts via direct query (need to add method or use inline)
-      const contracts = await Promise.all(
-        activeUsers.map(u => storage.getContractsByUser(u.id))
-      ).then(results => results.flat());
-
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -1621,21 +1619,8 @@ export async function registerRoutes(
   // Admin contracts list (all users)
   app.get("/api/admin/contracts", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const users = await storage.getAllUsers();
-      const activeUsers = users.filter(u => !u.deletedAt);
-
-      // Get all contracts from all users
-      const contracts = await Promise.all(
-        activeUsers.map(u => storage.getContractsByUser(u.id))
-      ).then(results => results.flat());
-
-      // Sort by updatedAt desc
-      contracts.sort((a, b) => {
-        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-        return dateB - dateA;
-      });
-
+      // Single efficient query for all contracts
+      const contracts = await storage.getAllContracts();
       res.json(contracts);
     } catch (error) {
       console.error("Admin contracts error:", error);

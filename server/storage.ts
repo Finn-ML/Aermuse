@@ -38,6 +38,7 @@ export interface IStorage {
   // Contracts
   getContract(id: string): Promise<Contract | undefined>;
   getContractsByUser(userId: string): Promise<Contract[]>;
+  getAllContracts(): Promise<Contract[]>; // Admin: all contracts
   searchContracts(userId: string, searchQuery: string): Promise<Contract[]>;
   filterContracts(userId: string, filters: ContractFilters): Promise<Contract[]>;
   createContract(contract: InsertContract): Promise<Contract>;
@@ -129,6 +130,10 @@ export class DatabaseStorage implements IStorage {
 
   async getContractsByUser(userId: string): Promise<Contract[]> {
     return db.select().from(contracts).where(eq(contracts.userId, userId)).orderBy(desc(contracts.updatedAt));
+  }
+
+  async getAllContracts(): Promise<Contract[]> {
+    return db.select().from(contracts).orderBy(desc(contracts.updatedAt));
   }
 
   async searchContracts(userId: string, searchQuery: string): Promise<Contract[]> {
