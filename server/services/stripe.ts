@@ -1,10 +1,10 @@
 import Stripe from 'stripe';
 import type { CreateCheckoutOptions, CustomerMetadata } from './stripe.types';
 
-// Validate required environment variables
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID;
+// Validate required environment variables (support both TEST_ and regular names for Replit)
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || process.env.TEST_STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || process.env.TEST_STRIPE_WEBHOOK_SECRET;
+const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || process.env.TEST_STRIPE_PRICE_ID;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 if (!STRIPE_SECRET_KEY) {
@@ -28,8 +28,8 @@ export { stripe };
 // ============================================
 
 export const stripeConfig = {
-  priceId: STRIPE_PRICE_ID!,
-  webhookSecret: STRIPE_WEBHOOK_SECRET!,
+  priceId: STRIPE_PRICE_ID || '',
+  webhookSecret: STRIPE_WEBHOOK_SECRET || '',
   appUrl: APP_URL,
   currency: 'gbp',
   subscriptionMode: 'subscription' as const,
@@ -131,6 +131,9 @@ export async function createCheckoutSession(
   } else if (customerEmail) {
     sessionConfig.customer_email = customerEmail;
   }
+
+  console.log(`[STRIPE] Creating checkout with success_url: ${successUrl}`);
+  console.log(`[STRIPE] APP_URL env value: ${APP_URL}`);
 
   const session = await stripe.checkout.sessions.create(sessionConfig);
 

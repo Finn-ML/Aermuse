@@ -11,7 +11,8 @@
       "Bash(node:*)",
       "Bash(node -e:*)",
       "Bash(timeout 15 npm run dev:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

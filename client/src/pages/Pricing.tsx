@@ -1,54 +1,30 @@
-import { useLocation } from 'wouter';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { PricingCard } from '@/components/pricing/PricingCard';
 import { FAQ } from '@/components/pricing/FAQ';
 import { Link } from 'wouter';
 
-const FREE_FEATURES = [
-  { name: 'Upload up to 3 contracts', included: true },
-  { name: 'Basic contract storage', included: true },
-  { name: 'Standard security', included: true },
-  { name: 'AI contract analysis', included: false },
-  { name: 'E-signing capabilities', included: false },
-  { name: 'Contract templates', included: false },
-  { name: 'Unlimited contracts', included: false },
-  { name: 'PDF export', included: false },
-];
-
-const PREMIUM_FEATURES = [
-  { name: 'Unlimited contracts', included: true },
-  { name: 'AI Attorney analysis', included: true, highlight: true },
-  { name: 'Fairness scoring & risk flags', included: true },
-  { name: 'E-signing with DocuSeal', included: true, highlight: true },
-  { name: '5 professional templates', included: true },
-  { name: 'PDF export', included: true },
-  { name: 'Priority support', included: true },
-  { name: 'Full contract history', included: true },
-];
+// Declare the custom element for TypeScript
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'stripe-pricing-table': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          'pricing-table-id': string;
+          'publishable-key': string;
+          'client-reference-id'?: string;
+          'customer-email'?: string;
+        },
+        HTMLElement
+      >;
+    }
+  }
+}
 
 export default function Pricing() {
-  const [, setLocation] = useLocation();
   const { user } = useAuth();
 
   // Check if user has premium subscription
   const isPremium = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
-
-  const handleGetPremium = () => {
-    if (!user) {
-      // Redirect to auth with return URL
-      setLocation('/auth?redirect=/pricing&action=subscribe');
-    } else {
-      // Redirect to checkout
-      setLocation('/checkout');
-    }
-  };
-
-  const handleGetStarted = () => {
-    if (!user) {
-      setLocation('/auth');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F7E6CA] to-white">
@@ -88,39 +64,32 @@ export default function Pricing() {
         </p>
       </div>
 
-      {/* Pricing Cards */}
+      {/* Stripe Pricing Table */}
       <div className="max-w-5xl mx-auto px-4 pb-16">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Free Tier */}
-          <PricingCard
-            name="Free"
-            price="£0"
-            period="forever"
-            description="Perfect for trying out Aermuse"
-            features={FREE_FEATURES}
-            buttonText={user ? (isPremium ? 'Downgrade' : 'Current Plan') : 'Get Started'}
-            buttonVariant="secondary"
-            onButtonClick={handleGetStarted}
-            disabled={!!user && !isPremium}
-            current={!!user && !isPremium}
+        {isPremium ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-[#660033] mb-2">You're on Premium!</h3>
+            <p className="text-[#660033]/70 mb-6">
+              You have full access to all Aermuse features.
+            </p>
+            <Link
+              href="/dashboard"
+              className="px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors inline-block"
+            >
+              Go to Dashboard
+            </Link>
+          </div>
+        ) : (
+          <stripe-pricing-table
+            pricing-table-id="prctbl_1SZICN101ChWmdbe3T1jVnsF"
+            publishable-key="pk_test_51SYTb0101ChWmdbekGLDl2IVZYx6vKDTEfEGXZ8SXeRiig4U3ARrYYyMqV4ixlyV0HpKEhruQSniLJENjylHTU2Q00ZsfOe440"
+            client-reference-id={user?.id}
+            customer-email={user?.email}
           />
-
-          {/* Premium Tier */}
-          <PricingCard
-            name="Premium"
-            price="£9"
-            period="month"
-            description="Everything you need to protect your music career"
-            features={PREMIUM_FEATURES}
-            buttonText={isPremium ? 'Current Plan' : 'Get Premium'}
-            buttonVariant="default"
-            onButtonClick={handleGetPremium}
-            disabled={isPremium}
-            current={isPremium}
-            highlighted
-            badge="Most Popular"
-          />
-        </div>
+        )}
       </div>
 
       {/* Value Proposition */}
@@ -157,26 +126,6 @@ export default function Pricing() {
           Frequently Asked Questions
         </h2>
         <FAQ />
-      </div>
-
-      {/* Final CTA */}
-      <div className="bg-[#F7E6CA] py-16">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-4 text-[#660033]">
-            Ready to protect your music career?
-          </h2>
-          <p className="text-[#660033]/80 mb-8">
-            Join thousands of artists who trust Aermuse to review their contracts.
-          </p>
-          {!isPremium && (
-            <button
-              onClick={handleGetPremium}
-              className="px-8 py-3 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] font-medium text-lg transition-colors"
-            >
-              {user ? 'Start Your Premium Trial' : 'Get Started Free'}
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Footer */}

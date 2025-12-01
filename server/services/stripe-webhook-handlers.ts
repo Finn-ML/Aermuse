@@ -5,6 +5,15 @@ import { eq } from 'drizzle-orm';
 import { mapStripeStatus } from './stripe.types';
 import type { SubscriptionUpdate } from '../../shared/types/subscription';
 
+// Type helpers for Stripe API v2024+ where some properties moved
+interface InvoiceWithSubscription extends Stripe.Invoice {
+  subscription?: string | Stripe.Subscription | null;
+}
+
+interface SubscriptionWithPeriodEnd extends Stripe.Subscription {
+  current_period_end?: number;
+}
+
 // ============================================
 // MAIN EVENT ROUTER
 // ============================================
@@ -115,8 +124,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 // ============================================
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  // Only care about subscription invoices - use parent to get subscription reference
-  const subscriptionId = (invoice as any).subscription || (invoice as any).parent?.subscription_details?.subscription;
+  // Only care about subscription invoices
+  const invoiceData = invoice as InvoiceWithSubscription;
+  const subscriptionId = typeof invoiceData.subscription === 'string'
+    ? invoiceData.subscription
+    : invoiceData.subscription?.id;
   if (!subscriptionId) return;
 
   console.log(`[STRIPE WEBHOOK] Payment succeeded for subscription: ${subscriptionId}`);
@@ -130,8 +142,11 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  // Only care about subscription invoices - use parent to get subscription reference
-  const subscriptionId = (invoice as any).subscription || (invoice as any).parent?.subscription_details?.subscription;
+  // Only care about subscription invoices
+  const invoiceData = invoice as InvoiceWithSubscription;
+  const subscriptionId = typeof invoiceData.subscription === 'string'
+    ? invoiceData.subscription
+    : invoiceData.subscription?.id;
   if (!subscriptionId) return;
 
   console.log(`[STRIPE WEBHOOK] Payment failed for subscription: ${subscriptionId}`);
@@ -152,8 +167,8 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 
 function buildSubscriptionUpdate(subscription: Stripe.Subscription): SubscriptionUpdate {
   const priceId = subscription.items.data[0]?.price.id;
-  // Access current_period_end - may be under different name in newer API versions
-  const periodEnd = (subscription as any).current_period_end;
+  const subData = subscription as SubscriptionWithPeriodEnd;
+  const periodEnd = subData.current_period_end;
 
   return {
     stripeSubscriptionId: subscription.id,
