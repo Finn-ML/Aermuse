@@ -22,6 +22,8 @@ import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
 import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc } from "drizzle-orm";
+import crypto from "crypto";
+import { sendSignatureRequestEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -2249,7 +2251,6 @@ export async function registerRoutes(
       console.log(`[SIGNATURES] Request cancelled: ${request.id}`);
 
       // Send cancellation notifications to all signatories (fire and forget)
-      const { sendSignatureCancelledEmail } = require('./services/postmark');
       for (const s of requestSignatories) {
         if (s.status !== 'signed') {
           sendSignatureCancelledEmail(
@@ -2382,7 +2383,6 @@ export async function registerRoutes(
       return false;
     }
 
-    const crypto = require('crypto');
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(payload)
@@ -2393,13 +2393,6 @@ export async function registerRoutes(
       Buffer.from(expectedSignature)
     );
   }
-
-  // Import email functions for webhooks
-  const {
-    sendSignatureRequestEmail,
-    sendSignatureConfirmationEmail,
-    sendDocumentCompletedEmail,
-  } = require('./services/postmark');
 
   // POST /api/webhooks/docuseal - Handle DocuSeal webhook events
   app.post("/api/webhooks/docuseal", async (req: Request, res: Response) => {
