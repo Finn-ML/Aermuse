@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import GrainOverlay from '@/components/GrainOverlay';
 import { VerificationBanner } from '@/components/VerificationBanner';
 import { ChangePasswordForm } from '@/components/ChangePasswordForm';
@@ -56,6 +57,22 @@ interface LinkItem {
   enabled: boolean;
 }
 
+// Draggable wrapper for contract cards
+function DraggableContractCard({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
@@ -77,7 +94,17 @@ export default function Dashboard() {
   const [moveContractModal, setMoveContractModal] = useState<{ contractId: string; contractName: string; currentFolderId: string | null } | null>(null);
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  
+  const [draggingContract, setDraggingContract] = useState<Contract | null>(null);
+
+  // Configure drag sensor with activation constraint to prevent accidental drags
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement before drag starts
+      },
+    })
+  );
+
   const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -184,6 +211,43 @@ export default function Dashboard() {
       toast({ title: "Contract signed", description: "Your contract is now active." });
     },
   });
+
+  const moveContractMutation = useMutation({
+    mutationFn: async ({ contractId, folderId }: { contractId: string; folderId: string | null }) => {
+      const res = await apiRequest('POST', `/api/contracts/${contractId}/move`, { folderId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
+      toast({ title: "Contract moved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to move contract", variant: "destructive" });
+    },
+  });
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const contract = contracts.find(c => c.id === event.active.id);
+    if (contract) setDraggingContract(contract);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDraggingContract(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const contractId = active.id as string;
+    const folderId = over.id === 'unfiled' ? null : over.id as string;
+
+    // Skip if dropping on same folder
+    const contract = contracts.find(c => c.id === contractId);
+    if (!contract) return;
+    if (contract.folderId === folderId) return;
+    if (contract.folderId === null && folderId === null) return;
+
+    moveContractMutation.mutate({ contractId, folderId });
+  };
 
   const updateLandingPageMutation = useMutation({
     mutationFn: async (data: Partial<LandingPage>) => {
@@ -562,6 +626,7 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'contracts' && (
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-6 -mx-10 -mt-10 -mb-10">
               {/* Folder Sidebar */}
               <FolderSidebar
@@ -749,8 +814,8 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-4">
                   {filteredContracts.map((contract) => (
-                    <div 
-                      key={contract.id}
+                    <DraggableContractCard key={contract.id} id={contract.id}>
+                    <div
                       className="rounded-[20px] p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
                       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                       data-testid={`contract-${contract.id}`}
@@ -889,6 +954,7 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                    </DraggableContractCard>
                   ))}
                 </div>
               )}
@@ -909,6 +975,28 @@ export default function Dashboard() {
               )}
               </div>
             </div>
+            {/* Drag overlay for visual feedback */}
+            <DragOverlay dropAnimation={null}>
+              {draggingContract && (
+                <div
+                  className="rounded-xl p-4 bg-white shadow-2xl border-2 border-[#660033] opacity-90 max-w-xs pointer-events-none"
+                  style={{ transform: 'translate(-50%, -50%)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                    >
+                      <FileText size={18} className="text-[#F7E6CA]" />
+                    </div>
+                    <div className="font-semibold text-sm text-[#660033] truncate">
+                      {draggingContract.name}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
           )}
 
           {activeNav === 'templates' && (
