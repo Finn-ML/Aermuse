@@ -206,10 +206,10 @@ export default function Landing() {
         <div className="flex gap-12 items-center">
           <a href="#features" className="nav-link" data-testid="link-features">Features</a>
           <a href="#artists" className="nav-link" data-testid="link-artists">For Artists</a>
-          <a href="#pricing" className="nav-link" data-testid="link-pricing">Pricing</a>
+          <Link href="/pricing" className="nav-link" data-testid="link-pricing">Pricing</Link>
           <Link href="/auth">
-            <button className="btn-primary" style={{ padding: '14px 32px' }} data-testid="button-join-waitlist">
-              Join Waitlist
+            <button className="btn-primary" style={{ padding: '14px 32px' }} data-testid="button-get-started">
+              Get Started
             </button>
           </Link>
         </div>

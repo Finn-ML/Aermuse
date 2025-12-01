@@ -1,30 +1,48 @@
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { FAQ } from '@/components/pricing/FAQ';
 import { Link } from 'wouter';
-
-// Declare the custom element for TypeScript
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'stripe-pricing-table': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          'pricing-table-id': string;
-          'publishable-key': string;
-          'client-reference-id'?: string;
-          'customer-email'?: string;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
+import { useState } from 'react';
 
 export default function Pricing() {
   const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user has premium subscription
   const isPremium = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+
+  const handleSubscribe = async () => {
+    if (!user) {
+      window.location.href = '/auth';
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F7E6CA] to-white">
@@ -64,7 +82,7 @@ export default function Pricing() {
         </p>
       </div>
 
-      {/* Stripe Pricing Table */}
+      {/* Pricing Cards */}
       <div className="max-w-5xl mx-auto px-4 pb-16">
         {isPremium ? (
           <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
@@ -83,12 +101,87 @@ export default function Pricing() {
             </Link>
           </div>
         ) : (
-          <stripe-pricing-table
-            pricing-table-id="prctbl_1SZICN101ChWmdbe3T1jVnsF"
-            publishable-key="pk_test_51SYTb0101ChWmdbekGLDl2IVZYx6vKDTEfEGXZ8SXeRiig4U3ARrYYyMqV4ixlyV0HpKEhruQSniLJENjylHTU2Q00ZsfOe440"
-            client-reference-id={user?.id}
-            customer-email={user?.email}
-          />
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Plan */}
+            <div className="bg-white rounded-2xl shadow-lg p-8">
+              <h3 className="text-xl font-bold text-[#660033] mb-2">Free</h3>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-[#660033]">£0</span>
+                <span className="text-[#660033]/60">/month</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center gap-2 text-[#660033]/80">
+                  <Check className="h-5 w-5 text-green-600" />
+                  <span>3 contract analyses per month</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#660033]/80">
+                  <Check className="h-5 w-5 text-green-600" />
+                  <span>Basic risk assessment</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#660033]/80">
+                  <Check className="h-5 w-5 text-green-600" />
+                  <span>Landing page builder</span>
+                </li>
+              </ul>
+              <Link
+                href={user ? "/dashboard" : "/auth"}
+                className="block w-full py-3 text-center border-2 border-[#660033] text-[#660033] rounded-lg hover:bg-[#660033]/5 transition-colors"
+              >
+                {user ? "Current Plan" : "Get Started"}
+              </Link>
+            </div>
+
+            {/* Premium Plan */}
+            <div className="bg-[#660033] rounded-2xl shadow-lg p-8 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F7E6CA] text-[#660033] text-sm font-semibold px-3 py-1 rounded-full">
+                Most Popular
+              </div>
+              <h3 className="text-xl font-bold text-[#F7E6CA] mb-2">Premium</h3>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-[#F7E6CA]">£9.99</span>
+                <span className="text-[#F7E6CA]/60">/month</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
+                  <Check className="h-5 w-5 text-green-400" />
+                  <span>Unlimited contract analyses</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
+                  <Check className="h-5 w-5 text-green-400" />
+                  <span>Advanced AI risk detection</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
+                  <Check className="h-5 w-5 text-green-400" />
+                  <span>Contract templates</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
+                  <Check className="h-5 w-5 text-green-400" />
+                  <span>E-signing integration</span>
+                </li>
+                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
+                  <Check className="h-5 w-5 text-green-400" />
+                  <span>Priority support</span>
+                </li>
+              </ul>
+              {error && (
+                <p className="text-red-300 text-sm mb-4 text-center">{error}</p>
+              )}
+              <button
+                onClick={handleSubscribe}
+                disabled={isLoading}
+                className="w-full py-3 bg-[#F7E6CA] text-[#660033] font-semibold rounded-lg hover:bg-[#f0d9b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Subscribe Now"
+                )}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

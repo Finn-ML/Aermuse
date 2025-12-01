@@ -85,10 +85,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 // ============================================
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  console.log(`[STRIPE WEBHOOK] Subscription created: ${subscription.id}`);
+  console.log(`[STRIPE WEBHOOK] Subscription created: ${subscription.id} status: ${subscription.status}`);
 
   const customerId = subscription.customer as string;
   const update = buildSubscriptionUpdate(subscription);
+
+  // Don't overwrite if subscription is incomplete - wait for payment to confirm
+  if (subscription.status === 'incomplete') {
+    console.log(`[STRIPE WEBHOOK] Subscription incomplete, storing ID only`);
+    await updateUserByCustomerId(customerId, {
+      stripeSubscriptionId: subscription.id,
+      subscriptionPriceId: update.subscriptionPriceId,
+    });
+    return;
+  }
 
   await updateUserByCustomerId(customerId, update);
 }
@@ -129,15 +139,20 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   const subscriptionId = typeof invoiceData.subscription === 'string'
     ? invoiceData.subscription
     : invoiceData.subscription?.id;
-  if (!subscriptionId) return;
+
+  if (!subscriptionId) {
+    console.log(`[STRIPE WEBHOOK] Payment succeeded but no subscription ID (one-time payment)`);
+    return;
+  }
 
   console.log(`[STRIPE WEBHOOK] Payment succeeded for subscription: ${subscriptionId}`);
 
   const customerId = invoice.customer as string;
 
-  // Update status to active (in case it was past_due)
+  // Update status to active
   await updateUserByCustomerId(customerId, {
     subscriptionStatus: 'active',
+    stripeSubscriptionId: subscriptionId,
   });
 }
 

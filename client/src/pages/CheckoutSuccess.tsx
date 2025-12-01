@@ -56,14 +56,14 @@ export default function CheckoutSuccess() {
 
   if (state === 'verifying') {
     return (
-      <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8 text-center">
-          <Loader2 className="h-12 w-12 text-[#660033] animate-spin mx-auto mb-6" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Verifying Payment
+      <div className="min-h-screen bg-gradient-to-b from-[#F7E6CA] to-white flex items-center justify-center p-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-[#660033]/10 max-w-md w-full p-10 text-center">
+          <Loader2 className="h-10 w-10 text-[#660033]/70 animate-spin mx-auto mb-6" />
+          <h1 className="text-xl font-medium text-[#660033] mb-2">
+            Confirming your subscription
           </h1>
-          <p className="text-gray-600">
-            Please wait while we confirm your subscription...
+          <p className="text-[#660033]/60">
+            Just a moment...
           </p>
         </div>
       </div>
@@ -72,30 +72,30 @@ export default function CheckoutSuccess() {
 
   if (state === 'error') {
     return (
-      <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8 text-center">
-          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="h-8 w-8 text-yellow-500" />
+      <div className="min-h-screen bg-gradient-to-b from-[#F7E6CA] to-white flex items-center justify-center p-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-[#660033]/10 max-w-md w-full p-10 text-center">
+          <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-7 w-7 text-amber-500" />
           </div>
 
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Verification Issue
+          <h1 className="text-xl font-medium text-[#660033] mb-3">
+            We're still processing
           </h1>
 
-          <p className="text-gray-600 mb-6">
-            {error || 'There was an issue verifying your payment.'}
+          <p className="text-[#660033]/70 mb-4">
+            {error || 'There was a small hiccup verifying your payment.'}
           </p>
 
-          <p className="text-sm text-gray-500 mb-6">
-            Don't worry - if your payment was successful, your subscription will
-            be activated shortly. Check your email for confirmation.
+          <p className="text-sm text-[#660033]/50 mb-8">
+            If your payment went through, your subscription will activate shortly.
+            We'll send a confirmation to your email.
           </p>
 
           <Button
             onClick={() => setLocation('/dashboard')}
-            className="bg-[#660033] hover:bg-[#4a0024] text-white"
+            className="bg-[#660033] hover:bg-[#7a1a47] text-[#F7E6CA] rounded-xl px-8"
           >
-            Go to Dashboard
+            Continue to Dashboard
           </Button>
         </div>
       </div>
@@ -103,50 +103,45 @@ export default function CheckoutSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#660033]/5 to-[#F7E6CA] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8 text-center">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="h-10 w-10 text-green-500" />
+    <div className="min-h-screen bg-gradient-to-b from-[#F7E6CA] to-white flex items-center justify-center p-4">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-[#660033]/10 max-w-md w-full p-10 text-center">
+        <div className="w-16 h-16 bg-[#660033]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Sparkles className="h-8 w-8 text-[#660033]" />
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Welcome to Premium!
+        <h1 className="text-2xl font-semibold text-[#660033] mb-3">
+          You're all set
         </h1>
 
-        <p className="text-gray-600 mb-8">
-          Your subscription is now active. You have full access to all Aermuse features.
+        <p className="text-[#660033]/70 mb-8">
+          Welcome to Aermuse Premium. Your full access is now active.
         </p>
 
-        <div className="bg-[#660033]/5 rounded-lg p-4 mb-8">
-          <div className="flex items-center justify-center gap-2 text-[#660033] mb-2">
-            <Sparkles className="h-5 w-5" />
-            <span className="font-semibold">What's Unlocked</span>
-          </div>
-          <ul className="text-sm text-gray-600 space-y-1">
-            <li>AI Contract Analysis</li>
-            <li>E-Signing with DocuSeal</li>
-            <li>Professional Templates</li>
-            <li>Unlimited Contracts</li>
+        <div className="bg-[#F7E6CA]/50 rounded-xl p-5 mb-8">
+          <p className="text-sm font-medium text-[#660033]/80 mb-3">Now available to you:</p>
+          <ul className="text-sm text-[#660033]/70 space-y-2">
+            <li className="flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4 text-[#660033]/50" />
+              Unlimited contract analyses
+            </li>
+            <li className="flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4 text-[#660033]/50" />
+              E-signing integration
+            </li>
+            <li className="flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4 text-[#660033]/50" />
+              Professional templates
+            </li>
           </ul>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <Button
-            onClick={() => setLocation('/dashboard')}
-            className="w-full bg-[#660033] hover:bg-[#4a0024] text-white"
-            size="lg"
-          >
-            Go to Dashboard
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setLocation('/dashboard')}
-            className="w-full border-[#660033] text-[#660033] hover:bg-[#660033]/5"
-            size="lg"
-          >
-            Analyze Your First Contract
-          </Button>
-        </div>
+        <Button
+          onClick={() => setLocation('/dashboard')}
+          className="w-full bg-[#660033] hover:bg-[#7a1a47] text-[#F7E6CA] rounded-xl"
+          size="lg"
+        >
+          Go to Dashboard
+        </Button>
       </div>
     </div>
   );

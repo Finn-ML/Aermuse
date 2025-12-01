@@ -1177,6 +1177,24 @@ export async function registerRoutes(
         });
       }
 
+      // Payment confirmed - ensure user subscription is updated
+      // This handles race conditions where webhook might not have completed yet
+      const subscriptionId = session.subscription as string;
+      const customerId = session.customer as string;
+
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        await storage.updateUser(userId, {
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          subscriptionStatus: subscription.status === 'active' || subscription.status === 'trialing' ? subscription.status : 'active',
+          subscriptionPriceId: subscription.items.data[0]?.price.id || null,
+          subscriptionCurrentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
+          subscriptionCancelAtPeriodEnd: subscription.cancel_at_period_end,
+        } as any);
+        console.log(`[BILLING] Synced subscription ${subscriptionId} for user ${userId}: active`);
+      }
+
       res.json({
         success: true,
         status: "paid",
