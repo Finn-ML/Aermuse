@@ -16,7 +16,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git log:*)",
-      "Bash(git -C /home/runner/workspace log --oneline -10)"
+      "Bash(git -C /home/runner/workspace log --oneline -10)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

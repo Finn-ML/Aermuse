@@ -162,13 +162,22 @@ development_status:
   # ============================================
   epic-9: contexted
   9-1-theme-presets: review
-  9-2-custom-colors: ready-for-dev
-  9-3-font-selection: ready-for-dev
-  9-4-button-styles: ready-for-dev
-  9-5-background-customization: ready-for-dev
-  9-6-social-icons-bar: ready-for-dev
-  9-7-link-sections-headers: ready-for-dev
-  9-8-layout-options: ready-for-dev
-  9-9-video-embeds: ready-for-dev
-  9-10-landing-page-editor-redesign: ready-for-dev
+  9-2-custom-colors: done
+  9-3-font-selection: done
+  9-4-button-styles: done
+  9-5-background-customization: done
+  9-6-social-icons-bar: done
+  9-7-link-sections-headers: done
+  9-8-layout-options: done
+  9-9-video-embeds: done
+  9-10-landing-page-editor-redesign: done
   epic-9-retrospective: optional
+
+  # ============================================
+  # EPIC 10: Analytics & Insights (P2)
+  # 2 stories, 7 points
+  # ============================================
+  epic-10: contexted
+  10-1-landing-page-analytics: ready-for-dev
+  10-2-dashboard-stats: ready-for-dev
+  epic-10-retrospective: optional

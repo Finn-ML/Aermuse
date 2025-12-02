@@ -1,0 +1,122 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>10</epicId>
+    <storyId>2</storyId>
+    <title>Dashboard Stats Integration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/10-2-dashboard-stats.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to see real statistics on my Dashboard overview</iWant>
+    <soThat>I can quickly understand my contract activity and landing page performance at a glance</soThat>
+    <tasks>
+      <task id="1">Remove Total Value Card - Remove from stats array, update grid to 3 columns</task>
+      <task id="2">Integrate Analytics API - Add useQuery for analytics endpoint, update Page Views stat</task>
+      <task id="3">Polish Stats Display - Add formatNumber helper, update change text, ensure responsive</task>
+      <task id="4">Testing - Verify cards display correctly, test loading/zero states</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Remove "Total Value" stat card from Dashboard overview</criterion>
+    <criterion id="AC-2">Update grid layout from 4 columns to 3 columns</criterion>
+    <criterion id="AC-3">"Page Views" card displays real data from analytics API</criterion>
+    <criterion id="AC-4">Stats show loading state while fetching analytics data</criterion>
+    <criterion id="AC-5">Stats gracefully handle missing/zero analytics data</criterion>
+    <criterion id="AC-6">"Active Contracts" and "Pending Review" continue working with real contract data</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/10-2-dashboard-stats.md</path>
+        <title>Story 10.2: Dashboard Stats Integration</title>
+        <section>Technical Requirements</section>
+        <snippet>Implementation details for updating Dashboard stats to use real analytics data and remove Total Value card.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/10-1-landing-page-analytics.md</path>
+        <title>Story 10.1: Landing Page Analytics Tracking</title>
+        <section>API Endpoints</section>
+        <snippet>Defines GET /api/analytics/landing-page/:id endpoint that this story will consume.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>stats</symbol>
+        <lines>497-502</lines>
+        <reason>Current stats array with hardcoded Page Views and Total Value - to be modified</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>stats grid</symbol>
+        <lines>732-752</lines>
+        <reason>Stats card rendering with grid-cols-4 - to be changed to grid-cols-3</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>landingPageData query</symbol>
+        <lines>240-250</lines>
+        <reason>Existing landing page query - analytics query will be similar pattern</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/lib/queryClient.ts</path>
+        <kind>utility</kind>
+        <symbol>apiRequest</symbol>
+        <reason>API request helper to use for analytics endpoint</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="@tanstack/react-query" reason="Data fetching for analytics stats"/>
+        <package name="lucide-react" reason="Icons for stat cards (TrendingUp)"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Depends on Story 10.1 - analytics API must exist first</constraint>
+    <constraint>Keep existing Active Contracts and Pending Review logic unchanged</constraint>
+    <constraint>Handle loading state gracefully (show "..." or skeleton)</constraint>
+    <constraint>Handle zero/missing data gracefully (show "0" not errors)</constraint>
+    <constraint>Maintain responsive design with updated column count</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/analytics/landing-page/:id</name>
+      <kind>REST endpoint (from Story 10.1)</kind>
+      <signature>Response: { totalViews: number, uniqueVisitors: number, avgTimeOnPage: number, clickRate: number }</signature>
+      <path>server/routes/analytics.ts</path>
+    </interface>
+    <interface>
+      <name>formatNumber</name>
+      <kind>function</kind>
+      <signature>(num: number) =&gt; string - formats 1000 as "1K", 1000000 as "1M"</signature>
+      <path>client/src/pages/Dashboard.tsx (inline helper)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest for unit tests. Component testing with React Testing Library. Mock API responses for isolated testing.</standards>
+    <locations>
+      <location>client/src/pages/__tests__/Dashboard.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Verify Total Value card is not rendered</idea>
+      <idea ac="AC-2">Verify grid has 3 columns (grid-cols-3 class)</idea>
+      <idea ac="AC-3">Verify Page Views displays data from mocked analytics API</idea>
+      <idea ac="AC-4">Verify loading state shows placeholder while fetching</idea>
+      <idea ac="AC-5">Verify zero values display "0" not errors</idea>
+      <idea ac="AC-6">Verify Active Contracts and Pending Review use real contract data</idea>
+    </ideas>
+  </tests>
+</story-context>

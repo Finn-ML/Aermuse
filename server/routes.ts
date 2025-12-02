@@ -12,8 +12,8 @@ import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth } from "./middleware/auth";
 import multer from "multer";
-import { upload, verifyFileType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType } from "./services/fileStorage";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription } from "./services/subscription";
@@ -1295,6 +1295,65 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Delete link error:", error);
       res.status(500).json({ error: "Failed to delete link" });
+    }
+  });
+
+  // Background image upload for landing pages (Story 9.5)
+  app.post("/api/landing-page/background-image", imageUpload.single("image"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Get landing page
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Get file extension
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+
+      // Upload to storage
+      const result = await uploadBackgroundImage(userId, landingPage.id, file.buffer, extension);
+
+      // Return URL path that will be served through our API
+      const url = `/api/landing-page/background-image/${encodeURIComponent(result.path)}`;
+
+      res.json({ success: true, url, path: result.path });
+    } catch (error) {
+      console.error("Background image upload error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 2MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload background image" });
+    }
+  });
+
+  // Serve background images
+  app.get("/api/landing-page/background-image/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+
+      // Extract extension for content type
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
+
+      const buffer = await downloadBackgroundImage(filePath);
+
+      res.set('Content-Type', getImageContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+      res.send(buffer);
+    } catch (error) {
+      console.error("Background image download error:", error);
+      res.status(404).json({ error: "Image not found" });
     }
   });
 

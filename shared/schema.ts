@@ -176,6 +176,13 @@ export const landingPages = pgTable("landing_pages", {
   backgroundType: text("background_type").default("solid"),
   backgroundValue: text("background_value"),
   backgroundOverlay: text("background_overlay").default("none"),
+  // Epic 9.6: Social icons bar
+  socialIcons: jsonb("social_icons").default([]),
+  showSocialBar: boolean("show_social_bar").default(true),
+  // Epic 9.8: Layout options
+  layout: text("layout").default("centered"), // 'centered' | 'left' | 'grid'
+  avatarPosition: text("avatar_position").default("top"), // 'top' | 'left' | 'hidden'
+  linkWidth: text("link_width").default("full"), // 'full' | 'medium' | 'compact'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -198,6 +205,10 @@ export const landingPageLinks = pgTable("landing_page_links", {
   icon: text("icon"),
   enabled: boolean("enabled").default(true),
   order: text("order").default("0"),
+  // Epic 9.7: Link type (link or header for section headers)
+  type: text("type").default("link"), // 'link' | 'header' | 'video_embed'
+  // Epic 9.9: Video embeds (Pro feature)
+  videoUrl: text("video_url"), // For video embeds (YouTube, Vimeo, Spotify)
   createdAt: timestamp("created_at").defaultNow(),
 });
 

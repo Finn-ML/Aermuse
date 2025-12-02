@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'wouter';
 import { Loader2 } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
+import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
+import { parseVideoUrl } from '@/lib/video-parser';
 import type { LandingPage, LandingPageLink } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
@@ -143,6 +145,12 @@ export default function ArtistPage() {
   const backgroundValue = page.backgroundValue;
   const backgroundOverlay = (page.backgroundOverlay as BackgroundOverlay) || 'none';
   const socialLinks = page.socialLinks as Record<string, string> | null;
+  const socialIcons = (page.socialIcons as SocialIcon[]) || [];
+  const showSocialBar = page.showSocialBar !== false;
+  // Layout options (Story 9.8)
+  const layout = (page.layout as 'centered' | 'left' | 'grid') || 'centered';
+  const avatarPosition = (page.avatarPosition as 'top' | 'left' | 'hidden') || 'top';
+  const linkWidth = (page.linkWidth as 'full' | 'medium' | 'compact') || 'full';
 
   // Determine button colors based on style
   const isOutlineButton = buttonStyle === 'outline';
@@ -161,7 +169,7 @@ export default function ArtistPage() {
         fontFamily: `"${bodyFont}", system-ui, sans-serif`,
       }}
     >
-      {/* Hero Section */}
+      {/* Hero Section (Story 9.8: Layout options) */}
       <section className="relative py-20 px-4">
         {/* Cover Image (if no custom background set) */}
         {page.coverImageUrl && backgroundType === 'solid' && !backgroundValue && (
@@ -171,90 +179,208 @@ export default function ArtistPage() {
           />
         )}
 
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div
+          className={`max-w-4xl mx-auto relative z-10 ${
+            layout === 'centered' ? 'text-center' : 'text-left'
+          } ${
+            avatarPosition === 'left' ? 'flex flex-col sm:flex-row items-center sm:items-start gap-6' : ''
+          }`}
+        >
           {/* Avatar */}
-          {page.avatarUrl && (
+          {avatarPosition !== 'hidden' && page.avatarUrl && (
             <img
               src={page.avatarUrl}
               alt={page.artistName}
-              className="w-32 h-32 rounded-full mx-auto mb-6 border-4 shadow-lg"
+              className={`w-32 h-32 rounded-full border-4 shadow-lg ${
+                avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
+              } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
               style={{ borderColor: accentColor }}
             />
           )}
 
-          {/* Artist Name */}
-          <h1
-            className="text-4xl md:text-5xl font-bold mb-4"
-            style={{
-              color: textColor,
-              fontFamily: `"${headingFont}", system-ui, sans-serif`,
-            }}
-          >
-            {page.artistName}
-          </h1>
-
-          {/* Tagline */}
-          {page.tagline && (
-            <p
-              className="text-xl mb-6"
-              style={{ color: `${textColor}99` }}
+          <div className={avatarPosition === 'left' ? 'flex-1' : ''}>
+            {/* Artist Name */}
+            <h1
+              className="text-4xl md:text-5xl font-bold mb-4"
+              style={{
+                color: textColor,
+                fontFamily: `"${headingFont}", system-ui, sans-serif`,
+              }}
             >
-              {page.tagline}
-            </p>
-          )}
+              {page.artistName}
+            </h1>
 
-          {/* Bio */}
-          {page.bio && (
-            <p
-              className="max-w-2xl mx-auto mb-8 leading-relaxed"
-              style={{ color: `${textColor}cc` }}
-            >
-              {page.bio}
-            </p>
-          )}
+            {/* Tagline */}
+            {page.tagline && (
+              <p
+                className="text-xl mb-6"
+                style={{ color: `${textColor}99` }}
+              >
+                {page.tagline}
+              </p>
+            )}
 
-          {/* Send Proposal Button - prominently placed */}
-          <div className="mt-8">
-            <SendProposalButton
-              landingPageId={page.id}
-              artistName={page.artistName}
-              primaryColor={primaryColor}
-              secondaryColor={secondaryColor}
-            />
+            {/* Bio */}
+            {page.bio && (
+              <p
+                className={`mb-8 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-2xl'}`}
+                style={{ color: `${textColor}cc` }}
+              >
+                {page.bio}
+              </p>
+            )}
+
+            {/* Send Proposal Button - prominently placed */}
+            <div className="mt-8">
+              <SendProposalButton
+                landingPageId={page.id}
+                artistName={page.artistName}
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Links Section */}
+      {/* Links Section (Story 9.7: Headers support, Story 9.8: Layout options) */}
       {page.links && page.links.length > 0 && (
         <section className="py-12 px-4">
-          <div className="max-w-md mx-auto space-y-4">
+          <div
+            className={`mx-auto ${
+              layout === 'grid'
+                ? 'max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-4'
+                : 'max-w-md space-y-4'
+            } ${layout === 'left' ? 'ml-0 mr-auto' : ''}`}
+            style={{
+              maxWidth: layout !== 'grid' ? (
+                linkWidth === 'full' ? '28rem' :
+                linkWidth === 'medium' ? '22rem' :
+                '18rem'
+              ) : undefined,
+            }}
+          >
             {page.links
-              .filter(link => link.enabled)
+              .filter(link => {
+                // Headers: show if title is not empty
+                if (link.type === 'header') {
+                  return link.title && link.title.trim() !== '';
+                }
+                // Links: show if enabled
+                return link.enabled;
+              })
               .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
-              .map((link) => (
+              .map((link) => {
+                // Render section headers differently (Story 9.7)
+                // In grid layout, headers span both columns
+                if (link.type === 'header') {
+                  return (
+                    <h3
+                      key={link.id}
+                      className={`text-lg font-semibold mt-6 mb-2 first:mt-0 ${
+                        layout === 'grid' ? 'col-span-1 sm:col-span-2' : ''
+                      }`}
+                      style={{
+                        color: textColor,
+                        fontFamily: `"${headingFont}", system-ui, sans-serif`,
+                      }}
+                    >
+                      {link.title}
+                    </h3>
+                  );
+                }
+
+                // Render video embeds (Story 9.9)
+                if (link.type === 'video_embed' && link.videoUrl) {
+                  const embed = parseVideoUrl(link.videoUrl);
+                  if (!embed) return null;
+
+                  return (
+                    <div
+                      key={link.id}
+                      className={`rounded-lg overflow-hidden ${
+                        layout === 'grid' ? 'col-span-1 sm:col-span-2' : ''
+                      }`}
+                    >
+                      {link.title && (
+                        <p
+                          className="text-sm font-medium mb-2"
+                          style={{ color: textColor }}
+                        >
+                          {link.title}
+                        </p>
+                      )}
+                      <div
+                        className="relative w-full overflow-hidden rounded-lg"
+                        style={{
+                          aspectRatio: embed.aspectRatio === '16:9' ? '16 / 9' : '1 / 1',
+                          maxWidth: embed.platform === 'spotify' ? '300px' : '100%',
+                        }}
+                      >
+                        <iframe
+                          src={embed.embedUrl}
+                          className="absolute inset-0 w-full h-full"
+                          frameBorder="0"
+                          allow="autoplay; encrypted-media"
+                          allowFullScreen
+                          title={link.title}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Regular links
+                return (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={getButtonClasses(buttonStyle)}
+                    style={{
+                      backgroundColor: buttonBgColor,
+                      color: buttonTextColor,
+                      borderColor: buttonBorderColor,
+                      fontFamily: `"${bodyFont}", system-ui, sans-serif`,
+                    }}
+                  >
+                    {link.title}
+                  </a>
+                );
+              })}
+          </div>
+        </section>
+      )}
+
+      {/* Social Icons Bar (Story 9.6) */}
+      {showSocialBar && socialIcons.length > 0 && (
+        <section className="py-8 px-4">
+          <div className="max-w-md mx-auto flex justify-center gap-4">
+            {socialIcons
+              .sort((a, b) => a.order - b.order)
+              .map((icon) => (
                 <a
-                  key={link.id}
-                  href={link.url}
+                  key={icon.id}
+                  href={icon.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={getButtonClasses(buttonStyle)}
+                  className="p-3 rounded-full transition-all hover:scale-110 hover:opacity-80"
                   style={{
-                    backgroundColor: buttonBgColor,
-                    color: buttonTextColor,
-                    borderColor: buttonBorderColor,
-                    fontFamily: `"${bodyFont}", system-ui, sans-serif`,
+                    color: secondaryColor,
+                    backgroundColor: `${secondaryColor}20`,
                   }}
+                  title={icon.platform}
                 >
-                  {link.title}
+                  {getPlatformIcon(icon.platform, "w-6 h-6")}
                 </a>
               ))}
           </div>
         </section>
       )}
 
-      {/* Social Links */}
-      {socialLinks && Object.keys(socialLinks).length > 0 && (
+      {/* Legacy Social Links (for backwards compatibility) */}
+      {(!socialIcons || socialIcons.length === 0) && socialLinks && Object.keys(socialLinks).length > 0 && (
         <section className="py-8 px-4">
           <div className="max-w-md mx-auto flex justify-center gap-6">
             {Object.entries(socialLinks).map(([platform, url]) => (

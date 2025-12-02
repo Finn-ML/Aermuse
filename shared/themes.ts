@@ -3,6 +3,43 @@
 export type ButtonStyle = 'rounded' | 'pill' | 'square' | 'outline' | 'filled' | 'shadow';
 export type BackgroundType = 'solid' | 'gradient' | 'image';
 export type BackgroundOverlay = 'none' | 'dark' | 'light';
+export type GradientDirection = 'to-right' | 'to-bottom' | 'to-bottom-right' | 'to-bottom-left';
+
+export interface GradientConfig {
+  color1: string;
+  color2: string;
+  direction: GradientDirection;
+}
+
+export const GRADIENT_DIRECTIONS: { id: GradientDirection; name: string; angle: string }[] = [
+  { id: 'to-right', name: 'Left to Right', angle: '90deg' },
+  { id: 'to-bottom', name: 'Top to Bottom', angle: '180deg' },
+  { id: 'to-bottom-right', name: 'Diagonal Right', angle: '135deg' },
+  { id: 'to-bottom-left', name: 'Diagonal Left', angle: '225deg' },
+];
+
+export function generateGradientCSS(config: GradientConfig): string {
+  const direction = GRADIENT_DIRECTIONS.find(d => d.id === config.direction);
+  const angle = direction?.angle || '180deg';
+  return `linear-gradient(${angle}, ${config.color1} 0%, ${config.color2} 100%)`;
+}
+
+export function parseGradientCSS(css: string): GradientConfig | null {
+  const match = css.match(/linear-gradient\((\d+)deg,\s*(#[0-9a-fA-F]{6})\s*0%,\s*(#[0-9a-fA-F]{6})\s*100%\)/);
+  if (!match) return null;
+
+  const angle = match[1];
+  const color1 = match[2];
+  const color2 = match[3];
+
+  const direction = GRADIENT_DIRECTIONS.find(d => d.angle === `${angle}deg`);
+
+  return {
+    color1,
+    color2,
+    direction: direction?.id || 'to-bottom',
+  };
+}
 
 export interface ThemePreset {
   id: string;

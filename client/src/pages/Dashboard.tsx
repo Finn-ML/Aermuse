@@ -19,9 +19,10 @@ import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
 import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
 import { AwaitingSignatureList } from '@/components/signatures';
 import { ProposalCard, ProposalDetail } from '@/components/proposals';
-import { ThemeSelector } from '@/components/landing/ThemeSelector';
+import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
+import { LandingPageEditor } from '@/components/landing/editor';
 import { useTemplates } from '@/hooks/useTemplates';
-import type { ThemePreset } from '@shared/themes';
+import { SUPPORTED_FONTS } from '@shared/themes';
 import { useAuth } from '@/lib/auth';
 import type { TemplateFormData } from '@shared/types/templates';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +54,7 @@ import {
   FileDown,
   Mail,
   Filter,
-  Inbox
+  Inbox,
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
@@ -124,6 +125,8 @@ export default function Dashboard() {
   const { toast } = useToast();
   // Templates for proposal-to-contract flow (Story 7.6)
   const { templates } = useTemplates();
+  // Story 9.9: Check if user has Pro subscription
+  const isPro = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
 
   useEffect(() => {
     setIsLoaded(true);
@@ -134,6 +137,30 @@ export default function Dashboard() {
       setLocation('/auth');
     }
   }, [user, authLoading, setLocation]);
+
+  // Preload all supported fonts for the landing page editor preview (Story 9.3)
+  useEffect(() => {
+    const fontFamilies = SUPPORTED_FONTS.map(f =>
+      `family=${f.name.replace(/ /g, '+')}:wght@${f.weights}`
+    ).join('&');
+
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?${fontFamilies}&display=swap`;
+    link.rel = 'stylesheet';
+    link.id = 'dashboard-font-preload';
+
+    // Only add if not already present
+    if (!document.getElementById('dashboard-font-preload')) {
+      document.head.appendChild(link);
+    }
+
+    return () => {
+      const existing = document.getElementById('dashboard-font-preload');
+      if (existing) {
+        document.head.removeChild(existing);
+      }
+    };
+  }, []);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
     queryKey: ['/api/contracts', searchQuery, advancedFilters, selectedFolder, sortField, sortOrder],
@@ -328,7 +355,7 @@ export default function Dashboard() {
   });
 
   const createLinkMutation = useMutation({
-    mutationFn: async (data: { title: string; url: string }) => {
+    mutationFn: async (data: { title: string; url: string; type?: string; videoUrl?: string }) => {
       const res = await apiRequest('POST', '/api/landing-page/links', data);
       return res.json();
     },
@@ -338,7 +365,7 @@ export default function Dashboard() {
   });
 
   const updateLinkMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; enabled?: boolean; title?: string; url?: string }) => {
+    mutationFn: async ({ id, ...data }: { id: string; enabled?: boolean; title?: string; url?: string; order?: string }) => {
       const res = await apiRequest('PATCH', `/api/landing-page/links/${id}`, data);
       return res.json();
     },
@@ -1211,9 +1238,9 @@ export default function Dashboard() {
 
           {activeNav === 'landing' && (
             <>
-              <div className="grid grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-4 gap-4 mb-6">
                 {landingPageStats.map((stat, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="rounded-[16px] p-5"
                     style={{ background: 'rgba(255, 255, 255, 0.6)' }}
@@ -1226,170 +1253,38 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div 
-                  className="rounded-[20px] p-7"
-                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Page Settings</h3>
-                    {landingPageData?.isPublished ? (
-                      <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase bg-[rgba(40,167,69,0.15)] text-[#28a745]">Published</span>
-                    ) : (
-                      <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase bg-[rgba(255,193,7,0.15)] text-[#B8860B]">Draft</span>
-                    )}
-                  </div>
-
-                  {landingPageLoading ? (
-                    <div className="flex items-center justify-center py-10">
-                      <Loader2 className="animate-spin text-[#660033]" size={24} />
-                    </div>
-                  ) : landingPageData ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Artist Name</label>
-                        <input
-                          type="text"
-                          value={landingPageData.artistName || ''}
-                          onChange={(e) => updateLandingPageMutation.mutate({ artistName: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
-                          data-testid="input-artist-name"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Tagline</label>
-                        <input
-                          type="text"
-                          value={landingPageData.tagline || ''}
-                          onChange={(e) => updateLandingPageMutation.mutate({ tagline: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
-                          placeholder="Your tagline..."
-                          data-testid="input-tagline"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">Bio</label>
-                        <textarea
-                          value={landingPageData.bio || ''}
-                          onChange={(e) => updateLandingPageMutation.mutate({ bio: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none min-h-[100px] resize-none"
-                          placeholder="Tell your story..."
-                          data-testid="input-bio"
-                        />
-                      </div>
-                      <div className="flex gap-3 pt-4">
-                        <button
-                          onClick={() => updateLandingPageMutation.mutate({ isPublished: !landingPageData.isPublished })}
-                          className={`flex-1 px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
-                            landingPageData.isPublished
-                              ? 'bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)]'
-                              : 'bg-[#660033] text-[#F7E6CA] hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)]'
-                          }`}
-                          data-testid="button-toggle-publish"
-                        >
-                          {landingPageData.isPublished ? 'Unpublish' : 'Publish Page'}
-                        </button>
-                        {landingPageData.isPublished && (
-                          <a
-                            href={`/artist/${landingPageData.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-6 py-3 rounded-xl font-semibold text-sm bg-[rgba(102,0,51,0.1)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-2"
-                            data-testid="link-view-page"
-                          >
-                            <ExternalLink size={16} />
-                            View Page
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div
-                  className="rounded-[20px] p-7"
-                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Your Links</h3>
-                    <button 
-                      onClick={() => createLinkMutation.mutate({ title: 'New Link', url: 'https://example.com' })}
-                      className="flex items-center gap-2 text-sm font-semibold text-[#660033]"
-                      data-testid="button-add-link"
-                    >
-                      <Plus size={16} />
-                      Add Link
-                    </button>
-                  </div>
-
-                  {landingPageLoading ? (
-                    <div className="flex items-center justify-center py-10">
-                      <Loader2 className="animate-spin text-[#660033]" size={24} />
-                    </div>
-                  ) : landingPageData?.links?.length === 0 ? (
-                    <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No links yet. Add your first link!</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {landingPageData?.links?.map((link) => (
-                        <div 
-                          key={link.id}
-                          className="flex items-center justify-between p-4 rounded-xl"
-                          style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                        >
-                          <div className="flex-1">
-                            <div className="font-semibold text-sm mb-0.5">{link.title}</div>
-                            <div className="text-xs text-[rgba(102,0,51,0.5)]">{link.url}</div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => updateLinkMutation.mutate({ id: link.id, enabled: !link.enabled })}
-                              className={`w-12 h-6 rounded-full transition-all ${link.enabled ? 'bg-[#660033]' : 'bg-[rgba(102,0,51,0.2)]'}`}
-                              data-testid={`toggle-link-${link.id}`}
-                            >
-                              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${link.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                            </button>
-                            <button
-                              onClick={() => deleteLinkMutation.mutate(link.id)}
-                              className="p-1.5 rounded-lg text-[rgba(102,0,51,0.4)] hover:text-[#dc3545] hover:bg-[rgba(220,53,69,0.1)] transition-all"
-                              data-testid={`delete-link-${link.id}`}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Theme Selector Section (Epic 9) */}
-              <div
-                className="rounded-[20px] p-7 mt-6"
-                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-              >
-                <h3 className="text-lg font-bold mb-6">Page Theme</h3>
-                {landingPageData && (
-                  <ThemeSelector
-                    selectedThemeId={landingPageData.themeId}
-                    onThemeSelect={(theme: ThemePreset) => {
-                      updateLandingPageMutation.mutate({
-                        themeId: theme.id,
-                        primaryColor: theme.primaryColor,
-                        secondaryColor: theme.secondaryColor,
-                        accentColor: theme.accentColor,
-                        textColor: theme.textColor,
-                        headingFont: theme.headingFont,
-                        bodyFont: theme.bodyFont,
-                        buttonStyle: theme.buttonStyle,
-                        backgroundType: theme.backgroundType,
-                        backgroundValue: theme.backgroundValue,
-                        backgroundOverlay: theme.backgroundOverlay,
-                      });
-                    }}
-                  />
-                )}
-              </div>
+              {/* Story 9.10: Redesigned Landing Page Editor */}
+              {landingPageData && (
+                <LandingPageEditor
+                  landingPageData={{
+                    ...landingPageData,
+                    links: landingPageData.links || [],
+                    socialIcons: (landingPageData.socialIcons as SocialIcon[]) || [],
+                  }}
+                  isPro={isPro}
+                  isSaving={updateLandingPageMutation.isPending}
+                  onUpdate={(updates) => updateLandingPageMutation.mutate(updates)}
+                  onCreateLink={(data) => createLinkMutation.mutate(data)}
+                  onUpdateLink={(data) => updateLinkMutation.mutate(data)}
+                  onDeleteLink={(id) => deleteLinkMutation.mutate(id)}
+                  onImageUpload={async (file) => {
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    const response = await fetch('/api/landing-page/background-image', {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include',
+                    });
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.error || 'Upload failed');
+                    }
+                    const data = await response.json();
+                    return data.url;
+                  }}
+                  onNavigateToUpgrade={() => setLocation('/pricing')}
+                />
+              )}
             </>
           )}
 

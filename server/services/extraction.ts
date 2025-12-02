@@ -1,11 +1,7 @@
-import { createRequire } from 'module';
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
 import { pdf } from 'pdf-to-img';
-
-// pdf-parse v1.x has ESM compatibility issues, use CommonJS require
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+import { PDFParse } from 'pdf-parse';
 
 export interface ExtractionResult {
   success: boolean;
@@ -108,29 +104,37 @@ async function extractWithOCR(buffer: Buffer, maxPages: number = OCR_MAX_PAGES):
  * Falls back to OCR for scanned documents
  */
 export async function extractFromPDF(buffer: Buffer): Promise<ExtractionResult> {
+  let parser: PDFParse | null = null;
   try {
-    // First try standard text extraction
-    const data = await pdfParse(buffer, {
+    // First try standard text extraction using pdf-parse v2.x API
+    parser = new PDFParse({ data: buffer });
+    const textResult = await parser.getText({
       // Limit pages for very large documents
-      max: 100
+      last: 100
     });
 
-    const text = data.text.trim();
+    const text = textResult.text.trim();
+    const pageCount = textResult.pages.length;
 
     if (!text || text.length < MIN_TEXT_LENGTH) {
       // No text found - this is likely a scanned document, try OCR
       console.log('[EXTRACT] No text found in PDF, attempting OCR...');
+      await parser.destroy();
       return await extractWithOCR(buffer);
     }
 
+    await parser.destroy();
     return {
       success: true,
       text: cleanText(text),
       charCount: text.length,
-      pageCount: data.numpages
+      pageCount
     };
   } catch (error) {
     console.error('[EXTRACT] PDF extraction failed:', error);
+    if (parser) {
+      await parser.destroy().catch(() => {});
+    }
 
     // Try OCR as fallback even if pdf-parse fails
     console.log('[EXTRACT] pdf-parse failed, attempting OCR fallback...');

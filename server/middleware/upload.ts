@@ -59,3 +59,31 @@ export const UPLOAD_CONSTANTS = {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE
 };
+
+// Image upload configuration for landing page backgrounds
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+
+export const imageUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_IMAGE_SIZE
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_IMAGE_EXTENSIONS.join(', ')}`));
+    }
+    if (!ALLOWED_IMAGE_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Accepted: jpg, png, webp`));
+    }
+    cb(null, true);
+  }
+});
+
+export const IMAGE_UPLOAD_CONSTANTS = {
+  ALLOWED_IMAGE_EXTENSIONS,
+  ALLOWED_IMAGE_MIMES,
+  MAX_IMAGE_SIZE
+};

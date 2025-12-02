@@ -1,0 +1,171 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>10</epicId>
+    <storyId>1</storyId>
+    <title>Landing Page Analytics Tracking</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/10-1-landing-page-analytics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to see real analytics for my landing page</iWant>
+    <soThat>I can understand how visitors engage with my page and optimize it accordingly</soThat>
+    <tasks>
+      <task id="1">Database Schema - Add pageViews and linkClicks tables to schema.ts, run migration</task>
+      <task id="2">Backend Analytics Routes - Create server/routes/analytics.ts with 4 endpoints (track pageview, end session, track click, get stats)</task>
+      <task id="3">Client-Side Tracking Library - Create client/src/lib/analytics.ts with trackPageView, trackPageEnd, trackLinkClick functions</task>
+      <task id="4">Integrate Tracking in ArtistPage - Call trackPageView on mount, trackPageEnd on unload, trackLinkClick on link clicks</task>
+      <task id="5">Update Landing Page Stats Display - Replace hardcoded landingPageStats with real data from analytics API</task>
+      <task id="6">Testing - Verify tracking and aggregation work correctly</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">New analytics tables created (page_views, link_clicks)</criterion>
+    <criterion id="AC-2">Track page view on every ArtistPage load (with session/visitor identification)</criterion>
+    <criterion id="AC-3">Track link clicks when visitors click links on landing pages</criterion>
+    <criterion id="AC-4">Calculate unique visitors using session fingerprinting (IP + User-Agent hash)</criterion>
+    <criterion id="AC-5">Calculate average time on page using session start/end timestamps</criterion>
+    <criterion id="AC-6">Calculate click rate as (total clicks / total views) * 100</criterion>
+    <criterion id="AC-7">API endpoint returns aggregated stats for Dashboard display</criterion>
+    <criterion id="AC-8">Dashboard stats card displays real data instead of hardcoded values</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/10-1-landing-page-analytics.md</path>
+        <title>Story 10.1: Landing Page Analytics Tracking</title>
+        <section>Technical Requirements</section>
+        <snippet>Complete implementation spec including database schema, API endpoints, client tracking library, and aggregation queries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/epic-10-analytics-insights.md</path>
+        <title>Epic 10: Analytics &amp; Insights</title>
+        <section>Stories</section>
+        <snippet>Epic overview defining analytics tracking requirements for landing pages.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>shared/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>landingPages, landingPageLinks</symbol>
+        <lines>156-221</lines>
+        <reason>Landing page and link tables - analytics tables will reference these via foreign keys</reason>
+      </artifact>
+      <artifact>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>registerRoutes</symbol>
+        <lines>46-50</lines>
+        <reason>Main routes file - new analytics routes will be registered here</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page</kind>
+        <symbol>ArtistPage</symbol>
+        <lines>77-80</lines>
+        <reason>Public landing page component - tracking will be added on mount/unload</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>landingPageStats</symbol>
+        <lines>510-515</lines>
+        <reason>Hardcoded stats array to be replaced with real analytics data</reason>
+      </artifact>
+      <artifact>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>stats card rendering</symbol>
+        <lines>1242-1250</lines>
+        <reason>Landing page stats display in UI - will consume analytics API</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="drizzle-orm" reason="Database ORM for schema and queries"/>
+        <package name="@neondatabase/serverless" reason="PostgreSQL database"/>
+        <package name="express" reason="HTTP server for API endpoints"/>
+        <package name="@tanstack/react-query" reason="Data fetching for analytics"/>
+        <package name="crypto" reason="Built-in Node.js module for visitor hash generation"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>No PII storage - use hashed visitor identifiers only (SHA-256 of IP + User-Agent)</constraint>
+    <constraint>Public tracking endpoints must not require authentication</constraint>
+    <constraint>Stats retrieval endpoint must require authentication and verify ownership</constraint>
+    <constraint>Use navigator.sendBeacon for page end tracking (non-blocking)</constraint>
+    <constraint>Follow existing drizzle-orm patterns for table definitions</constraint>
+    <constraint>Use existing apiRequest helper for authenticated endpoints</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/analytics/pageview</name>
+      <kind>REST endpoint</kind>
+      <signature>Request: { landingPageId: string, sessionId: string, referrer?: string } Response: { pageViewId: string }</signature>
+      <path>server/routes/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>POST /api/analytics/pageview/:id/end</name>
+      <kind>REST endpoint</kind>
+      <signature>Request: { endedAt: string } Response: { success: boolean }</signature>
+      <path>server/routes/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>POST /api/analytics/click</name>
+      <kind>REST endpoint</kind>
+      <signature>Request: { linkId: string, landingPageId: string, pageViewId?: string, sessionId: string } Response: { success: boolean }</signature>
+      <path>server/routes/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>GET /api/analytics/landing-page/:id</name>
+      <kind>REST endpoint</kind>
+      <signature>Response: { totalViews: number, uniqueVisitors: number, avgTimeOnPage: number, clickRate: number, linkStats: Array }</signature>
+      <path>server/routes/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>trackPageView</name>
+      <kind>function</kind>
+      <signature>(landingPageId: string) =&gt; Promise&lt;string | null&gt;</signature>
+      <path>client/src/lib/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>trackPageEnd</name>
+      <kind>function</kind>
+      <signature>(pageViewId: string) =&gt; Promise&lt;void&gt;</signature>
+      <path>client/src/lib/analytics.ts (new)</path>
+    </interface>
+    <interface>
+      <name>trackLinkClick</name>
+      <kind>function</kind>
+      <signature>(linkId: string, landingPageId: string, pageViewId?: string) =&gt; Promise&lt;void&gt;</signature>
+      <path>client/src/lib/analytics.ts (new)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest for unit/integration tests. Tests are co-located in __tests__ directories. Mock external dependencies. Test both success and error paths.</standards>
+    <locations>
+      <location>server/routes/__tests__/analytics.test.ts</location>
+      <location>client/src/lib/__tests__/analytics.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test pageViews and linkClicks table creation and foreign key constraints</idea>
+      <idea ac="AC-2">Test pageview tracking endpoint creates record with correct visitor hash</idea>
+      <idea ac="AC-3">Test click tracking endpoint creates record linked to correct link and page</idea>
+      <idea ac="AC-4">Test unique visitor calculation returns distinct visitor_hash count</idea>
+      <idea ac="AC-5">Test avg time calculation with started_at and ended_at timestamps</idea>
+      <idea ac="AC-6">Test click rate calculation formula</idea>
+      <idea ac="AC-7">Test stats endpoint returns correct aggregated data</idea>
+      <idea ac="AC-8">Test Dashboard renders real stats from API</idea>
+    </ideas>
+  </tests>
+</story-context>

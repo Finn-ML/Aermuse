@@ -88,3 +88,40 @@ export async function getSignedPdfUrl(path: string): Promise<string> {
   // For Replit Object Storage, we need to serve through our API
   return `/api/files/signed/${encodeURIComponent(path)}`;
 }
+
+export async function uploadBackgroundImage(
+  userId: string,
+  landingPageId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `landing-pages/${userId}/${landingPageId}/background-${timestamp}.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+export async function downloadBackgroundImage(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download background image: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+export function getImageContentType(extension: string): string {
+  const types: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp'
+  };
+  return types[extension.toLowerCase()] || 'image/jpeg';
+}
