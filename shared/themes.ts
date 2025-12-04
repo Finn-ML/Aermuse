@@ -167,14 +167,81 @@ export const THEME_PRESETS: ThemePreset[] = [
 
 // Supported fonts for font selection (Story 9.3)
 export const SUPPORTED_FONTS = [
+  // Sans-serif - Modern & Clean
   { name: 'Inter', category: 'sans-serif', weights: '400;600;700' },
   { name: 'Montserrat', category: 'sans-serif', weights: '400;600;700' },
   { name: 'Poppins', category: 'sans-serif', weights: '400;600;700' },
   { name: 'Roboto', category: 'sans-serif', weights: '400;500;700' },
-  { name: 'Playfair Display', category: 'serif', weights: '400;600;700' },
-  { name: 'Lora', category: 'serif', weights: '400;600;700' },
+  { name: 'Open Sans', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Lato', category: 'sans-serif', weights: '400;700;900' },
+  { name: 'Nunito', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Raleway', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Work Sans', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Outfit', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Plus Jakarta Sans', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Manrope', category: 'sans-serif', weights: '400;600;700' },
   { name: 'Space Grotesk', category: 'sans-serif', weights: '400;500;700' },
   { name: 'DM Sans', category: 'sans-serif', weights: '400;500;700' },
+  { name: 'Quicksand', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Mulish', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Karla', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Source Sans 3', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Rubik', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Barlow', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Urbanist', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Figtree', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Albert Sans', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Sora', category: 'sans-serif', weights: '400;600;700' },
+
+  // Serif - Classic & Elegant
+  { name: 'Playfair Display', category: 'serif', weights: '400;600;700' },
+  { name: 'Lora', category: 'serif', weights: '400;600;700' },
+  { name: 'Merriweather', category: 'serif', weights: '400;700;900' },
+  { name: 'Libre Baskerville', category: 'serif', weights: '400;700' },
+  { name: 'Crimson Text', category: 'serif', weights: '400;600;700' },
+  { name: 'EB Garamond', category: 'serif', weights: '400;600;700' },
+  { name: 'Cormorant Garamond', category: 'serif', weights: '400;600;700' },
+  { name: 'Bitter', category: 'serif', weights: '400;600;700' },
+  { name: 'Arvo', category: 'serif', weights: '400;700' },
+  { name: 'Spectral', category: 'serif', weights: '400;600;700' },
+  { name: 'Source Serif 4', category: 'serif', weights: '400;600;700' },
+  { name: 'Vollkorn', category: 'serif', weights: '400;600;700' },
+  { name: 'Cardo', category: 'serif', weights: '400;700' },
+  { name: 'DM Serif Display', category: 'serif', weights: '400' },
+  { name: 'Fraunces', category: 'serif', weights: '400;600;700' },
+
+  // Display - Headlines & Creative
+  { name: 'Bebas Neue', category: 'display', weights: '400' },
+  { name: 'Oswald', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Anton', category: 'sans-serif', weights: '400' },
+  { name: 'Archivo Black', category: 'sans-serif', weights: '400' },
+  { name: 'Righteous', category: 'display', weights: '400' },
+  { name: 'Staatliches', category: 'display', weights: '400' },
+  { name: 'Titan One', category: 'display', weights: '400' },
+  { name: 'Alfa Slab One', category: 'display', weights: '400' },
+  { name: 'Fredoka', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Comfortaa', category: 'display', weights: '400;600;700' },
+  { name: 'Lexend', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Josefin Sans', category: 'sans-serif', weights: '400;600;700' },
+  { name: 'Concert One', category: 'display', weights: '400' },
+  { name: 'Permanent Marker', category: 'handwriting', weights: '400' },
+  { name: 'Bangers', category: 'display', weights: '400' },
+
+  // Script & Handwriting
+  { name: 'Dancing Script', category: 'cursive', weights: '400;600;700' },
+  { name: 'Pacifico', category: 'cursive', weights: '400' },
+  { name: 'Satisfy', category: 'cursive', weights: '400' },
+  { name: 'Great Vibes', category: 'cursive', weights: '400' },
+  { name: 'Lobster', category: 'display', weights: '400' },
+  { name: 'Caveat', category: 'handwriting', weights: '400;600;700' },
+  { name: 'Kalam', category: 'handwriting', weights: '400;700' },
+  { name: 'Sacramento', category: 'cursive', weights: '400' },
+
+  // Monospace - Technical
+  { name: 'Fira Code', category: 'monospace', weights: '400;600;700' },
+  { name: 'JetBrains Mono', category: 'monospace', weights: '400;600;700' },
+  { name: 'Space Mono', category: 'monospace', weights: '400;700' },
+  { name: 'IBM Plex Mono', category: 'monospace', weights: '400;600;700' },
 ];
 
 // Helper to get theme by ID

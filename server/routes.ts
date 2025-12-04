@@ -10,20 +10,21 @@ import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
-import { requireAdmin, requireAuth } from "./middleware/auth";
+import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage } from "./services/fileStorage";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
-import { getUserSubscription } from "./services/subscription";
+import { getUserSubscription, canCreateContract } from "./services/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFFromRecord } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
-import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES } from "@shared/schema";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
 import { sendSignatureRequestEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
+import { registerAnalyticsRoutes } from "./routes/analytics";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -47,6 +48,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Register analytics routes (Epic 10)
+  registerAnalyticsRoutes(app);
 
   // Auth routes
   app.post("/api/auth/register", async (req: Request, res: Response) => {
@@ -401,6 +405,27 @@ export async function registerRoutes(
     }
   });
 
+  // Contract limit status endpoint (for pay gating UI)
+  app.get("/api/contracts/limit", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const limitCheck = await canCreateContract(userId);
+      res.json({
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        allowed: limitCheck.allowed,
+        isPremium: !limitCheck.limit // No limit means premium
+      });
+    } catch (error) {
+      console.error("Get contract limit error:", error);
+      res.status(500).json({ error: "Failed to get contract limit" });
+    }
+  });
+
   // Contracts routes
   app.get("/api/contracts", async (req: Request, res: Response) => {
     try {
@@ -455,6 +480,18 @@ export async function registerRoutes(
       const userId = (req.session as any).userId;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check contract limit for free users
+      const limitCheck = await canCreateContract(userId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          error: "Contract limit reached. Upgrade to Premium for unlimited contracts.",
+          code: "CONTRACT_LIMIT_REACHED",
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgradeUrl: "/pricing"
+        });
       }
 
       const data = insertContractSchema.parse({
@@ -538,12 +575,102 @@ export async function registerRoutes(
     }
   });
 
+  // Helper to check and track AI usage
+  async function checkAndTrackAiUsage(userId: string): Promise<{ allowed: boolean; used: number; limit: number; error?: string }> {
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return { allowed: false, used: 0, limit: 0, error: "User not found" };
+    }
+
+    // Get today's date (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get current usage
+    const [usage] = await db.select()
+      .from(aiUsage)
+      .where(and(
+        eq(aiUsage.userId, userId),
+        gte(aiUsage.usageDate, today)
+      ));
+
+    const currentCount = usage?.analysisCount ?? 0;
+
+    // Get daily limit from settings
+    const isPremium = user.plan === 'premium' || user.subscriptionStatus === 'active';
+    const limitKey = isPremium ? 'ai.daily_limit_premium' : 'ai.daily_limit_free';
+
+    const [limitSetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, limitKey));
+    const dailyLimit = (limitSetting?.value as number) ?? (isPremium ? 100 : 0);
+
+    // Check if limit reached
+    if (dailyLimit > 0 && currentCount >= dailyLimit) {
+      return {
+        allowed: false,
+        used: currentCount,
+        limit: dailyLimit,
+        error: `Daily AI analysis limit reached (${dailyLimit}/${dailyLimit}). ${isPremium ? 'Try again tomorrow.' : 'Upgrade to Premium for more analyses.'}`
+      };
+    }
+
+    // No limit set means no access for free users
+    if (dailyLimit === 0 && !isPremium) {
+      return {
+        allowed: false,
+        used: currentCount,
+        limit: dailyLimit,
+        error: "AI analysis requires a Premium subscription."
+      };
+    }
+
+    return { allowed: true, used: currentCount, limit: dailyLimit };
+  }
+
+  // Helper to increment AI usage after successful analysis
+  async function incrementAiUsage(userId: string): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [existing] = await db.select()
+      .from(aiUsage)
+      .where(and(
+        eq(aiUsage.userId, userId),
+        gte(aiUsage.usageDate, today)
+      ));
+
+    if (existing) {
+      await db.update(aiUsage)
+        .set({
+          analysisCount: existing.analysisCount + 1,
+          updatedAt: new Date()
+        })
+        .where(eq(aiUsage.id, existing.id));
+    } else {
+      await db.insert(aiUsage).values({
+        userId,
+        usageDate: today,
+        analysisCount: 1,
+      });
+    }
+  }
+
   // AI Contract Analysis (GPT-4)
   app.post("/api/contracts/:id/analyze", aiLimiter, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check daily usage limit
+      const usageCheck = await checkAndTrackAiUsage(userId);
+      if (!usageCheck.allowed) {
+        return res.status(429).json({
+          error: usageCheck.error,
+          code: 'DAILY_LIMIT_REACHED',
+          used: usageCheck.used,
+          limit: usageCheck.limit
+        });
       }
 
       const contract = await storage.getContract(req.params.id);
@@ -613,6 +740,9 @@ export async function registerRoutes(
         status: 'analyzed'
       });
 
+      // Track usage after successful analysis
+      await incrementAiUsage(userId);
+
       console.log(`[AI] Contract ${contract.id} analyzed: ${result.usage.totalTokens} tokens`);
 
       res.json({
@@ -654,6 +784,18 @@ export async function registerRoutes(
 
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Check contract limit for free users
+      const limitCheck = await canCreateContract(userId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          error: "Contract limit reached. Upgrade to Premium for unlimited contracts.",
+          code: "CONTRACT_LIMIT_REACHED",
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgradeUrl: "/pricing"
+        });
       }
 
       // Verify file type using magic bytes
@@ -1298,8 +1440,8 @@ export async function registerRoutes(
     }
   });
 
-  // Background image upload for landing pages (Story 9.5)
-  app.post("/api/landing-page/background-image", imageUpload.single("image"), async (req: Request, res: Response) => {
+  // Background image upload for landing pages (Story 9.5, 9.13: increased to 5MB)
+  app.post("/api/landing-page/background-image", backgroundImageUpload.single("image"), async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -1331,7 +1473,7 @@ export async function registerRoutes(
       console.error("Background image upload error:", error);
       if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: "File too large. Maximum size is 2MB." });
+          return res.status(400).json({ error: "File too large. Maximum size is 5MB." });
         }
       }
       res.status(500).json({ error: "Failed to upload background image" });
@@ -1354,6 +1496,119 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Background image download error:", error);
       res.status(404).json({ error: "Image not found" });
+    }
+  });
+
+  // Delete background image (Story 9.13)
+  app.delete("/api/landing-page/background-image", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get landing page using storage helper
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Clear background value and set to solid color (don't delete file from storage - may be used for recovery)
+      await storage.updateLandingPage(landingPage.id, {
+        backgroundType: 'solid',
+        backgroundValue: '#660033',
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Background image delete error:", error);
+      res.status(500).json({ error: "Failed to remove background image" });
+    }
+  });
+
+  // Avatar image upload for landing pages (Story 9.12)
+  app.post("/api/landing-page/avatar", imageUpload.single("image"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Get landing page using storage helper
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Get file extension
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+
+      // Upload to storage
+      const result = await uploadAvatarImage(userId, landingPage.id, file.buffer, extension);
+
+      // Return URL path that will be served through our API
+      const url = `/api/landing-page/avatar/${encodeURIComponent(result.path)}`;
+
+      // Update landing page avatarUrl
+      await storage.updateLandingPage(landingPage.id, { avatarUrl: url });
+
+      res.json({ success: true, url, path: result.path });
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 2MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload avatar" });
+    }
+  });
+
+  // Serve avatar images
+  app.get("/api/landing-page/avatar/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+
+      // Extract extension for content type
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
+
+      const buffer = await downloadAvatarImage(filePath);
+
+      res.set('Content-Type', getImageContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+      res.send(buffer);
+    } catch (error) {
+      console.error("Avatar download error:", error);
+      res.status(404).json({ error: "Avatar not found" });
+    }
+  });
+
+  // Delete avatar image
+  app.delete("/api/landing-page/avatar", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get landing page using storage helper
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Clear avatarUrl (don't delete file from storage - may be used for recovery)
+      await storage.updateLandingPage(landingPage.id, { avatarUrl: null });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Avatar delete error:", error);
+      res.status(500).json({ error: "Failed to remove avatar" });
     }
   });
 
@@ -1824,6 +2079,18 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Check contract limit for free users
+      const limitCheck = await canCreateContract(userId);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          error: "Contract limit reached. Upgrade to Premium for unlimited contracts.",
+          code: "CONTRACT_LIMIT_REACHED",
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgradeUrl: "/pricing"
+        });
+      }
+
       const { templateId, formData, title } = req.body as {
         templateId: string;
         formData: TemplateFormData;
@@ -2043,6 +2310,129 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // ADMIN SETTINGS ROUTES (Epic 6)
+  // ============================================
+
+  // Default settings values
+  const DEFAULT_SETTINGS = {
+    'ai.daily_limit_free': 0,
+    'ai.daily_limit_premium': 100,
+    'signature.default_expiry_days': 30,
+    'email.notifications_enabled': true,
+  };
+
+  // Helper to get a setting value
+  async function getSettingValue<T>(key: string): Promise<T | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    if (setting) {
+      return setting.value as T;
+    }
+    return (DEFAULT_SETTINGS as any)[key];
+  }
+
+  // GET /api/admin/settings - Get all system settings
+  app.get("/api/admin/settings", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const settings = await db.select().from(systemSettings);
+
+      // Merge with defaults
+      const settingsMap: Record<string, any> = { ...DEFAULT_SETTINGS };
+      for (const setting of settings) {
+        settingsMap[setting.key] = setting.value;
+      }
+
+      res.json(settingsMap);
+    } catch (error) {
+      console.error("Admin get settings error:", error);
+      res.status(500).json({ error: "Failed to get settings" });
+    }
+  });
+
+  // PUT /api/admin/settings - Update system settings
+  app.put("/api/admin/settings", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const updates = req.body as Record<string, any>;
+
+      // Validate settings
+      const validKeys = Object.keys(DEFAULT_SETTINGS);
+      const invalidKeys = Object.keys(updates).filter(k => !validKeys.includes(k));
+      if (invalidKeys.length > 0) {
+        return res.status(400).json({ error: `Invalid setting keys: ${invalidKeys.join(', ')}` });
+      }
+
+      // Upsert each setting
+      for (const [key, value] of Object.entries(updates)) {
+        const [existing] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+
+        if (existing) {
+          await db.update(systemSettings)
+            .set({ value, updatedAt: new Date(), updatedBy: userId })
+            .where(eq(systemSettings.key, key));
+        } else {
+          await db.insert(systemSettings).values({
+            key,
+            value,
+            updatedBy: userId,
+          });
+        }
+      }
+
+      console.log(`[ADMIN] Settings updated by ${userId}:`, Object.keys(updates));
+
+      // Return updated settings
+      const settings = await db.select().from(systemSettings);
+      const settingsMap: Record<string, any> = { ...DEFAULT_SETTINGS };
+      for (const setting of settings) {
+        settingsMap[setting.key] = setting.value;
+      }
+
+      res.json(settingsMap);
+    } catch (error) {
+      console.error("Admin update settings error:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // GET /api/user/ai-usage - Get current user's AI usage for today
+  app.get("/api/user/ai-usage", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get today's usage
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [usage] = await db.select()
+        .from(aiUsage)
+        .where(and(
+          eq(aiUsage.userId, userId),
+          gte(aiUsage.usageDate, today)
+        ));
+
+      // Get limits from settings
+      const isPremium = user.plan === 'premium' || user.subscriptionStatus === 'active';
+      const limitKey = isPremium ? 'ai.daily_limit_premium' : 'ai.daily_limit_free';
+      const dailyLimit = await getSettingValue<number>(limitKey) ?? (isPremium ? 100 : 0);
+
+      res.json({
+        used: usage?.analysisCount ?? 0,
+        limit: dailyLimit,
+        remaining: Math.max(0, dailyLimit - (usage?.analysisCount ?? 0)),
+        isPremium,
+      });
+    } catch (error) {
+      console.error("Get AI usage error:", error);
+      res.status(500).json({ error: "Failed to get AI usage" });
+    }
+  });
+
+  // ============================================
   // SIGNATURE REQUEST ROUTES (Epic 4)
   // ============================================
 
@@ -2061,8 +2451,8 @@ export async function registerRoutes(
     signatoryId: z.string().min(1, 'Signatory ID is required'),
   });
 
-  // POST /api/signatures/request - Create signature request
-  app.post("/api/signatures/request", requireAuth, async (req: Request, res: Response) => {
+  // POST /api/signatures/request - Create signature request (Premium only)
+  app.post("/api/signatures/request", requireAuth, requirePremium, async (req: Request, res: Response) => {
     try {
       const input = createSignatureRequestSchema.parse(req.body);
       const userId = (req.session as any).userId;

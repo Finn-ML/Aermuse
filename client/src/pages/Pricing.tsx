@@ -138,7 +138,7 @@ export default function Pricing() {
               </div>
               <h3 className="text-xl font-bold text-[#F7E6CA] mb-2">Premium</h3>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-[#F7E6CA]">£9.99</span>
+                <span className="text-4xl font-bold text-[#F7E6CA]">£9</span>
                 <span className="text-[#F7E6CA]/60">/month</span>
               </div>
               <ul className="space-y-3 mb-8">

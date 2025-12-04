@@ -98,7 +98,12 @@ export function ContractUpload({ onUploadComplete, onCancel }: ContractUploadPro
           } else {
             try {
               const data = JSON.parse(xhr.responseText);
-              reject(new Error(data.error || "Upload failed"));
+              // Handle contract limit error
+              if (data.code === "CONTRACT_LIMIT_REACHED") {
+                reject(new Error(`Contract limit reached (${data.current}/${data.limit}). Upgrade to Premium for unlimited contracts.`));
+              } else {
+                reject(new Error(data.error || "Upload failed"));
+              }
             } catch {
               reject(new Error("Upload failed"));
             }

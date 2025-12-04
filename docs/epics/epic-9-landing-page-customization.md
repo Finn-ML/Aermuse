@@ -271,7 +271,83 @@ A fully customizable landing page with:
 
 ---
 
-## Total Story Points: 33
+### Story 9.11: Editable Links
+
+**As an** artist
+**I want** to edit my link titles and URLs
+**So that** I can update my links without deleting and recreating them
+
+**Acceptance Criteria:**
+- [ ] Click link title to edit inline
+- [ ] Click link URL to edit inline
+- [ ] Save on blur or Enter key
+- [ ] Cancel edit on Escape key
+- [ ] Validation for URL format
+- [ ] Empty title/URL prevented
+- [ ] Changes persist immediately
+
+**Technical Notes:**
+- Inline editing in LinksTab component
+- Use existing updateLinkMutation
+- Debounce save to prevent excessive API calls
+
+**Story Points:** 2
+
+---
+
+### Story 9.12: Avatar Image Upload
+
+**As an** artist
+**I want** to upload an avatar image for my landing page
+**So that** I can personalize my page with my photo or logo
+
+**Acceptance Criteria:**
+- [ ] Upload button in landing page editor
+- [ ] Accepts jpg, png, webp formats
+- [ ] Max file size 2MB
+- [ ] Image preview before upload
+- [ ] Circular crop preview
+- [ ] Replace existing avatar
+- [ ] Remove avatar option
+- [ ] Image stored securely
+
+**Technical Notes:**
+- New API endpoint: POST /api/landing-page/avatar
+- Store in existing file storage (or S3)
+- Update avatarUrl field in landing_pages table
+- Return uploaded image URL
+
+**Story Points:** 3
+
+---
+
+### Story 9.13: Background Image Upload
+
+**As an** artist
+**I want** to upload a custom background image
+**So that** my landing page has a unique visual identity
+
+**Acceptance Criteria:**
+- [ ] Upload button in background settings
+- [ ] Accepts jpg, png, webp formats
+- [ ] Max file size 5MB (larger for backgrounds)
+- [ ] Image preview before upload
+- [ ] Image positioning options (cover, contain)
+- [ ] Overlay opacity control
+- [ ] Replace existing background
+- [ ] Remove background option
+
+**Technical Notes:**
+- New API endpoint: POST /api/landing-page/background-image
+- Store in existing file storage (or S3)
+- Update backgroundValue field when type is 'image'
+- Integrate with existing BackgroundEditor component
+
+**Story Points:** 3
+
+---
+
+## Total Story Points: 41
 
 ## Story Prioritization
 

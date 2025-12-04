@@ -1,0 +1,195 @@
+<story-context id="9-11-editable-links" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>11</storyId>
+    <title>Editable Links</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-11-editable-links.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to edit my link titles and URLs inline</iWant>
+    <soThat>I can update my links without deleting and recreating them</soThat>
+    <tasks>
+      <task id="1" title="Create InlineEdit Component" acs="1,2,3,4,6">
+        <subtask>Create InlineEdit component in LinksTab.tsx or separate file</subtask>
+        <subtask>Implement click-to-edit behavior</subtask>
+        <subtask>Implement Enter to save</subtask>
+        <subtask>Implement Escape to cancel</subtask>
+        <subtask>Implement blur to save</subtask>
+        <subtask>Handle empty value validation with error state</subtask>
+      </task>
+      <task id="2" title="Add URL Validation" acs="5">
+        <subtask>Create isValidUrl helper function</subtask>
+        <subtask>Pass validation to URL InlineEdit component</subtask>
+        <subtask>Show visual error state for invalid URLs</subtask>
+      </task>
+      <task id="3" title="Integrate InlineEdit in LinksTab" acs="7">
+        <subtask>Replace static title display with InlineEdit for links</subtask>
+        <subtask>Replace static URL display with InlineEdit for links</subtask>
+        <subtask>Replace static title display with InlineEdit for headers</subtask>
+        <subtask>Verify onUpdateLink callback is called correctly</subtask>
+      </task>
+      <task id="4" title="Testing">
+        <subtask>Test title editing (click, type, Enter)</subtask>
+        <subtask>Test URL editing (click, type, Enter)</subtask>
+        <subtask>Test Escape cancels edit</subtask>
+        <subtask>Test blur saves edit</subtask>
+        <subtask>Test invalid URL shows error</subtask>
+        <subtask>Test empty value shows error</subtask>
+        <subtask>Test changes persist (check database/API)</subtask>
+        <subtask>Test header title editing</subtask>
+        <subtask>Test video embed title editing</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Click link title to edit inline</criterion>
+    <criterion id="AC-2">Click link URL to edit inline</criterion>
+    <criterion id="AC-3">Save on blur or Enter key</criterion>
+    <criterion id="AC-4">Cancel edit on Escape key</criterion>
+    <criterion id="AC-5">Validation for URL format (must be valid URL)</criterion>
+    <criterion id="AC-6">Empty title/URL prevented (show error state)</criterion>
+    <criterion id="AC-7">Changes persist immediately to database</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-9-landing-page-customization.md</path>
+        <title>Epic 9: Landing Page Customization</title>
+        <section>Story 9.11: Editable Links</section>
+        <snippet>Technical notes: Inline editing in LinksTab component. Use existing updateLinkMutation. Debounce save to prevent excessive API calls.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-10-landing-page-editor-redesign.md</path>
+        <title>Story 9.10: Landing Page Editor Redesign</title>
+        <section>Dev Agent Record</section>
+        <snippet>LinksTab created at client/src/components/landing/editor/LinksTab.tsx. Uses onUpdateLink callback with signature: (data: { id, enabled?, title?, url?, order? }) => void</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Aermuse MVP Architecture Document</title>
+        <section>Technology Stack</section>
+        <snippet>Frontend: React 18.x, Vite, TailwindCSS, TypeScript 5.x. Uses Drizzle ORM for database operations.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>client/src/components/landing/editor/LinksTab.tsx</path>
+        <kind>component</kind>
+        <symbol>LinksTab</symbol>
+        <lines>1-207</lines>
+        <reason>Primary file to modify. Contains link display at lines 147-149 (title/URL static display) that needs to become editable.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>updateLinkMutation</symbol>
+        <lines>385-388</lines>
+        <reason>Contains the mutation that calls PATCH /api/landing-page/links/:id. Already supports title and url fields.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/editor/LandingPageEditor.tsx</path>
+        <kind>component</kind>
+        <symbol>LandingPageEditor</symbol>
+        <reason>Parent component that passes onUpdateLink prop to LinksTab.</reason>
+      </file>
+      <file>
+        <path>server/routes/landing-page.ts</path>
+        <kind>route</kind>
+        <symbol>PATCH /api/landing-page/links/:id</symbol>
+        <reason>Backend endpoint that handles link updates - already supports title/url fields.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.453.0</version>
+        <note>For icons if needed</note>
+      </node>
+      <node>
+        <package>clsx</package>
+        <version>^2.1.1</version>
+        <note>For conditional class names</note>
+      </node>
+      <node>
+        <package>tailwind-merge</package>
+        <version>^2.6.0</version>
+        <note>For merging Tailwind classes</note>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>^5.60.5</version>
+        <note>Used for mutations in parent Dashboard</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>LinksTabProps.onUpdateLink</name>
+      <kind>callback function</kind>
+      <signature>(data: { id: string; enabled?: boolean; title?: string; url?: string; order?: string }) => void</signature>
+      <path>client/src/components/landing/editor/LinksTab.tsx:22</path>
+    </interface>
+    <interface>
+      <name>Link interface</name>
+      <kind>TypeScript interface</kind>
+      <signature>{ id: string; title: string; url: string; enabled: boolean | null; order?: string | null; type?: string | null; videoUrl?: string | null; }</signature>
+      <path>client/src/components/landing/editor/LinksTab.tsx:8-16</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/landing-page/links/:id</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/landing-page/links/:id { enabled?: boolean; title?: string; url?: string; order?: string }</signature>
+      <path>server/routes/landing-page.ts</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint type="pattern">Use React hooks (useState, useRef, useEffect) for local component state</constraint>
+    <constraint type="pattern">Follow existing component patterns in LinksTab - callback-based state updates</constraint>
+    <constraint type="styling">Use existing Tailwind CSS classes and color scheme (#660033 primary)</constraint>
+    <constraint type="architecture">No schema changes required - existing API supports title/url updates</constraint>
+    <constraint type="architecture">No new API endpoints needed - use existing updateLinkMutation</constraint>
+    <constraint type="ux">Click-to-edit pattern: display mode shows text, clicking switches to input</constraint>
+    <constraint type="validation">URL validation using native URL constructor (try/catch pattern)</constraint>
+    <constraint type="validation">Empty value prevention with visual error state (red border/background)</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit and integration testing. Tests located in client and server directories.
+      Run tests with: npm test (vitest run) or npm run test:watch (vitest).
+      TypeScript type checking with: npm run check (tsc).
+    </standards>
+    <locations>
+      <location>client/**/*.test.ts</location>
+      <location>client/**/*.test.tsx</location>
+      <location>server/**/*.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test clicking on link title triggers edit mode (isEditing state becomes true)</idea>
+      <idea ac="2">Test clicking on link URL triggers edit mode</idea>
+      <idea ac="3">Test pressing Enter calls onSave and exits edit mode</idea>
+      <idea ac="3">Test blur event calls onSave and exits edit mode</idea>
+      <idea ac="4">Test pressing Escape reverts value and exits edit mode without saving</idea>
+      <idea ac="5">Test invalid URL (e.g., "not a url") shows error state and prevents save</idea>
+      <idea ac="5">Test valid URL (e.g., "https://example.com") passes validation</idea>
+      <idea ac="6">Test empty title shows error state and prevents save</idea>
+      <idea ac="6">Test empty URL shows error state and prevents save</idea>
+      <idea ac="7">Test onUpdateLink callback is called with correct {id, title} or {id, url}</idea>
+    </ideas>
+  </tests>
+</story-context>

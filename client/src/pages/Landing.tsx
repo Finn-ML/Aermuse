@@ -6,7 +6,6 @@ import GrainOverlay from '@/components/GrainOverlay';
 export default function Landing() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [email, setEmail] = useState('');
 
   useEffect(() => {
     setIsLoaded(true);
@@ -23,33 +22,27 @@ export default function Landing() {
       icon: '§'
     },
     {
-      title: 'Exclusive Fan Spaces',
-      description: 'Create gated content experiences. Unreleased tracks, behind-the-scenes, early access—monetize your most dedicated audience.',
+      title: 'E-Signature Integration',
+      description: 'Send contracts for signature directly from the platform. Track status, collect signatures, and store signed documents securely.',
       icon: '◈'
     },
     {
       title: 'Artist Landing Pages',
-      description: 'Stunning, customizable pages that capture your aesthetic. One link for everything—tour dates, releases, merch, and more.',
+      description: 'Stunning, customizable pages that capture your aesthetic. One link for everything—streaming links, social profiles, and more.',
       icon: '◎'
     },
     {
-      title: 'Fan Relationship CRM',
-      description: 'Know your audience intimately. Track engagement, segment superfans, and build lasting connections that transcend algorithms.',
+      title: 'Contract Templates',
+      description: 'Professional music industry templates ready to customize. Artist agreements, sync licenses, production deals—all legally reviewed.',
       icon: '◆'
     }
   ];
 
   const testimonials = [
     { name: 'Mira Voss', role: 'Electronic Producer', quote: 'Finally, a platform that treats artists like professionals, not products.' },
-    { name: 'The Fernwood Collective', role: 'Indie Folk Band', quote: 'Our fan relationships have never been stronger. The CRM alone is worth it.' },
+    { name: 'The Fernwood Collective', role: 'Indie Folk Band', quote: 'The contract analysis alone has saved us from multiple bad deals.' },
     { name: 'D. Monarch', role: 'R&B Artist', quote: 'The contract AI saved me from a terrible publishing deal. Invaluable.' }
   ];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Waitlist submission:', email);
-    setEmail('');
-  };
 
   return (
     <div className="min-h-screen bg-[#F7E6CA] text-[#660033] overflow-hidden relative">
@@ -58,27 +51,27 @@ export default function Landing() {
           background: #660033;
           color: #F7E6CA;
         }
-        
+
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(40px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        
+
         @keyframes float {
           0%, 100% { transform: translateY(0) rotate(0deg); }
           50% { transform: translateY(-20px) rotate(2deg); }
         }
-        
+
         @keyframes marquee {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        
+
         .nav-link {
           position: relative;
           text-decoration: none;
@@ -89,7 +82,7 @@ export default function Landing() {
           text-transform: uppercase;
           transition: all 0.3s ease;
         }
-        
+
         .nav-link::after {
           content: '';
           position: absolute;
@@ -100,11 +93,11 @@ export default function Landing() {
           background: #660033;
           transition: width 0.3s ease;
         }
-        
+
         .nav-link:hover::after {
           width: 100%;
         }
-        
+
         .btn-primary {
           background: #660033;
           color: #F7E6CA;
@@ -118,12 +111,12 @@ export default function Landing() {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           border-radius: 50px;
         }
-        
+
         .btn-primary:hover {
           transform: translateY(-2px);
           box-shadow: 0 20px 40px rgba(102, 0, 51, 0.3);
         }
-        
+
         .btn-secondary {
           background: transparent;
           color: #660033;
@@ -137,96 +130,67 @@ export default function Landing() {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           border-radius: 50px;
         }
-        
+
         .btn-secondary:hover {
           background: #660033;
           color: #F7E6CA;
         }
-        
+
         .feature-card {
           transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .feature-card:hover {
           transform: translateY(-8px);
-        }
-        
-        .input-field {
-          background: rgba(255, 255, 255, 0.5);
-          border: 2px solid rgba(102, 0, 51, 0.2);
-          border-radius: 50px;
-          padding: 18px 28px;
-          font-size: 16px;
-          color: #660033;
-          width: 100%;
-          transition: all 0.3s ease;
-        }
-        
-        .input-field::placeholder {
-          color: rgba(102, 0, 51, 0.5);
-        }
-        
-        .input-field:focus {
-          outline: none;
-          border-color: #660033;
-          background: rgba(255, 255, 255, 0.7);
         }
       `}</style>
 
       <GrainOverlay />
 
-      <div 
-        className="absolute rounded-full border border-[rgba(102,0,51,0.1)]"
-        style={{
-          top: '10%',
-          right: '5%',
-          width: '400px',
-          height: '400px',
-          animation: 'float 8s ease-in-out infinite'
-        }} 
+      <div
+        className="absolute rounded-full border border-[rgba(102,0,51,0.1)] hidden md:block w-48 h-48 lg:w-80 lg:h-80 xl:w-[400px] xl:h-[400px] top-[10%] right-[5%]"
+        style={{ animation: 'float 8s ease-in-out infinite' }}
       />
-      <div 
-        className="absolute rounded-full border border-[rgba(102,0,51,0.08)]"
-        style={{
-          bottom: '20%',
-          left: '-100px',
-          width: '300px',
-          height: '300px',
-          animation: 'float 10s ease-in-out infinite 2s'
-        }} 
+      <div
+        className="absolute rounded-full border border-[rgba(102,0,51,0.08)] hidden lg:block w-40 h-40 lg:w-60 lg:h-60 xl:w-[300px] xl:h-[300px] bottom-[20%] -left-12 lg:-left-24"
+        style={{ animation: 'float 10s ease-in-out infinite 2s' }}
       />
 
-      <nav 
-        className={`flex justify-between items-center relative z-10 transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        style={{ padding: '40px 80px' }}
+      <nav
+        className={`flex justify-between items-center relative z-10 transition-opacity duration-1000 px-4 sm:px-8 md:px-12 lg:px-20 py-6 sm:py-8 lg:py-10 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="text-[28px] font-light tracking-[0.3em] lowercase">
+        <div className="text-xl sm:text-2xl lg:text-[28px] font-light tracking-[0.3em] lowercase">
           aermuse
         </div>
-        <div className="flex gap-12 items-center">
+        {/* Desktop nav */}
+        <div className="hidden md:flex gap-6 lg:gap-12 items-center">
           <a href="#features" className="nav-link" data-testid="link-features">Features</a>
-          <a href="#artists" className="nav-link" data-testid="link-artists">For Artists</a>
+          <a href="#testimonials" className="nav-link" data-testid="link-testimonials">Testimonials</a>
           <Link href="/pricing" className="nav-link" data-testid="link-pricing">Pricing</Link>
           <Link href="/auth">
-            <button className="btn-primary" style={{ padding: '14px 32px' }} data-testid="button-get-started">
+            <button className="btn-primary px-6 py-3 lg:px-8 lg:py-3.5" data-testid="button-get-started">
               Get Started
+            </button>
+          </Link>
+        </div>
+        {/* Mobile nav */}
+        <div className="flex md:hidden gap-3">
+          <Link href="/auth?mode=login" className="nav-link text-xs self-center">
+            Sign In
+          </Link>
+          <Link href="/auth">
+            <button className="btn-primary px-4 py-2.5 text-xs" data-testid="button-get-started-mobile">
+              Start Free
             </button>
           </Link>
         </div>
       </nav>
 
-      <section 
-        className="relative min-h-[80vh]"
-        style={{
-          padding: '80px 80px 120px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '80px',
-          alignItems: 'center'
-        }}
+      <section
+        className="relative min-h-[60vh] lg:min-h-[80vh] px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 xl:gap-20 items-center"
       >
         <div>
-          <div 
+          <div
             className={`transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{ transitionDelay: '200ms' }}
           >
@@ -234,8 +198,8 @@ export default function Landing() {
               The Artist Operating System
             </p>
           </div>
-          
-          <h1 
+
+          <h1
             className={`font-light leading-[1.05] mb-10 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{
               fontSize: 'clamp(48px, 7vw, 96px)',
@@ -245,183 +209,166 @@ export default function Landing() {
             Your career,<br />
             <span className="font-bold">orchestrated</span>
           </h1>
-          
-          <p 
+
+          <p
             className={`text-lg leading-[1.8] max-w-[480px] font-normal mb-12 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{
               color: 'rgba(102, 0, 51, 0.8)',
               transitionDelay: '600ms'
             }}
           >
-            AI-powered contract intelligence. Exclusive fan experiences. 
-            Beautiful landing pages. Everything you need to own your artistry.
+            AI-powered contract analysis. E-signatures. Beautiful landing pages.
+            Professional templates. Everything independent artists need to thrive.
           </p>
-          
-          <div 
-            className={`flex gap-6 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+
+          <div
+            className={`flex flex-col sm:flex-row gap-4 sm:gap-6 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{ transitionDelay: '800ms' }}
           >
             <Link href="/auth">
-              <button className="btn-primary" data-testid="button-request-access">Request Early Access</button>
+              <button className="btn-primary w-full sm:w-auto" data-testid="button-start-free">Start Free</button>
             </Link>
-            <button className="btn-secondary" data-testid="button-watch-demo">Watch Demo</button>
+            <Link href="/pricing">
+              <button className="btn-secondary w-full sm:w-auto" data-testid="button-view-pricing">View Pricing</button>
+            </Link>
           </div>
+
+          <p
+            className={`mt-6 text-sm transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+            style={{ color: 'rgba(102, 0, 51, 0.6)', transitionDelay: '900ms' }}
+          >
+            Free forever for basic features. Premium from £9/month.
+          </p>
         </div>
 
-        <div 
-          className={`relative overflow-hidden transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-          style={{
-            height: '600px',
-            borderRadius: '32px',
-            transitionDelay: '600ms'
-          }}
+        <div
+          className={`relative overflow-hidden transition-opacity duration-1000 h-[300px] sm:h-[400px] lg:h-[500px] xl:h-[600px] rounded-2xl lg:rounded-[32px] hidden sm:block ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{ transitionDelay: '600ms' }}
         >
           <ShaderAnimation variant="landing" />
-          
-          <div 
+
+          <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background: 'radial-gradient(circle at center, transparent 0%, rgba(102, 0, 51, 0.2) 100%)'
-            }} 
+            }}
           />
-          
-          <div 
-            className="absolute z-10"
+
+          <div
+            className="absolute z-10 top-4 right-4 lg:top-[60px] lg:right-[40px] p-4 lg:p-6 rounded-xl lg:rounded-[20px] hidden md:block"
             style={{
-              top: '60px',
-              right: '40px',
               background: 'rgba(247, 230, 202, 0.9)',
               backdropFilter: 'blur(20px)',
-              padding: '24px 32px',
-              borderRadius: '20px',
               boxShadow: '0 20px 60px rgba(102, 0, 51, 0.25)',
               animation: 'float 6s ease-in-out infinite'
             }}
           >
-            <div className="text-[11px] tracking-[0.2em] uppercase mb-2 opacity-60">
+            <div className="text-[10px] lg:text-[11px] tracking-[0.2em] uppercase mb-1 lg:mb-2 opacity-60">
               Contract Analysis
             </div>
-            <div className="text-2xl font-light">3 clauses flagged</div>
+            <div className="text-lg lg:text-2xl font-light">3 clauses flagged</div>
           </div>
 
-          <div 
-            className="absolute z-10"
+          <div
+            className="absolute z-10 bottom-16 left-2 lg:bottom-[120px] lg:left-[20px] p-4 lg:p-6 rounded-xl lg:rounded-[20px] hidden lg:block"
             style={{
-              bottom: '120px',
-              left: '20px',
               background: 'rgba(247, 230, 202, 0.9)',
               backdropFilter: 'blur(20px)',
-              padding: '24px 32px',
-              borderRadius: '20px',
               boxShadow: '0 20px 60px rgba(102, 0, 51, 0.25)',
               animation: 'float 7s ease-in-out infinite 1s'
             }}
           >
-            <div className="text-[11px] tracking-[0.2em] uppercase mb-2 opacity-60">
-              Fan Growth
+            <div className="text-[10px] lg:text-[11px] tracking-[0.2em] uppercase mb-1 lg:mb-2 opacity-60">
+              Risk Score
             </div>
-            <div className="text-2xl font-light">+847 this week</div>
+            <div className="text-lg lg:text-2xl font-light">Medium Risk</div>
           </div>
 
-          <div 
-            className="absolute z-10 bg-[#660033] text-[#F7E6CA]"
+          <div
+            className="absolute z-10 bg-[#660033] text-[#F7E6CA] top-24 left-4 lg:top-[200px] lg:left-[60px] p-4 lg:p-8 rounded-xl lg:rounded-[20px] hidden lg:block"
             style={{
-              top: '200px',
-              left: '60px',
-              padding: '32px',
-              borderRadius: '20px',
               boxShadow: '0 30px 80px rgba(102, 0, 51, 0.4)',
               animation: 'float 8s ease-in-out infinite 0.5s'
             }}
           >
-            <div className="text-[11px] tracking-[0.2em] uppercase mb-3 opacity-70">
-              Revenue
+            <div className="text-[10px] lg:text-[11px] tracking-[0.2em] uppercase mb-2 lg:mb-3 opacity-70">
+              Contracts
             </div>
-            <div className="text-[32px] font-light">$12,450</div>
+            <div className="text-xl lg:text-[32px] font-light">12 Active</div>
             <div className="text-xs mt-2 opacity-70">
-              ↑ 23% from exclusive content
+              2 awaiting signature
             </div>
           </div>
         </div>
       </section>
 
-      <section 
-        className="overflow-hidden"
-        style={{
-          background: 'rgba(255, 255, 255, 0.3)',
-          borderRadius: '100px',
-          margin: '0 80px',
-          padding: '24px 0'
-        }}
+      <section
+        className="overflow-hidden mx-4 sm:mx-8 md:mx-12 lg:mx-20 py-4 lg:py-6 rounded-full lg:rounded-[100px]"
+        style={{ background: 'rgba(255, 255, 255, 0.3)' }}
       >
-        <div 
-          className="flex gap-20 text-[13px] tracking-[0.2em] uppercase whitespace-nowrap"
+        <div
+          className="flex gap-8 sm:gap-12 lg:gap-20 text-[11px] sm:text-xs lg:text-[13px] tracking-[0.15em] sm:tracking-[0.2em] uppercase whitespace-nowrap"
           style={{
             color: 'rgba(102, 0, 51, 0.5)',
             animation: 'marquee 30s linear infinite'
           }}
         >
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="flex gap-20">
-              <span>◈ Contract Intelligence</span>
-              <span>◈ Fan Monetization</span>
+            <div key={i} className="flex gap-8 sm:gap-12 lg:gap-20">
+              <span>◈ AI Contract Analysis</span>
+              <span>◈ E-Signatures</span>
               <span>◈ Landing Pages</span>
-              <span>◈ CRM Analytics</span>
-              <span>◈ Royalty Tracking</span>
-              <span>◈ Release Management</span>
+              <span>◈ Contract Templates</span>
+              <span>◈ Document Storage</span>
+              <span>◈ Risk Assessment</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section id="features" className="relative" style={{ padding: '160px 80px' }}>
-        <div className="flex justify-between items-start mb-24">
+      <section id="features" className="relative px-4 sm:px-8 md:px-12 lg:px-20 py-16 sm:py-24 lg:py-32 xl:py-40">
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-12 sm:mb-16 lg:mb-24 gap-4">
           <div>
-            <p className="text-xs tracking-[0.3em] uppercase mb-6 font-light">
-              Capabilities
+            <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
+              Features
             </p>
-            <h2 
+            <h2
               className="font-light leading-[1.15]"
-              style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}
+              style={{ fontSize: 'clamp(28px, 5vw, 64px)' }}
             >
               Built for the<br />
               <span className="font-bold">modern artist</span>
             </h2>
           </div>
-          <div className="w-20 h-[3px] bg-[#660033] rounded mt-12" />
+          <div className="hidden sm:block w-20 h-[3px] bg-[#660033] rounded mt-0 sm:mt-12" />
         </div>
 
-        <div 
-          className="grid gap-10"
-          style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-10">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="feature-card cursor-pointer"
+              className="feature-card cursor-pointer p-6 sm:p-8 lg:p-10 xl:p-12 rounded-2xl lg:rounded-3xl border-2 transition-all"
               style={{
-                padding: '48px 32px',
-                background: activeFeature === index 
-                  ? 'rgba(255, 255, 255, 0.5)' 
+                background: activeFeature === index
+                  ? 'rgba(255, 255, 255, 0.5)'
                   : 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '24px',
-                border: activeFeature === index 
-                  ? '2px solid rgba(102, 0, 51, 0.15)'
-                  : '2px solid transparent'
+                borderColor: activeFeature === index
+                  ? 'rgba(102, 0, 51, 0.15)'
+                  : 'transparent'
               }}
               onMouseEnter={() => setActiveFeature(index)}
               data-testid={`card-feature-${index}`}
             >
-              <div 
-                className="text-[32px] mb-8 transition-opacity duration-300"
+              <div
+                className="text-2xl sm:text-3xl lg:text-[32px] mb-4 sm:mb-6 lg:mb-8 transition-opacity duration-300"
                 style={{ opacity: activeFeature === index ? 1 : 0.4 }}
               >
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-normal mb-4 leading-[1.3]">
+              <h3 className="text-lg sm:text-xl font-normal mb-3 sm:mb-4 leading-[1.3]">
                 {feature.title}
               </h3>
-              <p 
+              <p
                 className="text-sm leading-[1.7] font-normal"
                 style={{ color: 'rgba(102, 0, 51, 0.7)' }}
               >
@@ -432,42 +379,90 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="artists" style={{ padding: '80px 80px 160px' }}>
-        <div className="text-center mb-16">
-          <p className="text-xs tracking-[0.3em] uppercase mb-6 font-light">
+      {/* How It Works */}
+      <section className="px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20">
+        <div className="text-center mb-12 lg:mb-16">
+          <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
+            How It Works
+          </p>
+          <h2
+            className="font-light"
+            style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
+          >
+            Get started in <span className="font-bold">minutes</span>
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="text-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              style={{ background: '#660033' }}
+            >
+              1
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Upload Your Contract</h3>
+            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+              Drop in any music contract—PDF, Word, or use our templates.
+            </p>
+          </div>
+          <div className="text-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              style={{ background: '#660033' }}
+            >
+              2
+            </div>
+            <h3 className="text-xl font-semibold mb-3">AI Analysis</h3>
+            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+              Our AI scans for red flags, unfair terms, and missing protections.
+            </p>
+          </div>
+          <div className="text-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              style={{ background: '#660033' }}
+            >
+              3
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Sign with Confidence</h3>
+            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+              Negotiate better terms and e-sign directly from the platform.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="testimonials" className="px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20 xl:py-32">
+        <div className="text-center mb-10 sm:mb-12 lg:mb-16">
+          <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
             Testimonials
           </p>
-          <h2 
+          <h2
             className="font-light"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}
+            style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
           >
             Trusted by <span className="font-bold">artists</span>
           </h2>
         </div>
 
-        <div 
-          className="grid gap-8"
-          style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="p-10"
-              style={{
-                background: 'rgba(255, 255, 255, 0.4)',
-                borderRadius: '24px'
-              }}
+              className="p-6 sm:p-8 lg:p-10 rounded-2xl lg:rounded-3xl"
+              style={{ background: 'rgba(255, 255, 255, 0.4)' }}
               data-testid={`card-testimonial-${index}`}
             >
-              <p 
-                className="text-lg leading-[1.7] mb-8 italic"
+              <p
+                className="text-base sm:text-lg leading-[1.7] mb-6 sm:mb-8 italic"
                 style={{ color: 'rgba(102, 0, 51, 0.85)' }}
               >
                 "{testimonial.quote}"
               </p>
               <div>
                 <div className="font-semibold">{testimonial.name}</div>
-                <div 
+                <div
                   className="text-sm"
                   style={{ color: 'rgba(102, 0, 51, 0.6)' }}
                 >
@@ -479,69 +474,109 @@ export default function Landing() {
         </div>
       </section>
 
-      <section 
-        className="text-center text-[#F7E6CA]"
-        style={{
-          background: '#660033',
-          margin: '0 80px',
-          padding: '100px 80px',
-          borderRadius: '40px'
-        }}
+      {/* Pricing Preview */}
+      <section className="px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20">
+        <div
+          className="rounded-2xl sm:rounded-3xl lg:rounded-[40px] p-8 sm:p-12 lg:p-16"
+          style={{ background: 'rgba(255, 255, 255, 0.5)' }}
+        >
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div>
+              <p className="text-xs tracking-[0.3em] uppercase mb-4 font-light">
+                Simple Pricing
+              </p>
+              <h2
+                className="font-light mb-6"
+                style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
+              >
+                Start free,<br /><span className="font-bold">upgrade when ready</span>
+              </h2>
+              <p className="text-base mb-8" style={{ color: 'rgba(102, 0, 51, 0.8)' }}>
+                Get started with our free tier. When you need more AI analyses, e-signatures,
+                and premium features, upgrade to Premium for just £9/month.
+              </p>
+              <Link href="/pricing">
+                <button className="btn-primary">View Full Pricing</button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+                <div className="text-3xl font-bold mb-2">£0</div>
+                <div className="text-sm font-semibold mb-4">Free</div>
+                <ul className="text-sm space-y-2" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+                  <li>• Landing page</li>
+                  <li>• Contract storage</li>
+                  <li>• Basic templates</li>
+                </ul>
+              </div>
+              <div className="p-6 rounded-2xl text-[#F7E6CA]" style={{ background: '#660033' }}>
+                <div className="text-3xl font-bold mb-2">£9</div>
+                <div className="text-sm font-semibold mb-4">Premium /mo</div>
+                <ul className="text-sm space-y-2 opacity-90">
+                  <li>• AI analysis</li>
+                  <li>• E-signatures</li>
+                  <li>• All templates</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="text-center text-[#F7E6CA] mx-4 sm:mx-8 md:mx-12 lg:mx-20 px-4 sm:px-8 lg:px-16 xl:px-20 py-12 sm:py-16 lg:py-20 xl:py-24 rounded-2xl sm:rounded-3xl lg:rounded-[40px]"
+        style={{ background: '#660033' }}
       >
-        <h2 
-          className="font-light mb-6"
-          style={{ fontSize: 'clamp(32px, 4vw, 56px)' }}
+        <h2
+          className="font-light mb-4 sm:mb-6"
+          style={{ fontSize: 'clamp(24px, 4vw, 56px)' }}
         >
           Ready to own your <span className="font-bold">artistry</span>?
         </h2>
-        <p 
-          className="text-lg mb-12 max-w-lg mx-auto"
+        <p
+          className="text-base sm:text-lg mb-8 sm:mb-10 lg:mb-12 max-w-lg mx-auto px-4"
           style={{ color: 'rgba(247, 230, 202, 0.8)' }}
         >
-          Join the waitlist and be the first to experience the future of artist management.
+          Join thousands of artists who are taking control of their contracts and careers.
         </p>
-        <form onSubmit={handleSubmit} className="flex gap-4 max-w-md mx-auto">
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input-field flex-1"
-            style={{
-              background: 'rgba(247, 230, 202, 0.1)',
-              borderColor: 'rgba(247, 230, 202, 0.3)',
-              color: '#F7E6CA'
-            }}
-            data-testid="input-email"
-          />
-          <button 
-            type="submit"
-            className="btn-primary"
-            style={{
-              background: '#F7E6CA',
-              color: '#660033'
-            }}
-            data-testid="button-submit-email"
-          >
-            Join
-          </button>
-        </form>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link href="/auth">
+            <button
+              className="btn-primary px-8 py-4 sm:py-3"
+              style={{
+                background: '#F7E6CA',
+                color: '#660033'
+              }}
+              data-testid="button-get-started-footer"
+            >
+              Get Started Free
+            </button>
+          </Link>
+          <Link href="/pricing">
+            <button
+              className="btn-secondary px-8 py-4 sm:py-3"
+              style={{
+                borderColor: '#F7E6CA',
+                color: '#F7E6CA'
+              }}
+            >
+              View Pricing
+            </button>
+          </Link>
+        </div>
       </section>
 
-      <footer 
-        className="flex justify-between items-center"
-        style={{ padding: '60px 80px' }}
-      >
-        <div className="text-xl font-light tracking-[0.25em] lowercase">
+      <footer className="flex flex-col sm:flex-row justify-between items-center gap-6 sm:gap-4 px-4 sm:px-8 md:px-12 lg:px-20 py-8 sm:py-12 lg:py-16">
+        <div className="text-lg sm:text-xl font-light tracking-[0.25em] lowercase">
           aermuse
         </div>
-        <div className="flex gap-10">
-          <a href="#" className="nav-link text-sm">Privacy</a>
+        <div className="flex gap-6 sm:gap-10">
+          <Link href="/privacy" className="nav-link text-sm">Privacy</Link>
           <a href="#" className="nav-link text-sm">Terms</a>
-          <a href="#" className="nav-link text-sm">Contact</a>
+          <a href="mailto:hello@aermuse.com" className="nav-link text-sm">Contact</a>
         </div>
-        <div 
-          className="text-sm"
+        <div
+          className="text-xs sm:text-sm text-center sm:text-right"
           style={{ color: 'rgba(102, 0, 51, 0.5)' }}
         >
           © 2025 Aermuse. All rights reserved.

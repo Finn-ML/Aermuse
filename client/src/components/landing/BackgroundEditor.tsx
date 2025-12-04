@@ -7,10 +7,13 @@ interface BackgroundEditorProps {
   backgroundType: BackgroundType;
   backgroundValue: string;
   backgroundOverlay: BackgroundOverlay;
+  backgroundPosition?: 'cover' | 'contain';
   onBackgroundTypeChange: (type: BackgroundType) => void;
   onBackgroundValueChange: (value: string) => void;
   onBackgroundOverlayChange: (overlay: BackgroundOverlay) => void;
+  onBackgroundPositionChange?: (position: 'cover' | 'contain') => void;
   onImageUpload?: (file: File) => Promise<string>;
+  onImageRemove?: () => void;
 }
 
 const BACKGROUND_TYPES: { id: BackgroundType; name: string; description: string }[] = [
@@ -25,17 +28,26 @@ const OVERLAY_OPTIONS: { id: BackgroundOverlay; name: string; description: strin
   { id: 'light', name: 'Light', description: 'Light overlay for readability' },
 ];
 
+const POSITION_OPTIONS: { id: 'cover' | 'contain'; name: string; description: string }[] = [
+  { id: 'cover', name: 'Cover', description: 'Fill entire area' },
+  { id: 'contain', name: 'Contain', description: 'Fit within area' },
+];
+
 export function BackgroundEditor({
   backgroundType,
   backgroundValue,
   backgroundOverlay,
+  backgroundPosition = 'cover',
   onBackgroundTypeChange,
   onBackgroundValueChange,
   onBackgroundOverlayChange,
+  onBackgroundPositionChange,
   onImageUpload,
+  onImageRemove,
 }: BackgroundEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Parse gradient from backgroundValue if it's a gradient type
@@ -60,23 +72,31 @@ export function BackgroundEditor({
       return;
     }
 
-    // Validate file size (2MB max)
-    const maxSize = 2 * 1024 * 1024;
+    // Validate file size (5MB max - Story 9.13)
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      setUploadError('File too large. Maximum size is 2MB.');
+      setUploadError('File too large. Maximum size is 5MB.');
       return;
     }
 
     setUploadError(null);
+
+    // Show preview immediately using FileReader (Story 9.13)
+    const reader = new FileReader();
+    reader.onload = (e) => setPreviewUrl(e.target?.result as string);
+    reader.readAsDataURL(file);
+
     setIsUploading(true);
 
     try {
       if (onImageUpload) {
         const url = await onImageUpload(file);
         onBackgroundValueChange(url);
+        setPreviewUrl(null); // Clear preview, use uploaded URL
       }
     } catch {
       setUploadError('Failed to upload image. Please try again.');
+      setPreviewUrl(null);
     } finally {
       setIsUploading(false);
       // Reset file input
@@ -180,7 +200,9 @@ export function BackgroundEditor({
             </label>
             <div
               className="w-full h-24 rounded-lg"
-              style={{ background: generateGradientCSS(gradientConfig) }}
+              style={{
+                background: generateGradientCSS(gradientConfig),
+              }}
             />
           </div>
         </div>
@@ -194,13 +216,20 @@ export function BackgroundEditor({
               Background Image
             </label>
 
-            {/* Current Image Preview */}
-            {backgroundValue && backgroundValue.startsWith('/api') && (
+            {/* Image Preview - shows FileReader preview during upload OR uploaded image (Story 9.13) */}
+            {(previewUrl || (backgroundValue && backgroundValue.startsWith('/api'))) && (
               <div className="mb-4">
                 <div
-                  className="w-full h-32 rounded-lg bg-cover bg-center border border-[rgba(102,0,51,0.2)]"
-                  style={{ backgroundImage: `url(${backgroundValue})` }}
+                  className="w-full h-32 rounded-lg bg-center border border-[rgba(102,0,51,0.2)]"
+                  style={{
+                    backgroundImage: `url(${previewUrl || backgroundValue})`,
+                    backgroundSize: backgroundPosition,
+                    backgroundRepeat: 'no-repeat',
+                  }}
                 />
+                {isUploading && (
+                  <p className="text-xs text-[rgba(102,0,51,0.5)] mt-1">Uploading...</p>
+                )}
               </div>
             )}
 
@@ -225,7 +254,7 @@ export function BackgroundEditor({
                 <span className="text-sm text-[rgba(102,0,51,0.6)]">Uploading...</span>
               ) : (
                 <span className="text-sm text-[rgba(102,0,51,0.6)]">
-                  Click to upload image (JPG, PNG, WebP • Max 2MB)
+                  Click to upload image (JPG, PNG, WebP • Max 5MB)
                 </span>
               )}
             </label>
@@ -234,7 +263,48 @@ export function BackgroundEditor({
             {uploadError && (
               <p className="mt-2 text-sm text-red-600">{uploadError}</p>
             )}
+
+            {/* Remove Button (Story 9.13) */}
+            {backgroundValue && backgroundValue.startsWith('/api') && onImageRemove && (
+              <button
+                type="button"
+                onClick={() => {
+                  onImageRemove();
+                  onBackgroundTypeChange('solid');
+                  onBackgroundValueChange('#660033');
+                }}
+                className="mt-2 px-3 py-1.5 text-xs font-semibold text-[#dc3545] bg-[rgba(220,53,69,0.1)] rounded-lg hover:bg-[rgba(220,53,69,0.2)] transition-colors"
+              >
+                Remove Background Image
+              </button>
+            )}
           </div>
+
+          {/* Image Position Selector (Story 9.13) */}
+          {onBackgroundPositionChange && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">
+                Image Position
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {POSITION_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => onBackgroundPositionChange(option.id)}
+                    className={`p-3 rounded-lg border-2 transition-all text-center ${
+                      backgroundPosition === option.id
+                        ? 'border-[#660033] bg-[rgba(102,0,51,0.05)]'
+                        : 'border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)]'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{option.name}</p>
+                    <p className="text-[10px] text-[rgba(102,0,51,0.5)]">{option.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

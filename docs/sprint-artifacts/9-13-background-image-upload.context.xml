@@ -1,0 +1,210 @@
+<story-context id="9-13-background-image-upload" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>13</storyId>
+    <title>Background Image Upload Enhancements</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-13-background-image-upload.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>enhanced background image upload controls</iWant>
+    <soThat>my landing page has a unique visual identity with proper image handling</soThat>
+    <tasks>
+      <task id="1" title="Update Backend for 5MB Limit" acs="1">
+        <subtask>Create backgroundImageUpload middleware in upload.ts</subtask>
+        <subtask>Set MAX_BACKGROUND_IMAGE_SIZE to 5MB</subtask>
+        <subtask>Update background-image route to use new middleware</subtask>
+        <subtask>Export BACKGROUND_IMAGE_CONSTANTS</subtask>
+      </task>
+      <task id="2" title="Add Schema Field" acs="5">
+        <subtask>Add backgroundPosition field to landing_pages in schema.ts</subtask>
+        <subtask>Run db:push to apply migration</subtask>
+        <subtask>Add to LandingPage type exports</subtask>
+      </task>
+      <task id="3" title="Add Preview Before Upload" acs="2">
+        <subtask>Add previewUrl state to BackgroundEditor</subtask>
+        <subtask>Use FileReader to show immediate preview</subtask>
+        <subtask>Display preview during upload progress</subtask>
+        <subtask>Clear preview on successful upload</subtask>
+      </task>
+      <task id="4" title="Add Position Selector" acs="3,5">
+        <subtask>Add backgroundPosition prop to BackgroundEditorProps</subtask>
+        <subtask>Add onBackgroundPositionChange callback</subtask>
+        <subtask>Create position selector UI (cover/contain)</subtask>
+        <subtask>Wire up to onUpdate in DesignTab</subtask>
+        <subtask>Apply position in ArtistPage.tsx</subtask>
+      </task>
+      <task id="5" title="Add Remove Button" acs="4">
+        <subtask>Add onImageRemove prop to BackgroundEditorProps</subtask>
+        <subtask>Add remove button when image is set</subtask>
+        <subtask>Wire up to clear backgroundValue</subtask>
+      </task>
+      <task id="6" title="Testing">
+        <subtask>Test 5MB file uploads successfully</subtask>
+        <subtask>Test preview appears before upload completes</subtask>
+        <subtask>Test cover/contain positioning works</subtask>
+        <subtask>Test remove button clears background</subtask>
+        <subtask>Test position persists after reload</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Max file size increased to 5MB for background images</criterion>
+    <criterion id="AC-2">Image preview displays BEFORE upload (immediate feedback)</criterion>
+    <criterion id="AC-3">Image positioning options: cover, contain</criterion>
+    <criterion id="AC-4">Remove background image option</criterion>
+    <criterion id="AC-5">Positioning selection persists to database</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-9-landing-page-customization.md</path>
+        <title>Epic 9: Landing Page Customization</title>
+        <section>Story 9.13: Background Image Upload</section>
+        <snippet>Technical notes: New API endpoint POST /api/landing-page/background-image, max 5MB, image positioning options (cover, contain), overlay opacity control.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-5-background-customization.md</path>
+        <title>Story 9.5: Background Customization</title>
+        <section>Implementation</section>
+        <snippet>Implemented core background upload with 2MB limit, BackgroundEditor component, solid/gradient/image types. This story extends it.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>server/middleware/upload.ts</path>
+        <kind>middleware</kind>
+        <symbol>imageUpload, ALLOWED_IMAGE_EXTENSIONS, ALLOWED_IMAGE_MIMES, MAX_IMAGE_SIZE</symbol>
+        <lines>63-89</lines>
+        <reason>Clone imageUpload to create backgroundImageUpload with 5MB limit. Reuse ALLOWED_IMAGE_EXTENSIONS and ALLOWED_IMAGE_MIMES.</reason>
+      </file>
+      <file>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>POST /api/landing-page/background-image</symbol>
+        <lines>1306-1343</lines>
+        <reason>Update to use backgroundImageUpload middleware instead of imageUpload.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/BackgroundEditor.tsx</path>
+        <kind>component</kind>
+        <symbol>BackgroundEditor, handleFileSelect</symbol>
+        <lines>1-274</lines>
+        <reason>Primary file to modify. Add previewUrl state, FileReader preview, position selector, remove button.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/editor/DesignTab.tsx</path>
+        <kind>component</kind>
+        <symbol>DesignTab</symbol>
+        <lines>167-179</lines>
+        <reason>Wire up new BackgroundEditor props: backgroundPosition, onBackgroundPositionChange, onImageRemove.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page</kind>
+        <symbol>getBackgroundStyle</symbol>
+        <lines>39-64</lines>
+        <reason>Apply backgroundPosition to backgroundSize CSS property (cover or contain).</reason>
+      </file>
+      <file>
+        <path>shared/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>landingPages table</symbol>
+        <lines>156-188</lines>
+        <reason>Add backgroundPosition field: text("background_position").default("cover")</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>multer</package>
+        <version>^2.0.2</version>
+        <note>Multipart form handling - create new middleware config for 5MB</note>
+      </node>
+      <node>
+        <package>@replit/object-storage</package>
+        <version>^1.0.0</version>
+        <note>File storage - no changes needed</note>
+      </node>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.39.1</version>
+        <note>Add new schema field</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>imageUpload middleware</name>
+      <kind>multer middleware</kind>
+      <signature>imageUpload = multer({ storage, limits: { fileSize: 2MB }, fileFilter })</signature>
+      <path>server/middleware/upload.ts:68</path>
+    </interface>
+    <interface>
+      <name>BackgroundEditorProps</name>
+      <kind>TypeScript interface</kind>
+      <signature>{ backgroundType, backgroundValue, backgroundOverlay, onBackgroundTypeChange, onBackgroundValueChange, onBackgroundOverlayChange, onImageUpload? }</signature>
+      <path>client/src/components/landing/BackgroundEditor.tsx:6</path>
+    </interface>
+    <interface>
+      <name>getBackgroundStyle</name>
+      <kind>function</kind>
+      <signature>(backgroundType, backgroundValue, fallbackColor) => React.CSSProperties</signature>
+      <path>client/src/pages/ArtistPage.tsx:39</path>
+    </interface>
+    <interface>
+      <name>landing_pages schema</name>
+      <kind>Drizzle table</kind>
+      <signature>pgTable with backgroundType, backgroundValue, backgroundOverlay fields</signature>
+      <path>shared/schema.ts:156</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint type="pattern">Create new backgroundImageUpload middleware - do NOT modify existing imageUpload (used by avatar)</constraint>
+    <constraint type="architecture">Add backgroundPosition to schema, then run npm run db:push</constraint>
+    <constraint type="architecture">backgroundPosition values: 'cover' (default) or 'contain'</constraint>
+    <constraint type="ux">Show FileReader preview immediately on file selection, before upload starts</constraint>
+    <constraint type="ux">Display loading state during upload while preview is shown</constraint>
+    <constraint type="ux">Remove button sets backgroundType to 'solid' and clears backgroundValue</constraint>
+    <constraint type="styling">Position selector follows existing button grid pattern in BackgroundEditor</constraint>
+    <constraint type="css">Apply position via backgroundSize CSS property in ArtistPage</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit and integration testing. Tests located in client and server directories.
+      Run tests with: npm test (vitest run) or npm run test:watch (vitest).
+      TypeScript type checking with: npm run check (tsc).
+    </standards>
+    <locations>
+      <location>client/**/*.test.ts</location>
+      <location>client/**/*.test.tsx</location>
+      <location>server/**/*.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test 5MB file uploads successfully (server accepts larger files)</idea>
+      <idea ac="1">Test files over 5MB are rejected with appropriate error</idea>
+      <idea ac="2">Test FileReader creates preview URL from selected file</idea>
+      <idea ac="2">Test preview displays while isUploading is true</idea>
+      <idea ac="3">Test position selector renders cover/contain options</idea>
+      <idea ac="3">Test clicking position option calls onBackgroundPositionChange</idea>
+      <idea ac="4">Test remove button renders when backgroundValue is set</idea>
+      <idea ac="4">Test remove button calls onImageRemove</idea>
+      <idea ac="5">Test backgroundPosition field saves to database</idea>
+      <idea ac="5">Test ArtistPage applies backgroundSize from backgroundPosition</idea>
+    </ideas>
+  </tests>
+</story-context>

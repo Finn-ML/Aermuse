@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, inet } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, inet, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
@@ -176,6 +176,7 @@ export const landingPages = pgTable("landing_pages", {
   backgroundType: text("background_type").default("solid"),
   backgroundValue: text("background_value"),
   backgroundOverlay: text("background_overlay").default("none"),
+  backgroundPosition: text("background_position").default("cover"), // 'cover' | 'contain' (Story 9.13)
   // Epic 9.6: Social icons bar
   socialIcons: jsonb("social_icons").default([]),
   showSocialBar: boolean("show_social_bar").default(true),
@@ -219,6 +220,55 @@ export const insertLandingPageLinkSchema = createInsertSchema(landingPageLinks).
 
 export type InsertLandingPageLink = z.infer<typeof insertLandingPageLinkSchema>;
 export type LandingPageLink = typeof landingPageLinks.$inferSelect;
+
+// ============================================
+// ANALYTICS TABLES (Epic 10: Analytics & Insights)
+// ============================================
+
+// Page views table - tracks landing page visits
+export const pageViews = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
+  visitorHash: varchar("visitor_hash", { length: 64 }).notNull(), // SHA-256 of IP + UA
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }), // Updated on page unload/visibility change
+  referrer: text("referrer"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  landingPageIdx: index('idx_page_views_landing_page').on(table.landingPageId),
+  visitorHashIdx: index('idx_page_views_visitor_hash').on(table.visitorHash),
+  startedAtIdx: index('idx_page_views_started_at').on(table.startedAt),
+}));
+
+export const insertPageViewSchema = createInsertSchema(pageViews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPageView = z.infer<typeof insertPageViewSchema>;
+export type PageView = typeof pageViews.$inferSelect;
+
+// Link clicks table - tracks link clicks on landing pages
+export const linkClicks = pgTable("link_clicks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  linkId: varchar("link_id").notNull().references(() => landingPageLinks.id, { onDelete: 'cascade' }),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
+  pageViewId: varchar("page_view_id").references(() => pageViews.id, { onDelete: 'set null' }),
+  visitorHash: varchar("visitor_hash", { length: 64 }).notNull(),
+  clickedAt: timestamp("clicked_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  linkIdIdx: index('idx_link_clicks_link_id').on(table.linkId),
+  landingPageIdx: index('idx_link_clicks_landing_page').on(table.landingPageId),
+}));
+
+export const insertLinkClickSchema = createInsertSchema(linkClicks).omit({
+  id: true,
+});
+
+export type InsertLinkClick = z.infer<typeof insertLinkClickSchema>;
+export type LinkClick = typeof linkClicks.$inferSelect;
 
 // ============================================
 // SIGNATURE REQUESTS TABLE (Epic 4: E-Signing)
@@ -354,6 +404,30 @@ export const insertAdminActivitySchema = createInsertSchema(adminActivityLog).om
 
 export type InsertAdminActivity = z.infer<typeof insertAdminActivitySchema>;
 export type AdminActivity = typeof adminActivityLog.$inferSelect;
+
+// ============================================
+// AI USAGE TRACKING TABLE (Epic 6: Admin)
+// ============================================
+
+export const aiUsage = pgTable("ai_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  usageDate: timestamp("usage_date", { withTimezone: true }).notNull(), // Date of usage (truncated to day)
+  analysisCount: integer("analysis_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  userDateIdx: index('idx_ai_usage_user_date').on(table.userId, table.usageDate),
+}));
+
+export const insertAiUsageSchema = createInsertSchema(aiUsage).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAiUsage = z.infer<typeof insertAiUsageSchema>;
+export type AiUsage = typeof aiUsage.$inferSelect;
 
 // ============================================
 // PROPOSALS TABLE (Epic 7: Landing Page Enhancements)

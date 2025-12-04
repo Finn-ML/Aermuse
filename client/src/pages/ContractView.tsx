@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
 import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
@@ -11,7 +11,9 @@ import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
 import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
+import { UpgradePrompt } from '../components/UpgradePrompt';
 import { useContractAnalysis } from '../hooks/useContractAnalysis';
+import { usePremium } from '../hooks/usePremium';
 import { Contract, ContractAnalysis, ContractVersion } from '../types';
 import GrainOverlay from '../components/GrainOverlay';
 import { useToast } from '../hooks/use-toast';
@@ -31,6 +33,7 @@ export default function ContractView() {
   const [isLoaded, setIsLoaded] = useState(false);
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
   const { toast } = useToast();
+  const { isPremium } = usePremium();
   const isMountedRef = useRef(true);
 
   const fetchContract = useCallback(async () => {
@@ -56,7 +59,8 @@ export default function ContractView() {
 
       setContract(data.contract);
 
-      if (data.contract.extractedText && !data.contract.aiAnalysis) {
+      // Only auto-analyze for premium users
+      if (data.contract.extractedText && !data.contract.aiAnalysis && isPremium) {
         analyze(id);
       }
     } catch (err) {
@@ -233,14 +237,14 @@ export default function ContractView() {
   const missingCount = displayAnalysis?.missingClauses?.length || 0;
 
   return (
-    <div className="min-h-screen bg-[#F7E6CA] text-[#660033]">
+    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] overflow-x-hidden">
       <GrainOverlay />
 
-      <div className="max-w-7xl mx-auto py-8 px-6 relative z-10">
+      <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6 relative z-10">
         {/* Back Button */}
         <button
           onClick={() => setLocation('/dashboard')}
-          className={`flex items-center gap-2 text-[rgba(102,0,51,0.6)] hover:text-[#660033] mb-6 transition-all duration-500 group ${
+          className={`flex items-center gap-2 text-[rgba(102,0,51,0.6)] hover:text-[#660033] mb-4 sm:mb-6 transition-all duration-500 group text-sm sm:text-base ${
             isLoaded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
           }`}
         >
@@ -250,7 +254,7 @@ export default function ContractView() {
 
         {/* Header Section */}
         <div
-          className={`rounded-[20px] p-6 mb-6 transition-all duration-500 ${
+          className={`rounded-xl sm:rounded-[20px] p-4 sm:p-6 mb-4 sm:mb-6 transition-all duration-500 ${
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
           style={{
@@ -258,41 +262,41 @@ export default function ContractView() {
             transitionDelay: '100ms'
           }}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center"
+                className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
               >
-                <FileText size={24} className="text-[#F7E6CA]" />
+                <FileText size={20} className="sm:w-6 sm:h-6 text-[#F7E6CA]" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold">{contract.name}</h1>
-                <div className="flex items-center gap-4 mt-1 text-sm text-[rgba(102,0,51,0.5)]">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold truncate">{contract.name}</h1>
+                <div className="flex items-center gap-2 sm:gap-4 mt-1 text-xs sm:text-sm text-[rgba(102,0,51,0.5)] flex-wrap">
                   <span className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />
+                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     {new Date(contract.createdAt).toLocaleDateString()}
                   </span>
                   {contract.fileName && (
-                    <span>{contract.fileName} • {contract.fileType?.toUpperCase()}</span>
+                    <span className="hidden sm:inline">{contract.fileName} • {contract.fileType?.toUpperCase()}</span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 flex-wrap">
               {contract.filePath && (
                 <button
                   onClick={handleDownload}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-2 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Download</span>
                 </button>
               )}
               {contract.status === 'pending_signature' || contract.status === 'signed' ? (
                 <button
                   onClick={() => setShowSignatureStatus(true)}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-2 text-sm hover:scale-105"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm hover:scale-105"
                   style={{
                     background: contract.status === 'signed'
                       ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
@@ -301,32 +305,45 @@ export default function ContractView() {
                 >
                   {contract.status === 'signed' ? (
                     <>
-                      <Clock className="h-4 w-4" />
-                      Signed - View Details
+                      <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Signed - View Details</span>
+                      <span className="sm:hidden">Signed</span>
                     </>
                   ) : (
                     <>
-                      <Clock className="h-4 w-4" />
-                      View Signature Status
+                      <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">View Signature Status</span>
+                      <span className="sm:hidden">Status</span>
                     </>
                   )}
                 </button>
-              ) : (
+              ) : isPremium ? (
                 <button
                   onClick={() => setShowSignatureModal(true)}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-2 text-sm hover:scale-105"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm hover:scale-105"
                   style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                 >
-                  <Send className="h-4 w-4" />
-                  Request Signatures
+                  <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Request Signatures</span>
+                  <span className="sm:hidden">Sign</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setLocation('/pricing')}
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-amber-700 bg-amber-100 transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm hover:bg-amber-200"
+                  title="Upgrade to Premium for e-signing"
+                >
+                  <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">E-Sign (Premium)</span>
+                  <span className="sm:hidden">Premium</span>
                 </button>
               )}
               <button
                 onClick={handleOpenVersionModal}
-                className="px-4 py-2.5 rounded-xl font-semibold text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-2 text-sm"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
               >
-                <History className="h-4 w-4" />
-                Versions
+                <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Versions</span>
               </button>
             </div>
           </div>
@@ -349,64 +366,64 @@ export default function ContractView() {
         {/* Quick Stats Row */}
         {displayAnalysis && !isAnalyzing && (
           <div
-            className={`grid grid-cols-4 gap-4 mb-6 transition-all duration-500 ${
+            className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6 transition-all duration-500 ${
               isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
             style={{ transitionDelay: '200ms' }}
           >
-            <div className="rounded-[16px] p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-              <div className="flex items-center gap-3">
+            <div className="rounded-xl sm:rounded-[16px] p-3 sm:p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                 >
-                  <Shield className="h-5 w-5 text-[#F7E6CA]" />
+                  <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-[#F7E6CA]" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{displayAnalysis.riskAssessment?.overallScore || '--'}</div>
-                  <div className="text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Risk Score</div>
+                  <div className="text-xl sm:text-2xl font-bold">{displayAnalysis.riskAssessment?.overallScore || '--'}</div>
+                  <div className="text-[10px] sm:text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Risk Score</div>
                 </div>
               </div>
             </div>
-            <div className="rounded-[16px] p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-              <div className="flex items-center gap-3">
+            <div className="rounded-xl sm:rounded-[16px] p-3 sm:p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: redFlagCount > 0 ? 'linear-gradient(135deg, #dc3545 0%, #a71d2a 100%)' : 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)' }}
                 >
-                  <AlertTriangle className="h-5 w-5 text-white" />
+                  <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{redFlagCount}</div>
-                  <div className="text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Red Flags</div>
+                  <div className="text-xl sm:text-2xl font-bold">{redFlagCount}</div>
+                  <div className="text-[10px] sm:text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Red Flags</div>
                 </div>
               </div>
             </div>
-            <div className="rounded-[16px] p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-              <div className="flex items-center gap-3">
+            <div className="rounded-xl sm:rounded-[16px] p-3 sm:p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)' }}
                 >
-                  <DollarSign className="h-5 w-5 text-white" />
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{keyTermCount}</div>
-                  <div className="text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Key Terms</div>
+                  <div className="text-xl sm:text-2xl font-bold">{keyTermCount}</div>
+                  <div className="text-[10px] sm:text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Key Terms</div>
                 </div>
               </div>
             </div>
-            <div className="rounded-[16px] p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-              <div className="flex items-center gap-3">
+            <div className="rounded-xl sm:rounded-[16px] p-3 sm:p-5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: missingCount > 0 ? 'linear-gradient(135deg, #dc3545 0%, #a71d2a 100%)' : 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)' }}
                 >
-                  <FileSearch className="h-5 w-5 text-white" />
+                  <FileSearch className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{missingCount}</div>
-                  <div className="text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Missing Clauses</div>
+                  <div className="text-xl sm:text-2xl font-bold">{missingCount}</div>
+                  <div className="text-[10px] sm:text-xs text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Missing</div>
                 </div>
               </div>
             </div>
@@ -448,8 +465,8 @@ export default function ContractView() {
           </div>
         ) : displayAnalysis ? (
           <>
-            {/* Dashboard Grid Layout - 2 rows, perfectly aligned */}
-            <div className="grid grid-cols-2 gap-6">
+            {/* Dashboard Grid Layout - responsive */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Row 1: Summary (left) + Red Flags (right) */}
               <div
                 className={`transition-all duration-500 h-full ${
@@ -473,7 +490,7 @@ export default function ContractView() {
                 </div>
               </div>
 
-              {/* Row 2: Risk Score (left) + Key Terms (middle) + Missing Clauses (right) */}
+              {/* Row 2: Risk Score (left) + Key Terms (right) */}
               {displayAnalysis.riskAssessment && (
                 <div
                   className={`transition-all duration-500 h-full ${
@@ -500,7 +517,7 @@ export default function ContractView() {
 
               {/* Row 3: Missing Clauses spanning full width */}
               <div
-                className={`col-span-2 transition-all duration-500 ${
+                className={`lg:col-span-2 transition-all duration-500 ${
                   isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 }`}
                 style={{ transitionDelay: '600ms' }}
@@ -534,7 +551,7 @@ export default function ContractView() {
               Please upload a text-based PDF or DOCX file for analysis.
             </p>
           </div>
-        ) : (
+        ) : isPremium ? (
           <div
             className={`rounded-[20px] p-12 text-center transition-all duration-500 ${
               isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -558,6 +575,19 @@ export default function ContractView() {
               <Sparkles className="inline-block mr-2 h-5 w-5" />
               Analyze with AI
             </button>
+          </div>
+        ) : (
+          <div
+            className={`transition-all duration-500 ${
+              isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+            style={{ transitionDelay: '400ms' }}
+          >
+            <UpgradePrompt
+              feature="AI Contract Analysis"
+              description="Get instant insights about risks, key terms, and missing clauses in your contracts."
+              variant="card"
+            />
           </div>
         )}
       </div>

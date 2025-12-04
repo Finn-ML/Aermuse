@@ -200,7 +200,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex relative overflow-hidden">
+    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex flex-col md:flex-row relative overflow-hidden">
       <style>{`
         ::selection {
           background: #660033;
@@ -304,14 +304,15 @@ export default function Auth() {
 
       <GrainOverlay />
 
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      {/* Branding section - hidden on mobile */}
+      <div className="hidden md:flex flex-1 relative items-center justify-center overflow-hidden">
         <ShaderAnimation variant="auth" />
-        
-        <div 
+
+        <div
           className={`relative z-10 text-center transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         >
           <Link href="/">
-            <div 
+            <div
               className="text-5xl font-light tracking-[0.3em] lowercase text-[#F7E6CA] mb-6 cursor-pointer"
               style={{ textShadow: '0 4px 30px rgba(102, 0, 51, 0.3)' }}
             >
@@ -324,12 +325,19 @@ export default function Auth() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-15 relative z-10">
-        <div 
+      <div className="flex-1 flex items-center justify-center px-4 py-8 sm:p-8 md:p-12 lg:p-16 relative z-10">
+        <div
           className={`w-full max-w-[440px] transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
-          <div 
-            className="flex justify-center mb-12 rounded-[20px] p-2"
+          {/* Mobile logo - shown only on mobile */}
+          <Link href="/" className="md:hidden block text-center mb-8">
+            <div className="text-3xl font-light tracking-[0.3em] lowercase text-[#660033]">
+              aermuse
+            </div>
+          </Link>
+
+          <div
+            className="flex justify-center mb-8 sm:mb-12 rounded-[20px] p-2"
             style={{ background: 'rgba(255, 255, 255, 0.4)' }}
           >
             <button 

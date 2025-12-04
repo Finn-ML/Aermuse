@@ -45,7 +45,7 @@ interface EditorPreviewProps {
 // Button style CSS classes
 function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined): string {
   const style = buttonStyle || 'rounded';
-  const baseClasses = 'block w-full py-2 px-4 text-center font-semibold text-sm transition-all';
+  const baseClasses = 'block w-full py-2 px-4 text-center font-semibold text-sm transition-all duration-200 hover:scale-105';
 
   switch (style) {
     case 'pill':
@@ -200,15 +200,34 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                 }`}
               >
                 {/* Avatar */}
-                {avatarPosition !== 'hidden' && page.avatarUrl && (
-                  <img
-                    src={page.avatarUrl}
-                    alt={page.artistName || 'Artist'}
-                    className={`w-16 h-16 rounded-full border-2 ${
-                      avatarPosition === 'top' ? 'mx-auto mb-3' : ''
-                    } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
-                    style={{ borderColor: accentColor }}
-                  />
+                {avatarPosition !== 'hidden' && (
+                  page.avatarUrl ? (
+                    <img
+                      src={page.avatarUrl}
+                      alt={page.artistName || 'Artist'}
+                      className={`w-16 h-16 rounded-full border-2 object-cover ${
+                        avatarPosition === 'top' ? 'mx-auto mb-3' : ''
+                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                      style={{ borderColor: accentColor }}
+                      onError={(e) => {
+                        console.error('Avatar failed to load:', page.avatarUrl);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className={`w-16 h-16 rounded-full border-2 flex items-center justify-center text-xl font-bold ${
+                        avatarPosition === 'top' ? 'mx-auto mb-3' : ''
+                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                      style={{
+                        borderColor: accentColor,
+                        backgroundColor: `${accentColor}30`,
+                        color: textColor
+                      }}
+                    >
+                      {(page.artistName || 'A').charAt(0).toUpperCase()}
+                    </div>
+                  )
                 )}
 
                 <div className={avatarPosition === 'left' ? 'flex-1' : ''}>
@@ -241,6 +260,26 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                     >
                       {page.bio}
                     </p>
+                  )}
+
+                  {/* Social Icons */}
+                  {showSocialBar && socialIcons.length > 0 && (
+                    <div className={`flex gap-3 ${layout === 'centered' ? 'justify-center' : ''}`}>
+                      {socialIcons
+                        .sort((a, b) => a.order - b.order)
+                        .map((icon) => (
+                          <div
+                            key={icon.id}
+                            className="p-2 rounded-full"
+                            style={{
+                              color: secondaryColor,
+                              backgroundColor: `${secondaryColor}20`,
+                            }}
+                          >
+                            {getPlatformIcon(icon.platform, "w-4 h-4")}
+                          </div>
+                        ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -335,27 +374,6 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
               </div>
             )}
 
-            {/* Social Icons */}
-            {showSocialBar && socialIcons.length > 0 && (
-              <div className="px-6 pb-6 relative z-10">
-                <div className="flex justify-center gap-3">
-                  {socialIcons
-                    .sort((a, b) => a.order - b.order)
-                    .map((icon) => (
-                      <div
-                        key={icon.id}
-                        className="p-2 rounded-full"
-                        style={{
-                          color: secondaryColor,
-                          backgroundColor: `${secondaryColor}20`,
-                        }}
-                      >
-                        {getPlatformIcon(icon.platform, "w-4 h-4")}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

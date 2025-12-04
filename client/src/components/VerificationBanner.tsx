@@ -36,7 +36,7 @@ export function VerificationBanner({ onResend }: Props) {
 
   return (
     <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
           <span className="text-amber-800 text-sm">

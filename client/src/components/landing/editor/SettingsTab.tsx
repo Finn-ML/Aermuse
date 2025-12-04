@@ -1,8 +1,9 @@
 // Settings Tab - Layout, Page Settings, Visibility
 // Story 9.10: Landing Page Editor Redesign
 
+import { useState, useRef, useCallback } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { LayoutSelector, type Layout, type AvatarPosition, type LinkWidth } from '@/components/landing/LayoutSelector';
+import { LayoutSelector, type Layout, type LinkWidth } from '@/components/landing/LayoutSelector';
 
 interface SettingsTabProps {
   landingPageData: {
@@ -12,13 +13,36 @@ interface SettingsTabProps {
     slug?: string | null;
     isPublished?: boolean | null;
     layout?: string | null;
-    avatarPosition?: string | null;
     linkWidth?: string | null;
   };
   onUpdate: (updates: Record<string, unknown>) => void;
 }
 
 export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
+  // Local state for text inputs - initialized from props once
+  const [artistName, setArtistName] = useState(landingPageData.artistName || '');
+  const [tagline, setTagline] = useState(landingPageData.tagline || '');
+  const [bio, setBio] = useState(landingPageData.bio || '');
+
+  // Track debounce timer
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle text input changes with debouncing
+  const handleTextChange = useCallback((field: string, value: string) => {
+    // Update local state immediately for smooth typing
+    if (field === 'artistName') setArtistName(value);
+    if (field === 'tagline') setTagline(value);
+    if (field === 'bio') setBio(value);
+
+    // Debounce API call
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      onUpdate({ [field]: value });
+    }, 500);
+  }, [onUpdate]);
+
   return (
     <div className="space-y-4">
       {/* Page Info */}
@@ -31,8 +55,8 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
             </label>
             <input
               type="text"
-              value={landingPageData.artistName || ''}
-              onChange={(e) => onUpdate({ artistName: e.target.value })}
+              value={artistName}
+              onChange={(e) => handleTextChange('artistName', e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-white border border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm"
             />
           </div>
@@ -42,8 +66,8 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
             </label>
             <input
               type="text"
-              value={landingPageData.tagline || ''}
-              onChange={(e) => onUpdate({ tagline: e.target.value })}
+              value={tagline}
+              onChange={(e) => handleTextChange('tagline', e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-white border border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm"
               placeholder="Your tagline..."
             />
@@ -53,8 +77,8 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
               Bio
             </label>
             <textarea
-              value={landingPageData.bio || ''}
-              onChange={(e) => onUpdate({ bio: e.target.value })}
+              value={bio}
+              onChange={(e) => handleTextChange('bio', e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-white border border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm min-h-[80px] resize-none"
               placeholder="Tell your story..."
             />
@@ -67,10 +91,8 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
         <h4 className="text-sm font-bold text-[#660033] mb-4">Layout Options</h4>
         <LayoutSelector
           layout={(landingPageData.layout as Layout) || 'centered'}
-          avatarPosition={(landingPageData.avatarPosition as AvatarPosition) || 'top'}
           linkWidth={(landingPageData.linkWidth as LinkWidth) || 'full'}
           onLayoutChange={(layout) => onUpdate({ layout })}
-          onAvatarPositionChange={(avatarPosition) => onUpdate({ avatarPosition })}
           onLinkWidthChange={(linkWidth) => onUpdate({ linkWidth })}
         />
       </div>

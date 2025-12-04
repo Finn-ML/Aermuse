@@ -1,0 +1,85 @@
+<story-context id="epic-11/story-11-1" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.1</storyId>
+    <title>Button Hover Effects</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-1-button-hover-effects.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist customizing my landing page</asA>
+    <iWant>to choose from different button hover animations</iWant>
+    <soThat>my links feel interactive and premium rather than static</soThat>
+    <tasks>
+      - Add hover_effect column to landing_pages table
+      - Update shared schema with hoverEffect field
+      - Create CSS hover effect classes (lift, scale, shine)
+      - Apply effects to ArtistPage buttons
+      - Add Button Effects UI to DesignTab
+      - Update EditorPreview with hover effects
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Design tab shows Button Effects section with hover animation options
+    AC2: Lift effect - translateY(-2px) + shadow increase on hover
+    AC3: Scale effect - 1.02x scale with ease-out on hover
+    AC4: Shine effect - shimmer gradient sweeps across button on hover
+    AC5: None effect - default color change only
+    AC6: All effects 200-300ms with ease-out timing
+    AC7: Effects work on desktop (hover) and mobile (active)
+    AC8: Preview updates in real-time
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.1">Epic specification with technical notes</doc>
+      <doc path="docs/architecture.md" section="Technology-Stack">React 18, TailwindCSS, Drizzle ORM</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Landing pages schema - add hoverEffect field</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Public landing page - apply hover effects to buttons</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Editor Design tab - add Button Effects UI</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview component - show hover effects</file>
+      <file path="shared/themes.ts" relevance="MEDIUM">Theme definitions - may add hover effect types</file>
+    </code>
+    <dependencies>
+      <dep>Epic 9 complete - button system exists</dep>
+      <dep>TailwindCSS for styling</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use GPU-accelerated transforms (translateY, scale) for performance</constraint>
+    <constraint>All animations 200-300ms ease-out timing</constraint>
+    <constraint>Must work on mobile via :active state</constraint>
+    <constraint>Follow existing landing page schema patterns</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN hover_effect TEXT DEFAULT 'none';
+      -- Values: 'none' | 'lift' | 'scale' | 'shine'
+    </interface>
+    <interface type="schema">
+      hoverEffect: text("hover_effect").default("none")
+    </interface>
+    <interface type="api">
+      PATCH /api/landing-pages/:id { hoverEffect: string }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass (npm run check)</standards>
+    <locations>Manual testing in browser for visual effects</locations>
+    <ideas>
+      - Verify each effect visually in preview
+      - Test mobile active states
+      - Verify 60fps performance with DevTools
+      - Test effect persistence after save/reload
+    </ideas>
+  </tests>
+</story-context>

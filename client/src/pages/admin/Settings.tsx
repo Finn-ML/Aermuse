@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,16 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
 interface SystemSettings {
-  'platform.name'?: string;
-  'platform.maintenance_mode'?: boolean;
-  'subscription.trial_days'?: number;
   'ai.daily_limit_free'?: number;
   'ai.daily_limit_premium'?: number;
   'signature.default_expiry_days'?: number;
@@ -25,9 +21,6 @@ interface SystemSettings {
 export default function AdminSettings() {
   const { toast } = useToast();
   const [settings, setSettings] = useState<SystemSettings>({
-    'platform.name': 'Aermuse',
-    'platform.maintenance_mode': false,
-    'subscription.trial_days': 0,
     'ai.daily_limit_free': 0,
     'ai.daily_limit_premium': 100,
     'signature.default_expiry_days': 30,
@@ -35,24 +28,35 @@ export default function AdminSettings() {
   });
   const [hasChanges, setHasChanges] = useState(false);
 
-  const { isLoading, error } = useQuery<SystemSettings>({
+  // Fetch current settings from API
+  const { data, isLoading, error } = useQuery<SystemSettings>({
     queryKey: ['/api/admin/settings'],
-    enabled: false, // Settings endpoint not implemented yet
   });
+
+  // Update local state when data is fetched
+  useEffect(() => {
+    if (data) {
+      setSettings(data);
+      setHasChanges(false);
+    }
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: async (newSettings: SystemSettings) => {
-      // Settings endpoint not implemented yet
-      // const res = await apiRequest('PUT', '/api/admin/settings', newSettings);
-      // return res.json();
-      return Promise.resolve(newSettings);
+      const res = await apiRequest('PUT', '/api/admin/settings', newSettings);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
       toast({ title: 'Settings saved successfully' });
       setHasChanges(false);
     },
-    onError: () => {
-      toast({ title: 'Failed to save settings', variant: 'destructive' });
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to save settings',
+        description: error.message || 'Please try again',
+        variant: 'destructive'
+      });
     },
   });
 
@@ -65,69 +69,44 @@ export default function AdminSettings() {
     saveMutation.mutate(settings);
   };
 
+  if (isLoading) {
+    return (
+      <AdminLayout pageTitle="System Settings">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout pageTitle="System Settings">
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-red-900">Failed to load settings</p>
+                <p className="text-sm text-red-700 mt-1">
+                  Please refresh the page or try again later.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout pageTitle="System Settings">
       <div className="max-w-3xl space-y-6">
-        {/* Platform Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform Settings</CardTitle>
-            <CardDescription>General platform configuration</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="platform-name">Platform Name</Label>
-              <Input
-                id="platform-name"
-                value={settings['platform.name'] || ''}
-                onChange={(e) => updateSetting('platform.name', e.target.value)}
-                placeholder="Aermuse"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Maintenance Mode</Label>
-                <p className="text-sm text-gray-500">
-                  When enabled, only admins can access the platform
-                </p>
-              </div>
-              <Switch
-                checked={settings['platform.maintenance_mode'] || false}
-                onCheckedChange={(checked) => updateSetting('platform.maintenance_mode', checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Subscription Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription Settings</CardTitle>
-            <CardDescription>Configure subscription and billing options</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="trial-days">Trial Period (days)</Label>
-              <Input
-                id="trial-days"
-                type="number"
-                min="0"
-                value={settings['subscription.trial_days'] || 0}
-                onChange={(e) => updateSetting('subscription.trial_days', parseInt(e.target.value) || 0)}
-              />
-              <p className="text-sm text-gray-500">
-                Number of days for free trial (0 = no trial)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* AI Settings */}
         <Card>
           <CardHeader>
             <CardTitle>AI Analysis Settings</CardTitle>
-            <CardDescription>Configure AI usage limits</CardDescription>
+            <CardDescription>Configure daily AI analysis limits per user type</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -137,9 +116,12 @@ export default function AdminSettings() {
                   id="ai-free"
                   type="number"
                   min="0"
-                  value={settings['ai.daily_limit_free'] || 0}
+                  value={settings['ai.daily_limit_free'] ?? 0}
                   onChange={(e) => updateSetting('ai.daily_limit_free', parseInt(e.target.value) || 0)}
                 />
+                <p className="text-xs text-gray-500">
+                  Set to 0 to disable AI for free users
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ai-premium">Premium User Daily Limit</Label>
@@ -147,9 +129,12 @@ export default function AdminSettings() {
                   id="ai-premium"
                   type="number"
                   min="0"
-                  value={settings['ai.daily_limit_premium'] || 0}
+                  value={settings['ai.daily_limit_premium'] ?? 100}
                   onChange={(e) => updateSetting('ai.daily_limit_premium', parseInt(e.target.value) || 0)}
                 />
+                <p className="text-xs text-gray-500">
+                  Premium subscribers' daily analysis limit
+                </p>
               </div>
             </div>
           </CardContent>
@@ -168,7 +153,7 @@ export default function AdminSettings() {
                 id="signature-expiry"
                 type="number"
                 min="1"
-                value={settings['signature.default_expiry_days'] || 30}
+                value={settings['signature.default_expiry_days'] ?? 30}
                 onChange={(e) => updateSetting('signature.default_expiry_days', parseInt(e.target.value) || 30)}
               />
               <p className="text-sm text-gray-500">
@@ -193,7 +178,7 @@ export default function AdminSettings() {
                 </p>
               </div>
               <Switch
-                checked={settings['email.notifications_enabled'] || false}
+                checked={settings['email.notifications_enabled'] ?? true}
                 onCheckedChange={(checked) => updateSetting('email.notifications_enabled', checked)}
               />
             </div>
@@ -223,21 +208,22 @@ export default function AdminSettings() {
           </Button>
         </div>
 
-        {/* Info Notice */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-blue-900">Settings Storage</p>
-                <p className="text-sm text-blue-700 mt-1">
-                  System settings will be stored in the database once the settings API endpoint is implemented.
-                  Currently, settings are stored in application memory only.
-                </p>
+        {/* Success indicator */}
+        {!hasChanges && data && (
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-green-900">Settings synced</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    All settings are saved and will take effect immediately.
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AdminLayout>
   );

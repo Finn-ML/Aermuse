@@ -1,9 +1,118 @@
 // Links Tab - Links, Headers, Video Embeds
 // Story 9.10: Landing Page Editor Redesign
+// Story 9.11: Editable Links
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Type, Video, Trash2, GripVertical, ChevronDown, Crown } from 'lucide-react';
 import { VideoEmbedEditor, VideoItemDisplay } from '@/components/landing/VideoEmbedEditor';
+
+// URL validation helper
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// InlineEdit component for click-to-edit functionality
+interface InlineEditProps {
+  value: string;
+  onSave: (value: string) => void;
+  placeholder?: string;
+  validate?: (value: string) => boolean;
+  className?: string;
+}
+
+function InlineEdit({ value, onSave, placeholder, validate, className }: InlineEditProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+  const [error, setError] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync editValue with value prop when not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setEditValue(value);
+    }
+  }, [value, isEditing]);
+
+  const handleSave = () => {
+    const trimmedValue = editValue.trim();
+
+    // Empty value validation
+    if (!trimmedValue) {
+      setError(true);
+      return;
+    }
+
+    // Custom validation (e.g., URL validation)
+    if (validate && !validate(trimmedValue)) {
+      setError(true);
+      return;
+    }
+
+    // Only save if value changed
+    if (trimmedValue !== value) {
+      onSave(trimmedValue);
+    }
+    setIsEditing(false);
+    setError(false);
+  };
+
+  const handleCancel = () => {
+    setEditValue(value);
+    setIsEditing(false);
+    setError(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+    }
+  };
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  if (!isEditing) {
+    return (
+      <span
+        onClick={() => setIsEditing(true)}
+        className={`cursor-pointer hover:bg-white/50 rounded px-1 -mx-1 ${className || ''}`}
+        title="Click to edit"
+      >
+        {value || placeholder}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={editValue}
+      onChange={(e) => {
+        setEditValue(e.target.value);
+        setError(false);
+      }}
+      onBlur={handleSave}
+      onKeyDown={handleKeyDown}
+      className={`px-1 -mx-1 rounded border outline-none w-full ${
+        error ? 'border-red-500 bg-red-50' : 'border-[#660033]/20 focus:border-[#660033] bg-white'
+      } ${className || ''}`}
+    />
+  );
+}
 
 interface Link {
   id: string;
@@ -138,15 +247,41 @@ export function LinksTab({
                 <div className="flex-1 min-w-0">
                   {isHeader ? (
                     <div className="flex items-center gap-2">
-                      <Type size={12} className="text-[#660033]" />
-                      <span className="font-semibold text-xs text-[#660033]">{link.title}</span>
+                      <Type size={12} className="text-[#660033] flex-shrink-0" />
+                      <InlineEdit
+                        value={link.title}
+                        onSave={(title) => onUpdateLink({ id: link.id, title })}
+                        placeholder="Section Header"
+                        className="font-semibold text-xs text-[#660033]"
+                      />
                     </div>
                   ) : isVideo ? (
-                    <VideoItemDisplay title={link.title} videoUrl={link.videoUrl || ''} />
+                    <div className="flex items-center gap-2">
+                      <VideoItemDisplay title="" videoUrl={link.videoUrl || ''} />
+                      <InlineEdit
+                        value={link.title}
+                        onSave={(title) => onUpdateLink({ id: link.id, title })}
+                        placeholder="Video Title"
+                        className="text-sm font-medium text-[#660033]"
+                      />
+                    </div>
                   ) : (
                     <>
-                      <div className="font-semibold text-xs mb-0.5">{link.title}</div>
-                      <div className="text-xs text-[rgba(102,0,51,0.5)] truncate">{link.url}</div>
+                      <div className="font-semibold text-xs mb-0.5">
+                        <InlineEdit
+                          value={link.title}
+                          onSave={(title) => onUpdateLink({ id: link.id, title })}
+                          placeholder="Link Title"
+                        />
+                      </div>
+                      <div className="text-xs text-[rgba(102,0,51,0.5)]">
+                        <InlineEdit
+                          value={link.url}
+                          onSave={(url) => onUpdateLink({ id: link.id, url })}
+                          validate={isValidUrl}
+                          placeholder="https://..."
+                        />
+                      </div>
                     </>
                   )}
                 </div>

@@ -1,0 +1,95 @@
+<story-context id="epic-11/story-11-5" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.5</storyId>
+    <title>Animated Gradient Backgrounds</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-5-animated-gradient-backgrounds.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>my background gradient to slowly animate</iWant>
+    <soThat>my page feels alive and dynamic rather than static</soThat>
+    <tasks>
+      - Add background_animated, background_animation_speed columns
+      - Update shared schema with new fields
+      - Create @keyframes gradient-shift animation
+      - Apply animation to ArtistPage background
+      - Add Animate toggle to BackgroundEditor (conditional on gradient type)
+      - Update EditorPreview
+      - Test performance (60fps)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Animate Background toggle in Background section
+    AC2: Toggle only visible when background type is "gradient"
+    AC3: When enabled, gradient colors slowly shift/move over time
+    AC4: Speed options: Subtle (30s), Medium (15s), Dynamic (8s)
+    AC5: Animation loops smoothly without jarring jumps
+    AC6: Respects prefers-reduced-motion media query
+    AC7: Preview updates in real-time
+    AC8: Animation performs at 60fps (GPU accelerated)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.5">Epic specification</doc>
+      <doc path="docs/sprint-artifacts/9-5-background-customization.md">Prerequisite - gradient backgrounds</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add backgroundAnimated, backgroundAnimationSpeed</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Apply animation to background</file>
+      <file path="client/src/components/landing/BackgroundEditor.tsx" relevance="HIGH">Add animation controls</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview animation</file>
+    </code>
+    <dependencies>
+      <dep>Story 9.5 - Gradient backgrounds exist</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use background-size: 400% 400% with position shift for smooth animation</constraint>
+    <constraint>Add will-change: background-position for GPU acceleration</constraint>
+    <constraint>Must respect prefers-reduced-motion media query</constraint>
+    <constraint>Animation must loop seamlessly without visible jumps</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN background_animated BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN background_animation_speed TEXT DEFAULT 'subtle';
+      -- Values: 'subtle' | 'medium' | 'dynamic'
+    </interface>
+    <interface type="css">
+      @keyframes gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .animated-gradient {
+        background-size: 400% 400%;
+        animation: gradient-shift var(--animation-duration) ease infinite;
+        will-change: background-position;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .animated-gradient { animation: none; }
+      }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing, DevTools Performance panel</locations>
+    <ideas>
+      - Test all 3 speed settings
+      - Verify smooth looping (no jumps)
+      - Test prefers-reduced-motion behavior
+      - Verify 60fps with DevTools
+      - Test on mobile for performance
+    </ideas>
+  </tests>
+</story-context>

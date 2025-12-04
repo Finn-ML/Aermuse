@@ -116,38 +116,42 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
   const displayItems = maxItems ? toSign.slice(0, maxItems) : toSign;
 
   return (
-    <div className="rounded-2xl bg-white shadow-lg overflow-hidden">
+    <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg overflow-hidden">
       {showTitle && (
         <div
-          className="px-6 py-4 flex items-center justify-between"
+          className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between"
           style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
         >
-          <div className="flex items-center gap-3 text-white">
-            <FileSignature className="h-5 w-5" />
-            <h2 className="font-bold text-lg">Awaiting Your Signature</h2>
+          <div className="flex items-center gap-2 sm:gap-3 text-white">
+            <FileSignature className="h-4 w-4 sm:h-5 sm:w-5" />
+            <h2 className="font-bold text-base sm:text-lg">Awaiting Your Signature</h2>
           </div>
-          <span className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-semibold">
+          <span className="bg-white/20 px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-semibold">
             {toSign.length}
           </span>
         </div>
       )}
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
         {displayItems.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between p-4 rounded-xl border border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)] hover:bg-[rgba(102,0,51,0.02)] transition-all group"
+            className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl border border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)] hover:bg-[rgba(102,0,51,0.02)] transition-all group gap-3"
           >
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-[#660033] truncate">
+              <h3 className="font-semibold text-[#660033] truncate text-sm sm:text-base">
                 {item.contractTitle}
               </h3>
-              <div className="flex items-center gap-2 text-sm text-[rgba(102,0,51,0.6)]">
-                <User className="h-3.5 w-3.5" />
-                <span className="truncate">From {item.initiator?.name || 'Unknown'}</span>
-                <span className="text-[rgba(102,0,51,0.3)]">•</span>
-                <Clock className="h-3.5 w-3.5" />
-                <span>{formatDate(item.createdAt)}</span>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-[rgba(102,0,51,0.6)] flex-wrap">
+                <span className="flex items-center gap-1">
+                  <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="truncate">From {item.initiator?.name || 'Unknown'}</span>
+                </span>
+                <span className="hidden sm:inline text-[rgba(102,0,51,0.3)]">•</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span>{formatDate(item.createdAt)}</span>
+                </span>
               </div>
               {isExpiringSoon(item.expiresAt) && (
                 <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
@@ -157,17 +161,17 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
               )}
             </div>
 
-            <div className="flex items-center gap-2 ml-4">
+            <div className="flex items-center gap-2 sm:ml-4">
               {item.signingUrl && (
                 <a
                   href={item.signingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-white text-sm transition-all hover:scale-105"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-semibold text-white text-xs sm:text-sm transition-all hover:scale-105 flex-1 sm:flex-none"
                   style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                 >
                   Sign Now
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </a>
               )}
               <button
@@ -175,7 +179,7 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
                 className="p-2 hover:bg-[rgba(102,0,51,0.08)] rounded-lg transition-colors"
                 title="View contract"
               >
-                <ChevronRight className="h-5 w-5 text-[rgba(102,0,51,0.5)]" />
+                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-[rgba(102,0,51,0.5)]" />
               </button>
             </div>
           </div>

@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'wouter';
 import { Loader2 } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { parseVideoUrl } from '@/lib/video-parser';
+import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
 import type { LandingPage, LandingPageLink } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
@@ -15,7 +16,7 @@ interface ArtistPageData extends LandingPage {
 // Button style CSS classes
 function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined): string {
   const style = buttonStyle || 'rounded';
-  const baseClasses = 'block w-full py-4 px-6 text-center font-semibold transition-all hover:scale-105';
+  const baseClasses = 'block w-full py-4 px-6 text-center font-semibold transition-all duration-200 hover:scale-105';
 
   switch (style) {
     case 'pill':
@@ -38,9 +39,11 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
   backgroundValue: string | null | undefined,
-  fallbackColor: string
+  fallbackColor: string,
+  backgroundPosition?: 'cover' | 'contain' | string | null // Story 9.13
 ): React.CSSProperties {
   const type = backgroundType || 'solid';
+  const bgSize = backgroundPosition || 'cover'; // Story 9.13
 
   switch (type) {
     case 'gradient':
@@ -51,7 +54,7 @@ function getBackgroundStyle(
       return backgroundValue
         ? {
             backgroundImage: `url(${backgroundValue})`,
-            backgroundSize: 'cover',
+            backgroundSize: bgSize,
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }
@@ -76,6 +79,7 @@ function getOverlayClass(overlay: BackgroundOverlay | string | null | undefined)
 
 export default function ArtistPage() {
   const { slug } = useParams<{ slug: string }>();
+  const pageViewIdRef = useRef<string | null>(null);
 
   const { data: page, isLoading, error } = useQuery<ArtistPageData>({
     queryKey: ['/api/artist', slug],
@@ -88,6 +92,49 @@ export default function ArtistPage() {
     },
     enabled: !!slug,
   });
+
+  // Track page view on mount (AC-2)
+  useEffect(() => {
+    if (!page?.id) return;
+
+    trackPageView(page.id).then((id) => {
+      pageViewIdRef.current = id;
+    });
+  }, [page?.id]);
+
+  // Track page end on unload/visibility change (AC-5)
+  useEffect(() => {
+    const handleUnload = () => {
+      if (pageViewIdRef.current) {
+        trackPageEnd(pageViewIdRef.current);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && pageViewIdRef.current) {
+        trackPageEnd(pageViewIdRef.current);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Track end on component unmount too
+      if (pageViewIdRef.current) {
+        trackPageEnd(pageViewIdRef.current);
+      }
+    };
+  }, []);
+
+  // Handle link click tracking (AC-3)
+  const handleLinkClick = useCallback((linkId: string) => {
+    if (page?.id) {
+      trackLinkClick(linkId, page.id, pageViewIdRef.current);
+    }
+  }, [page?.id]);
 
   // Dynamic Google Fonts loading
   useEffect(() => {
@@ -144,6 +191,7 @@ export default function ArtistPage() {
   const backgroundType = (page.backgroundType as BackgroundType) || 'solid';
   const backgroundValue = page.backgroundValue;
   const backgroundOverlay = (page.backgroundOverlay as BackgroundOverlay) || 'none';
+  const bgPosition = (page.backgroundPosition as 'cover' | 'contain') || 'cover'; // Story 9.13
   const socialLinks = page.socialLinks as Record<string, string> | null;
   const socialIcons = (page.socialIcons as SocialIcon[]) || [];
   const showSocialBar = page.showSocialBar !== false;
@@ -158,7 +206,7 @@ export default function ArtistPage() {
   const buttonTextColor = isOutlineButton ? secondaryColor : primaryColor;
   const buttonBorderColor = isOutlineButton ? secondaryColor : 'transparent';
 
-  const backgroundStyle = getBackgroundStyle(backgroundType, backgroundValue, primaryColor);
+  const backgroundStyle = getBackgroundStyle(backgroundType, backgroundValue, primaryColor, bgPosition);
   const overlayClass = getOverlayClass(backgroundOverlay);
 
   return (
@@ -170,7 +218,7 @@ export default function ArtistPage() {
       }}
     >
       {/* Hero Section (Story 9.8: Layout options) */}
-      <section className="relative py-20 px-4">
+      <section className="relative pt-8 pb-4 px-4">
         {/* Cover Image (if no custom background set) */}
         {page.coverImageUrl && backgroundType === 'solid' && !backgroundValue && (
           <div
@@ -187,15 +235,34 @@ export default function ArtistPage() {
           }`}
         >
           {/* Avatar */}
-          {avatarPosition !== 'hidden' && page.avatarUrl && (
-            <img
-              src={page.avatarUrl}
-              alt={page.artistName}
-              className={`w-32 h-32 rounded-full border-4 shadow-lg ${
-                avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
-              } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
-              style={{ borderColor: accentColor }}
-            />
+          {avatarPosition !== 'hidden' && (
+            page.avatarUrl ? (
+              <img
+                src={page.avatarUrl}
+                alt={page.artistName}
+                className={`w-32 h-32 rounded-full border-4 shadow-lg object-cover ${
+                  avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
+                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                style={{ borderColor: accentColor }}
+                onError={(e) => {
+                  // Hide broken image, show fallback
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div
+                className={`w-32 h-32 rounded-full border-4 shadow-lg flex items-center justify-center text-4xl font-bold ${
+                  avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
+                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                style={{
+                  borderColor: accentColor,
+                  backgroundColor: `${accentColor}30`,
+                  color: textColor
+                }}
+              >
+                {(page.artistName || 'A').charAt(0).toUpperCase()}
+              </div>
+            )
           )}
 
           <div className={avatarPosition === 'left' ? 'flex-1' : ''}>
@@ -223,29 +290,44 @@ export default function ArtistPage() {
             {/* Bio */}
             {page.bio && (
               <p
-                className={`mb-8 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-2xl'}`}
+                className={`mb-6 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-2xl'}`}
                 style={{ color: `${textColor}cc` }}
               >
                 {page.bio}
               </p>
             )}
 
-            {/* Send Proposal Button - prominently placed */}
-            <div className="mt-8">
-              <SendProposalButton
-                landingPageId={page.id}
-                artistName={page.artistName}
-                primaryColor={primaryColor}
-                secondaryColor={secondaryColor}
-              />
-            </div>
+            {/* Social Icons - right after bio */}
+            {showSocialBar && socialIcons.length > 0 && (
+              <div className={`flex gap-4 ${layout === 'centered' ? 'justify-center' : ''}`}>
+                {socialIcons
+                  .sort((a, b) => a.order - b.order)
+                  .map((icon) => (
+                    <a
+                      key={icon.id}
+                      href={icon.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-3 rounded-full transition-all hover:scale-110 hover:opacity-80"
+                      style={{
+                        color: secondaryColor,
+                        backgroundColor: `${secondaryColor}20`,
+                      }}
+                      title={icon.platform}
+                    >
+                      {getPlatformIcon(icon.platform, "w-6 h-6")}
+                    </a>
+                  ))}
+              </div>
+            )}
+
           </div>
         </div>
       </section>
 
       {/* Links Section (Story 9.7: Headers support, Story 9.8: Layout options) */}
       {page.links && page.links.length > 0 && (
-        <section className="py-12 px-4">
+        <section className="py-4 px-4">
           <div
             className={`mx-auto ${
               layout === 'grid'
@@ -337,6 +419,7 @@ export default function ArtistPage() {
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => handleLinkClick(link.id)}
                     className={getButtonClasses(buttonStyle)}
                     style={{
                       backgroundColor: buttonBgColor,
@@ -353,35 +436,9 @@ export default function ArtistPage() {
         </section>
       )}
 
-      {/* Social Icons Bar (Story 9.6) */}
-      {showSocialBar && socialIcons.length > 0 && (
-        <section className="py-8 px-4">
-          <div className="max-w-md mx-auto flex justify-center gap-4">
-            {socialIcons
-              .sort((a, b) => a.order - b.order)
-              .map((icon) => (
-                <a
-                  key={icon.id}
-                  href={icon.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-full transition-all hover:scale-110 hover:opacity-80"
-                  style={{
-                    color: secondaryColor,
-                    backgroundColor: `${secondaryColor}20`,
-                  }}
-                  title={icon.platform}
-                >
-                  {getPlatformIcon(icon.platform, "w-6 h-6")}
-                </a>
-              ))}
-          </div>
-        </section>
-      )}
-
       {/* Legacy Social Links (for backwards compatibility) */}
       {(!socialIcons || socialIcons.length === 0) && socialLinks && Object.keys(socialLinks).length > 0 && (
-        <section className="py-8 px-4">
+        <section className="py-4 px-4">
           <div className="max-w-md mx-auto flex justify-center gap-6">
             {Object.entries(socialLinks).map(([platform, url]) => (
               url && (
@@ -403,7 +460,7 @@ export default function ArtistPage() {
 
       {/* Footer CTA */}
       <section
-        className="py-16 px-4 relative z-10"
+        className="py-10 px-4 relative z-10"
         style={{ backgroundColor: `${textColor}10` }}
       >
         <div className="max-w-4xl mx-auto text-center">
@@ -438,6 +495,8 @@ export default function ArtistPage() {
           style={{ color: `${textColor}60` }}
         >
           Powered by <a href="/" className="hover:underline">Aermuse</a>
+          <span className="mx-2">·</span>
+          <a href="/privacy" className="hover:underline">Privacy</a>
         </p>
       </footer>
     </div>

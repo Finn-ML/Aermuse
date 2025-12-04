@@ -21,7 +21,10 @@ import { AwaitingSignatureList } from '@/components/signatures';
 import { ProposalCard, ProposalDetail } from '@/components/proposals';
 import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
+import { ContractLimitPrompt } from '@/components/UpgradePrompt';
+import { PremiumFeatureGate, PremiumBadge } from '@/components/PremiumFeatureGate';
 import { useTemplates } from '@/hooks/useTemplates';
+import { usePremium } from '@/hooks/usePremium';
 import { SUPPORTED_FONTS } from '@shared/themes';
 import { useAuth } from '@/lib/auth';
 import type { TemplateFormData } from '@shared/types/templates';
@@ -55,6 +58,7 @@ import {
   Mail,
   Filter,
   Inbox,
+  Menu,
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
@@ -86,6 +90,7 @@ export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
     status: '',
@@ -125,8 +130,10 @@ export default function Dashboard() {
   const { toast } = useToast();
   // Templates for proposal-to-contract flow (Story 7.6)
   const { templates } = useTemplates();
-  // Story 9.9: Check if user has Pro subscription
-  const isPro = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+  // Premium subscription check
+  const { isPremium } = usePremium();
+  // Story 9.9: Check if user has Pro subscription (alias for backwards compat)
+  const isPro = isPremium;
 
   useEffect(() => {
     setIsLoaded(true);
@@ -201,6 +208,36 @@ export default function Dashboard() {
   const { data: landingPageData, isLoading: landingPageLoading } = useQuery<LandingPage & { links: LandingPageLink[] }>({
     queryKey: ['/api/landing-page'],
     enabled: !!user,
+  });
+
+  // Fetch contract limit for free users
+  interface ContractLimitData {
+    current: number;
+    limit: number | null;
+    allowed: boolean;
+    isPremium: boolean;
+  }
+  const { data: contractLimitData } = useQuery<ContractLimitData>({
+    queryKey: ['/api/contracts/limit'],
+    enabled: !!user && !isPremium,
+  });
+
+  // Fetch landing page analytics (Story 10.1)
+  interface AnalyticsData {
+    totalViews: number;
+    uniqueVisitors: number;
+    avgTimeOnPage: number;
+    clickRate: number;
+    linkStats: Array<{ linkId: string; clicks: number }>;
+  }
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
+    queryKey: ['/api/analytics/landing-page', landingPageData?.id],
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/analytics/landing-page/${landingPageData?.id}`);
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json();
+    },
+    enabled: !!landingPageData?.id,
   });
 
   // Fetch unread proposal count for badge (Story 7.4)
@@ -350,7 +387,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
-      toast({ title: "Landing page updated" });
+      // No toast on auto-save to avoid spam during typing
     },
   });
 
@@ -489,16 +526,40 @@ export default function Dashboard() {
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
     { id: 'templates' as NavId, label: 'Templates', icon: Layout },
-    { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined },
-    { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink },
+    { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined, premium: true },
+    { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink, premium: true },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
+  // Format large numbers for display (Story 10.2)
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  const activeCount = contracts.filter(c => c.status === 'active').length;
+  const pendingCount = contracts.filter(c => c.status === 'pending').length;
+
   const stats = [
-    { label: 'Active Contracts', value: contracts.filter(c => c.status === 'active').length.toString(), change: '+2 this month', trend: 'up' },
-    { label: 'Pending Review', value: contracts.filter(c => c.status === 'pending').length.toString(), change: 'Needs attention', trend: 'up' },
-    { label: 'Page Views', value: '14.2K', change: '+8.3%', trend: 'up' },
-    { label: 'Total Value', value: `$${contracts.reduce((acc, c) => acc + (parseInt(c.value?.replace(/[^0-9]/g, '') || '0')), 0).toLocaleString()}`, change: 'All contracts', trend: 'up' }
+    {
+      label: 'Active Contracts',
+      value: activeCount.toString(),
+      change: activeCount > 0 ? 'Currently active' : 'None active',
+      trend: 'up'
+    },
+    {
+      label: 'Pending Review',
+      value: pendingCount.toString(),
+      change: pendingCount > 0 ? 'Needs attention' : 'All reviewed',
+      trend: pendingCount > 0 ? 'up' : 'neutral'
+    },
+    {
+      label: 'Page Views',
+      value: analyticsLoading ? '...' : formatNumber(analyticsData?.totalViews || 0),
+      change: analyticsLoading ? 'Loading...' : `${analyticsData?.uniqueVisitors || 0} unique`,
+      trend: 'up'
+    },
   ];
 
   const upcomingEvents = [
@@ -507,11 +568,20 @@ export default function Dashboard() {
     { title: 'Royalty Payment', date: 'Dec 15, 2025', type: 'payment' }
   ];
 
+  // Format duration from seconds to human readable (Story 10.1)
+  const formatDuration = (seconds: number | undefined): string => {
+    if (!seconds || seconds <= 0) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
+  };
+
   const landingPageStats = [
-    { label: 'Total Views', value: '14,247' },
-    { label: 'Unique Visitors', value: '8,392' },
-    { label: 'Avg. Time on Page', value: '2m 34s' },
-    { label: 'Click Rate', value: '12.4%' }
+    { label: 'Total Views', value: analyticsData?.totalViews?.toLocaleString() || '0' },
+    { label: 'Unique Visitors', value: analyticsData?.uniqueVisitors?.toLocaleString() || '0' },
+    { label: 'Avg. Time on Page', value: formatDuration(analyticsData?.avgTimeOnPage) },
+    { label: 'Click Rate', value: `${analyticsData?.clickRate?.toFixed(1) || '0'}%` }
   ];
 
   const getStatusClass = (status: string) => {
@@ -572,7 +642,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex flex-col relative">
+    <div className="min-h-screen bg-[#F7E6CA] text-[#660033] flex flex-col relative overflow-x-hidden">
       <style>{`
         ::selection {
           background: #660033;
@@ -582,33 +652,50 @@ export default function Dashboard() {
 
       <GrainOverlay />
 
-      {/* Email Verification Banner */}
-      {user && !user.emailVerified && (
-        <VerificationBanner onResend={handleResendVerification} />
+      <div className="flex flex-1">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
-      <div className="flex flex-1">
-      <aside 
-        className={`w-[280px] flex flex-col fixed top-0 left-0 h-screen z-20 transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      <aside
+        className={`w-[280px] flex flex-col fixed top-0 left-0 h-screen z-40 transition-all duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
           borderRight: '1px solid rgba(102, 0, 51, 0.08)',
           padding: '32px 20px'
         }}
       >
-        <Link href="/">
-          <div className="text-2xl font-light tracking-[0.25em] lowercase mb-12 pl-5 cursor-pointer">
-            aermuse
-          </div>
-        </Link>
+        <div className="flex items-center justify-between mb-12">
+          <Link href="/">
+            <div className="text-2xl font-light tracking-[0.25em] lowercase pl-5 cursor-pointer">
+              aermuse
+            </div>
+          </Link>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] text-[#660033]"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <nav className="flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const showPremiumBadge = 'premium' in item && item.premium && !isPremium;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveNav(item.id)}
+                onClick={() => {
+                  setActiveNav(item.id);
+                  setSidebarOpen(false);
+                }}
                 className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl cursor-pointer transition-all duration-300 font-medium text-[15px] mb-1 ${
                   activeNav === item.id
                     ? 'bg-[#660033] text-[#F7E6CA]'
@@ -618,7 +705,10 @@ export default function Dashboard() {
               >
                 <Icon size={20} />
                 <span className="flex-1 text-left">{item.label}</span>
-                {'badge' in item && item.badge !== undefined && (
+                {showPremiumBadge && (
+                  <PremiumBadge />
+                )}
+                {'badge' in item && item.badge !== undefined && !showPremiumBadge && (
                   <span className={`ml-auto min-w-[20px] h-5 px-1.5 flex items-center justify-center text-xs font-bold rounded-full ${
                     activeNav === item.id
                       ? 'bg-[#F7E6CA] text-[#660033]'
@@ -632,12 +722,12 @@ export default function Dashboard() {
           })}
         </nav>
 
-        <div 
+        <div
           className="pt-5 mt-auto"
           style={{ borderTop: '1px solid rgba(102, 0, 51, 0.08)' }}
         >
           <div className="flex items-center gap-3 px-5">
-            <div 
+            <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-[#F7E6CA] font-bold text-sm"
               style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
             >
@@ -651,17 +741,26 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      <div className="flex-1 ml-[280px] flex flex-col min-h-screen">
-        <header 
-          className={`h-20 flex items-center justify-between px-10 sticky top-0 z-50 transition-opacity duration-500 delay-100 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      <div className="flex-1 w-full lg:ml-[280px] lg:w-[calc(100%-280px)] flex flex-col min-h-screen">
+        <header
+          className={`h-16 lg:h-20 flex items-center justify-between px-4 sm:px-6 lg:px-10 sticky top-0 z-20 transition-opacity duration-500 delay-100 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{
             backgroundColor: 'rgba(247, 230, 202, 0.95)',
             backdropFilter: 'blur(20px)',
             borderBottom: '1px solid rgba(102, 0, 51, 0.08)'
           }}
         >
-          <div>
-            <h1 className="text-2xl font-bold mb-0.5" data-testid="text-page-title">
+          <div className="flex items-center gap-3 lg:gap-0">
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] text-[#660033]"
+              data-testid="button-mobile-menu"
+            >
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5" data-testid="text-page-title">
               {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'templates' && 'Contract Templates'}
@@ -669,7 +768,7 @@ export default function Dashboard() {
               {activeNav === 'landing' && 'Landing Page'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
-            <p className="text-sm text-[rgba(102,0,51,0.6)] font-medium">
+            <p className="text-xs sm:text-sm text-[rgba(102,0,51,0.6)] font-medium hidden sm:block">
               {activeNav === 'dashboard' && "Here's what's happening with your music career"}
               {activeNav === 'contracts' && 'Manage, analyze, and sign your contracts with AI assistance'}
               {activeNav === 'templates' && 'Select a template to create a new contract'}
@@ -677,6 +776,7 @@ export default function Dashboard() {
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
               {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
+            </div>
           </div>
 
           <div className="relative">
@@ -724,27 +824,32 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main 
-          className={`flex-1 p-10 transition-all duration-500 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+        {/* Email Verification Banner */}
+        {user && !user.emailVerified && (
+          <VerificationBanner onResend={handleResendVerification} />
+        )}
+
+        <main
+          className={`flex-1 p-4 sm:p-6 lg:p-10 transition-all duration-500 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
         >
           {activeNav === 'dashboard' && (
             <>
-              <div className="grid grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
                 {stats.map((stat, index) => (
                   <div
                     key={index}
-                    className="rounded-[20px] p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)]"
+                    className="rounded-xl sm:rounded-[20px] p-4 sm:p-5 lg:p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)]"
                     style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                     data-testid={`card-stat-${index}`}
                   >
-                    <div className="text-[13px] font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-3">
+                    <div className="text-[11px] sm:text-[13px] font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-2 sm:mb-3">
                       {stat.label}
                     </div>
-                    <div className="text-[32px] font-bold mb-2">
+                    <div className="text-2xl sm:text-[28px] lg:text-[32px] font-bold mb-1 sm:mb-2">
                       {stat.value}
                     </div>
-                    <div className="text-[13px] font-semibold text-[#28a745] flex items-center gap-1">
-                      <TrendingUp size={14} />
+                    <div className="text-[11px] sm:text-[13px] font-semibold text-[#28a745] flex items-center gap-1">
+                      <TrendingUp size={12} className="sm:w-[14px] sm:h-[14px]" />
                       {stat.change}
                     </div>
                   </div>
@@ -756,13 +861,13 @@ export default function Dashboard() {
                 <AwaitingSignatureList maxItems={3} />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div 
-                  className="rounded-[20px] p-7"
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <div
+                  className="rounded-[20px] p-5 sm:p-7"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Recent Contracts</h3>
+                  <div className="flex justify-between items-center mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-bold">Recent Contracts</h3>
                     <button 
                       className="text-sm font-semibold text-[rgba(102,0,51,0.6)] hover:text-[#660033] transition-colors"
                       onClick={() => setActiveNav('contracts')}
@@ -798,12 +903,12 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div 
-                  className="rounded-[20px] p-7"
+                <div
+                  className="rounded-[20px] p-5 sm:p-7"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Upcoming</h3>
+                  <div className="flex justify-between items-center mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-bold">Upcoming</h3>
                   </div>
                   <div className="space-y-4">
                     {upcomingEvents.map((event, index) => (
@@ -828,42 +933,72 @@ export default function Dashboard() {
 
           {activeNav === 'contracts' && (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-6 -mx-10 -mt-10 -mb-10">
-              {/* Folder Sidebar */}
-              <FolderSidebar
-                selectedFolder={selectedFolder}
-                onSelectFolder={setSelectedFolder}
-              />
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:-mx-10 lg:-mt-10 lg:-mb-10">
+              {/* Folder Sidebar - hidden on mobile, shown on lg+ */}
+              <div className="hidden lg:block">
+                <FolderSidebar
+                  selectedFolder={selectedFolder}
+                  onSelectFolder={setSelectedFolder}
+                />
+              </div>
 
               {/* Main Content */}
-              <div className="flex-1 p-10">
+              <div className="flex-1 lg:p-10">
               {/* Header with action buttons */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-[#660033]">
-                  {selectedFolder === null ? 'All Contracts' : selectedFolder === 'unfiled' ? 'Unfiled Contracts' : 'Contracts'}
-                </h2>
-                <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#660033]">
+                    {selectedFolder === null ? 'All Contracts' : selectedFolder === 'unfiled' ? 'Unfiled Contracts' : 'Contracts'}
+                  </h2>
+                  {/* Contract limit indicator for free users */}
+                  {!isPremium && contractLimitData && contractLimitData.limit && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      contractLimitData.current >= contractLimitData.limit
+                        ? 'bg-red-100 text-red-700'
+                        : contractLimitData.current >= contractLimitData.limit - 3
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {contractLimitData.current}/{contractLimitData.limit} contracts
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                   <button
                     onClick={() => setShowUploadContract(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                    disabled={!isPremium && contractLimitData && !contractLimitData.allowed}
+                    className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-xs sm:text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all flex-1 sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid="button-upload-contract"
                   >
-                    <Upload size={18} />
-                    Upload Contract
+                    <Upload size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Upload Contract</span>
+                    <span className="sm:hidden">Upload</span>
                   </button>
                   <button
                     onClick={() => setShowAddContract(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                    disabled={!isPremium && contractLimitData && !contractLimitData.allowed}
+                    className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-xs sm:text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all flex-1 sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid="button-add-contract"
                   >
-                    <Plus size={18} />
-                    Add Contract
+                    <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Add Contract</span>
+                    <span className="sm:hidden">Add</span>
                   </button>
                 </div>
               </div>
 
+              {/* Contract limit reached banner */}
+              {!isPremium && contractLimitData && !contractLimitData.allowed && (
+                <div className="mb-6">
+                  <ContractLimitPrompt
+                    current={contractLimitData.current}
+                    limit={contractLimitData.limit || 10}
+                  />
+                </div>
+              )}
+
               {/* Search Bar and Sort (Story 8.6) */}
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
                 <div className="flex-1">
                   <ContractSearchBar
                     value={searchQuery}
@@ -932,19 +1067,19 @@ export default function Dashboard() {
                       <X size={20} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                     <input
                       type="text"
                       placeholder="Contract Name"
                       value={newContract.name}
                       onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
                       data-testid="input-contract-name"
                     />
                     <select
                       value={newContract.type}
                       onChange={(e) => setNewContract({ ...newContract, type: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
                       data-testid="select-contract-type"
                     >
                       <option value="publishing">Publishing</option>
@@ -958,7 +1093,7 @@ export default function Dashboard() {
                       placeholder="Partner Name"
                       value={newContract.partnerName}
                       onChange={(e) => setNewContract({ ...newContract, partnerName: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
                       data-testid="input-partner-name"
                     />
                     <input
@@ -966,7 +1101,7 @@ export default function Dashboard() {
                       placeholder="Contract Value"
                       value={newContract.value}
                       onChange={(e) => setNewContract({ ...newContract, value: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none"
+                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
                       data-testid="input-contract-value"
                     />
                   </div>
@@ -1017,60 +1152,60 @@ export default function Dashboard() {
                   {filteredContracts.map((contract) => (
                     <DraggableContractCard key={contract.id} id={contract.id}>
                     <div
-                      className="rounded-[20px] p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
+                      className="rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
                       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                       data-testid={`contract-${contract.id}`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-5">
-                          <div 
-                            className="w-14 h-14 rounded-xl flex items-center justify-center"
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                          <div
+                            className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
                             style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                           >
-                            <FileText size={24} className="text-[#F7E6CA]" />
+                            <FileText size={20} className="sm:w-6 sm:h-6 text-[#F7E6CA]" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <Link
                               href={`/contracts/${contract.id}`}
-                              className="font-bold text-lg mb-1 hover:text-[#660033] hover:underline cursor-pointer transition-colors"
+                              className="font-bold text-base sm:text-lg mb-1 hover:text-[#660033] hover:underline cursor-pointer transition-colors block truncate"
                             >
                               <HighlightText text={contract.name} highlight={searchQuery} />
                             </Link>
-                            <div className="text-sm text-[rgba(102,0,51,0.5)]">
+                            <div className="text-xs sm:text-sm text-[rgba(102,0,51,0.5)] truncate">
                               <HighlightText text={contract.partnerName || 'No partner specified'} highlight={searchQuery} /> • {contract.type?.replace('_', ' ')}
                               {contract.fileName && (
-                                <span className="ml-2 text-[rgba(102,0,51,0.4)]">
+                                <span className="hidden sm:inline ml-2 text-[rgba(102,0,51,0.4)]">
                                   • {contract.fileType?.toUpperCase()} {contract.fileSize ? `(${(contract.fileSize / 1024 / 1024).toFixed(2)} MB)` : ''}
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 flex-shrink-0">
                           {contract.value && (
-                            <div className="text-right mr-4">
-                              <div className="font-bold">{contract.value}</div>
+                            <div className="text-left sm:text-right sm:mr-4">
+                              <div className="font-bold text-sm sm:text-base">{contract.value}</div>
                               <div className="text-xs text-[rgba(102,0,51,0.5)]">Value</div>
                             </div>
                           )}
-                          <span className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
+                          <span className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
                             {contract.status}
                           </span>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2">
                             {(contract.filePath || contract.renderedContent) && (
                               <a
                                 href={contract.filePath ? `/api/contracts/${contract.id}/download` : `/api/contracts/${contract.id}/pdf`}
-                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
                                 title={`Download ${contract.fileName || 'contract'} as PDF`}
                                 data-testid={`button-download-${contract.id}`}
                               >
-                                <Download size={18} />
+                                <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
                               </a>
                             )}
                             {!!contract.aiAnalysis && (
                               <a
                                 href={`/api/contracts/${contract.id}/pdf`}
-                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                className="hidden sm:flex p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
                                 title="Download PDF Summary"
                                 data-testid={`button-pdf-${contract.id}`}
                               >
@@ -1080,24 +1215,24 @@ export default function Dashboard() {
                             {contract.aiAnalysis ? (
                               <Link
                                 href={`/contracts/${contract.id}`}
-                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
                                 title="View Analysis"
                                 data-testid={`button-view-${contract.id}`}
                               >
-                                <Eye size={18} />
+                                <Eye size={16} className="sm:w-[18px] sm:h-[18px]" />
                               </Link>
                             ) : (
                               <button
                                 onClick={() => analyzeContractMutation.mutate(contract.id)}
                                 disabled={analyzeContractMutation.isPending && analyzeContractMutation.variables === contract.id}
-                                className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
+                                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
                                 title="AI Analysis"
                                 data-testid={`button-analyze-${contract.id}`}
                               >
                                 {analyzeContractMutation.isPending && analyzeContractMutation.variables === contract.id ? (
-                                  <Loader2 size={18} className="animate-spin" />
+                                  <Loader2 size={16} className="sm:w-[18px] sm:h-[18px] animate-spin" />
                                 ) : (
-                                  <Sparkles size={18} />
+                                  <Sparkles size={16} className="sm:w-[18px] sm:h-[18px]" />
                                 )}
                               </button>
                             )}
@@ -1105,11 +1240,11 @@ export default function Dashboard() {
                               <button
                                 onClick={() => signContractMutation.mutate(contract.id)}
                                 disabled={signContractMutation.isPending}
-                                className="p-2.5 rounded-xl bg-[#28a745] text-white hover:bg-[#218838] transition-all"
+                                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#28a745] text-white hover:bg-[#218838] transition-all"
                                 title="Sign Contract"
                                 data-testid={`button-sign-${contract.id}`}
                               >
-                                <Check size={18} />
+                                <Check size={16} className="sm:w-[18px] sm:h-[18px]" />
                               </button>
                             )}
                             <button
@@ -1118,7 +1253,7 @@ export default function Dashboard() {
                                 contractName: contract.name,
                                 currentFolderId: contract.folderId || null,
                               })}
-                              className="p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                              className="hidden sm:flex p-2.5 rounded-xl bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)] transition-all"
                               title="Move to Folder"
                               data-testid={`button-move-${contract.id}`}
                             >
@@ -1127,11 +1262,11 @@ export default function Dashboard() {
                             <button
                               onClick={() => deleteContractMutation.mutate(contract.id)}
                               disabled={deleteContractMutation.isPending}
-                              className="p-2.5 rounded-xl bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)] transition-all"
+                              className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[rgba(220,53,69,0.1)] text-[#dc3545] hover:bg-[rgba(220,53,69,0.2)] transition-all"
                               title="Delete"
                               data-testid={`button-delete-${contract.id}`}
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                             </button>
                           </div>
                         </div>
@@ -1237,227 +1372,277 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'landing' && (
-            <>
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                {landingPageStats.map((stat, index) => (
-                  <div
-                    key={index}
-                    className="rounded-[16px] p-5"
-                    style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                  >
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-2">
-                      {stat.label}
+            isPremium ? (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                  {landingPageStats.map((stat, index) => (
+                    <div
+                      key={index}
+                      className="rounded-xl sm:rounded-[16px] p-4 sm:p-5"
+                      style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                    >
+                      <div className="text-[10px] sm:text-[12px] font-semibold uppercase tracking-[0.05em] text-[rgba(102,0,51,0.5)] mb-1 sm:mb-2">
+                        {stat.label}
+                      </div>
+                      <div className="text-lg sm:text-2xl font-bold">{stat.value}</div>
                     </div>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              {/* Story 9.10: Redesigned Landing Page Editor */}
-              {landingPageData && (
-                <LandingPageEditor
-                  landingPageData={{
-                    ...landingPageData,
-                    links: landingPageData.links || [],
-                    socialIcons: (landingPageData.socialIcons as SocialIcon[]) || [],
-                  }}
-                  isPro={isPro}
-                  isSaving={updateLandingPageMutation.isPending}
-                  onUpdate={(updates) => updateLandingPageMutation.mutate(updates)}
-                  onCreateLink={(data) => createLinkMutation.mutate(data)}
-                  onUpdateLink={(data) => updateLinkMutation.mutate(data)}
-                  onDeleteLink={(id) => deleteLinkMutation.mutate(id)}
-                  onImageUpload={async (file) => {
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    const response = await fetch('/api/landing-page/background-image', {
-                      method: 'POST',
-                      body: formData,
-                      credentials: 'include',
-                    });
-                    if (!response.ok) {
-                      const error = await response.json();
-                      throw new Error(error.error || 'Upload failed');
-                    }
-                    const data = await response.json();
-                    return data.url;
-                  }}
-                  onNavigateToUpgrade={() => setLocation('/pricing')}
-                />
-              )}
-            </>
+                {/* Story 9.10: Redesigned Landing Page Editor */}
+                {landingPageData && (
+                  <LandingPageEditor
+                    landingPageData={{
+                      ...landingPageData,
+                      links: landingPageData.links || [],
+                      socialIcons: (landingPageData.socialIcons as SocialIcon[]) || [],
+                    }}
+                    isPro={isPro}
+                    isSaving={updateLandingPageMutation.isPending}
+                    onUpdate={(updates) => updateLandingPageMutation.mutate(updates)}
+                    onCreateLink={(data) => createLinkMutation.mutate(data)}
+                    onUpdateLink={(data) => updateLinkMutation.mutate(data)}
+                    onDeleteLink={(id) => deleteLinkMutation.mutate(id)}
+                    onImageUpload={async (file) => {
+                      const formData = new FormData();
+                      formData.append('image', file);
+                      const response = await fetch('/api/landing-page/background-image', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Upload failed');
+                      }
+                      const data = await response.json();
+                      return data.url;
+                    }}
+                    onAvatarUpload={async (file) => {
+                      const formData = new FormData();
+                      formData.append('image', file);
+                      const response = await fetch('/api/landing-page/avatar', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Upload failed');
+                      }
+                      const data = await response.json();
+                      // Refresh landing page data to show new avatar
+                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                      return data.url;
+                    }}
+                    onAvatarRemove={async () => {
+                      const response = await fetch('/api/landing-page/avatar', {
+                        method: 'DELETE',
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to remove avatar');
+                      }
+                      // Refresh landing page data
+                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                    }}
+                    onBackgroundRemove={async () => {
+                      // Story 9.13: Remove background image
+                      const response = await fetch('/api/landing-page/background-image', {
+                        method: 'DELETE',
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to remove background image');
+                      }
+                      // Refresh landing page data
+                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                    }}
+                    onNavigateToUpgrade={() => setLocation('/pricing')}
+                  />
+                )}
+              </>
+            ) : (
+              <PremiumFeatureGate feature="landing" />
+            )
           )}
 
           {activeNav === 'proposals' && (
-            selectedProposalId && selectedProposal ? (
-              // Proposal Detail View
-              proposalDetailLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="animate-spin text-[#660033]" size={32} />
-                </div>
-              ) : (
-                <>
-                <ProposalDetail
-                  proposal={selectedProposal}
-                  onStatusChange={(status) => handleProposalStatusChange(selectedProposalId, status)}
-                  onDelete={() => handleProposalDelete(selectedProposalId)}
-                  onBack={() => {
-                    setSelectedProposalId(null);
-                    setShowTemplateSelection(false);
-                  }}
-                  onCreateContract={handleCreateContractFromProposal}
-                  onViewContract={handleViewContractFromProposal}
-                />
-
-                {/* Template Selection Modal for creating contract from proposal (Story 7.6) */}
-                {showTemplateSelection && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div
-                      className="absolute inset-0 bg-black/50"
-                      onClick={() => setShowTemplateSelection(false)}
-                    />
-                    <div
-                      className="relative rounded-[20px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
-                      style={{ background: '#FDF8F3' }}
-                    >
-                      <h2 className="text-2xl font-bold text-[#660033] mb-2">Select a Template</h2>
-                      <p className="text-[rgba(102,0,51,0.6)] mb-6">
-                        Choose a template for the contract. The proposal details will be pre-filled.
-                      </p>
-
-                      {templates && templates.length > 0 ? (
-                        <div className="space-y-3">
-                          {templates.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => handleSelectTemplateForContract(template)}
-                              disabled={creatingContractFromProposal}
-                              className="w-full text-left p-5 rounded-xl border-2 border-[rgba(102,0,51,0.1)] hover:border-[#660033] hover:bg-[rgba(102,0,51,0.04)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-bold text-[#660033]">{template.name}</h3>
-                                  {template.description && (
-                                    <p className="text-sm text-[rgba(102,0,51,0.6)] mt-1">
-                                      {template.description}
-                                    </p>
-                                  )}
-                                </div>
-                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.6)]">
-                                  {template.category}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
-                          No templates available. Please create a template first.
-                        </div>
-                      )}
-
-                      <div className="flex justify-end gap-3 mt-6">
-                        <button
-                          onClick={() => setShowTemplateSelection(false)}
-                          disabled={creatingContractFromProposal}
-                          className="px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-
-                      {creatingContractFromProposal && (
-                        <div className="absolute inset-0 bg-white/80 rounded-[20px] flex items-center justify-center">
-                          <div className="flex items-center gap-3 text-[#660033]">
-                            <Loader2 className="animate-spin" size={24} />
-                            <span className="font-semibold">Creating contract...</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-              )
-            ) : (
-              // Proposals List View
-              <div className="space-y-6">
-                {/* Status Filters */}
-                <div className="flex items-center gap-3">
-                  <Filter size={16} className="text-[rgba(102,0,51,0.5)]" />
-                  <div className="flex gap-2">
-                    {[
-                      { value: 'all', label: 'All' },
-                      { value: 'new', label: 'New' },
-                      { value: 'viewed', label: 'Viewed' },
-                      { value: 'responded', label: 'Responded' },
-                      { value: 'archived', label: 'Archived' },
-                    ].map((filter) => (
-                      <button
-                        key={filter.value}
-                        onClick={() => setProposalStatusFilter(filter.value)}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                          proposalStatusFilter === filter.value
-                            ? 'bg-[#660033] text-[#F7E6CA]'
-                            : 'bg-[rgba(102,0,51,0.06)] text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.1)] hover:text-[#660033]'
-                        }`}
-                      >
-                        {filter.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Proposals List */}
-                {proposalsLoading ? (
+            isPremium ? (
+              selectedProposalId && selectedProposal ? (
+                // Proposal Detail View
+                proposalDetailLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="animate-spin text-[#660033]" size={32} />
                   </div>
-                ) : proposals.length === 0 ? (
-                  <div
-                    className="rounded-[20px] p-12 text-center"
-                    style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-                  >
-                    <div
-                      className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                      style={{ background: 'rgba(102, 0, 51, 0.06)' }}
-                    >
-                      <Inbox size={32} className="text-[rgba(102,0,51,0.3)]" />
-                    </div>
-                    <h3 className="text-lg font-bold text-[#660033] mb-2">
-                      No proposals yet
-                    </h3>
-                    <p className="text-[rgba(102,0,51,0.6)]">
-                      {proposalStatusFilter === 'all'
-                        ? "When someone sends a proposal through your landing page, it will appear here."
-                        : `No ${proposalStatusFilter} proposals found.`}
-                    </p>
-                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    {proposals.map((proposal) => (
-                      <ProposalCard
-                        key={proposal.id}
-                        proposal={proposal}
-                        onStatusChange={handleProposalStatusChange}
-                        onDelete={handleProposalDelete}
-                        onSelect={setSelectedProposalId}
+                  <>
+                  <ProposalDetail
+                    proposal={selectedProposal}
+                    onStatusChange={(status) => handleProposalStatusChange(selectedProposalId, status)}
+                    onDelete={() => handleProposalDelete(selectedProposalId)}
+                    onBack={() => {
+                      setSelectedProposalId(null);
+                      setShowTemplateSelection(false);
+                    }}
+                    onCreateContract={handleCreateContractFromProposal}
+                    onViewContract={handleViewContractFromProposal}
+                  />
+
+                  {/* Template Selection Modal for creating contract from proposal (Story 7.6) */}
+                  {showTemplateSelection && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                      <div
+                        className="absolute inset-0 bg-black/50"
+                        onClick={() => setShowTemplateSelection(false)}
                       />
-                    ))}
+                      <div
+                        className="relative rounded-[20px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+                        style={{ background: '#FDF8F3' }}
+                      >
+                        <h2 className="text-2xl font-bold text-[#660033] mb-2">Select a Template</h2>
+                        <p className="text-[rgba(102,0,51,0.6)] mb-6">
+                          Choose a template for the contract. The proposal details will be pre-filled.
+                        </p>
+
+                        {templates && templates.length > 0 ? (
+                          <div className="space-y-3">
+                            {templates.map((template) => (
+                              <button
+                                key={template.id}
+                                onClick={() => handleSelectTemplateForContract(template)}
+                                disabled={creatingContractFromProposal}
+                                className="w-full text-left p-5 rounded-xl border-2 border-[rgba(102,0,51,0.1)] hover:border-[#660033] hover:bg-[rgba(102,0,51,0.04)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="font-bold text-[#660033]">{template.name}</h3>
+                                    {template.description && (
+                                      <p className="text-sm text-[rgba(102,0,51,0.6)] mt-1">
+                                        {template.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.6)]">
+                                    {template.category}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
+                            No templates available. Please create a template first.
+                          </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 mt-6">
+                          <button
+                            onClick={() => setShowTemplateSelection(false)}
+                            disabled={creatingContractFromProposal}
+                            className="px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+
+                        {creatingContractFromProposal && (
+                          <div className="absolute inset-0 bg-white/80 rounded-[20px] flex items-center justify-center">
+                            <div className="flex items-center gap-3 text-[#660033]">
+                              <Loader2 className="animate-spin" size={24} />
+                              <span className="font-semibold">Creating contract...</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+                )
+              ) : (
+                // Proposals List View
+                <div className="space-y-6">
+                  {/* Status Filters */}
+                  <div className="flex items-center gap-3">
+                    <Filter size={16} className="text-[rgba(102,0,51,0.5)]" />
+                    <div className="flex gap-2">
+                      {[
+                        { value: 'all', label: 'All' },
+                        { value: 'new', label: 'New' },
+                        { value: 'viewed', label: 'Viewed' },
+                        { value: 'responded', label: 'Responded' },
+                        { value: 'archived', label: 'Archived' },
+                      ].map((filter) => (
+                        <button
+                          key={filter.value}
+                          onClick={() => setProposalStatusFilter(filter.value)}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                            proposalStatusFilter === filter.value
+                              ? 'bg-[#660033] text-[#F7E6CA]'
+                              : 'bg-[rgba(102,0,51,0.06)] text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.1)] hover:text-[#660033]'
+                          }`}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Proposals List */}
+                  {proposalsLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="animate-spin text-[#660033]" size={32} />
+                    </div>
+                  ) : proposals.length === 0 ? (
+                    <div
+                      className="rounded-[20px] p-12 text-center"
+                      style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                    >
+                      <div
+                        className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                        style={{ background: 'rgba(102, 0, 51, 0.06)' }}
+                      >
+                        <Inbox size={32} className="text-[rgba(102,0,51,0.3)]" />
+                      </div>
+                      <h3 className="text-lg font-bold text-[#660033] mb-2">
+                        No proposals yet
+                      </h3>
+                      <p className="text-[rgba(102,0,51,0.6)]">
+                        {proposalStatusFilter === 'all'
+                          ? "When someone sends a proposal through your landing page, it will appear here."
+                          : `No ${proposalStatusFilter} proposals found.`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {proposals.map((proposal) => (
+                        <ProposalCard
+                          key={proposal.id}
+                          proposal={proposal}
+                          onStatusChange={handleProposalStatusChange}
+                          onDelete={handleProposalDelete}
+                          onSelect={setSelectedProposalId}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              <PremiumFeatureGate feature="proposals" />
             )
           )}
 
           {activeNav === 'settings' && (
             <>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <ChangePasswordForm />
                 </div>
                 <div
-                  className="rounded-[20px] p-7"
+                  className="rounded-[20px] p-5 sm:p-7"
                   style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                 >
                   <div className="flex items-center gap-3 mb-6">

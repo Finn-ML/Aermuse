@@ -1,0 +1,89 @@
+<story-context id="epic-11/story-11-3" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.3</storyId>
+    <title>Gradient Text for Titles</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-3-gradient-text-for-titles.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to apply gradient colors to my name/title</iWant>
+    <soThat>it looks modern and eye-catching</soThat>
+    <tasks>
+      - Add title_gradient, title_gradient_colors, title_gradient_direction columns
+      - Update shared schema with new fields
+      - Create getGradientTextStyle() helper function
+      - Apply gradient to ArtistPage h1 (artist name)
+      - Add Title Effects UI section to DesignTab
+      - Update EditorPreview
+      - Test browser compatibility
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Title Effects section with "Gradient Text" toggle in Design tab
+    AC2: When enabled, artist name shows gradient fill (default: primary→accent)
+    AC3: User can pick two custom colors for gradient start/end
+    AC4: User can select direction: horizontal, vertical, diagonal
+    AC5: Fallback to solid color for unsupported browsers
+    AC6: Preview updates in real-time
+    AC7: Gradient applies to h1 on public ArtistPage
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.3">Epic specification</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add titleGradient, titleGradientColors, titleGradientDirection</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Apply gradient to h1</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Add Title Effects section</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview gradient text</file>
+      <file path="client/src/components/landing/ColorPicker.tsx" relevance="MEDIUM">Reuse for gradient colors</file>
+    </code>
+    <dependencies>
+      <dep>No story dependencies - can start independently</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use background-clip: text technique for gradient text</constraint>
+    <constraint>Include -webkit- prefixes for Safari</constraint>
+    <constraint>Provide fallback solid color for unsupported browsers</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN title_gradient BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN title_gradient_colors JSONB DEFAULT '{"start": null, "end": null}';
+      ALTER TABLE landing_pages ADD COLUMN title_gradient_direction TEXT DEFAULT 'horizontal';
+    </interface>
+    <interface type="css">
+      .gradient-text {
+        background: linear-gradient(var(--direction), var(--start), var(--end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    </interface>
+    <interface type="helper">
+      function getGradientTextStyle(enabled, colors, direction, fallback, primary, accent): CSSProperties
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing across browsers</locations>
+    <ideas>
+      - Test all 3 gradient directions
+      - Test custom color selection
+      - Test default colors (primary/accent)
+      - Test in Chrome, Firefox, Safari, Edge
+      - Verify fallback in older browsers
+    </ideas>
+  </tests>
+</story-context>

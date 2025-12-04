@@ -1,0 +1,97 @@
+<story-context id="epic-11/story-11-7" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.7</storyId>
+    <title>Glassmorphism Card Effects</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-7-glassmorphism-card-effects.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to apply a frosted glass effect to my link buttons</iWant>
+    <soThat>my page has a modern, premium depth</soThat>
+    <tasks>
+      - Add glass_effect, glass_blur, glass_opacity columns
+      - Update shared schema with new fields
+      - Create glassmorphism CSS styles with backdrop-filter
+      - Apply glass effect to ArtistPage buttons
+      - Add Glass Effect UI controls to DesignTab
+      - Update EditorPreview
+      - Test browser compatibility and fallbacks
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Glass Effect toggle in Button Effects section
+    AC2: When enabled, link buttons have frosted glass appearance
+    AC3: Background shows through with blur, creating depth
+    AC4: Blur intensity options: Light (4px), Medium (8px), Heavy (16px)
+    AC5: Opacity adjustable (10%-50%)
+    AC6: Effect works best with gradient/image backgrounds
+    AC7: Fallback styling for browsers without backdrop-filter
+    AC8: Preview updates in real-time
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.7">Epic specification</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add glassEffect, glassBlur, glassOpacity</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Apply glass effect to buttons</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Add glass effect controls</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview glass effect</file>
+    </code>
+    <dependencies>
+      <dep>No story dependencies - can start independently</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use backdrop-filter: blur() with -webkit prefix for Safari</constraint>
+    <constraint>Must provide fallback for browsers without backdrop-filter support</constraint>
+    <constraint>Glass effect overrides default button background when enabled</constraint>
+    <constraint>Include subtle border for glass edge definition</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN glass_effect BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN glass_blur TEXT DEFAULT 'medium';
+      -- Values: 'light' | 'medium' | 'heavy'
+      ALTER TABLE landing_pages ADD COLUMN glass_opacity REAL DEFAULT 0.2;
+      -- Range: 0.1 to 0.5
+    </interface>
+    <interface type="css">
+      .glass-effect {
+        background: rgba(255, 255, 255, var(--glass-opacity, 0.2));
+        backdrop-filter: blur(var(--glass-blur, 8px));
+        -webkit-backdrop-filter: blur(var(--glass-blur, 8px));
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      @supports not (backdrop-filter: blur(1px)) {
+        .glass-effect { background: rgba(255, 255, 255, 0.8); }
+      }
+    </interface>
+    <interface type="helper">
+      function getBlurValue(blur: 'light'|'medium'|'heavy'): string
+      // Returns '4px', '8px', or '16px'
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing across browsers</locations>
+    <ideas>
+      - Test all 3 blur intensity levels
+      - Test opacity range
+      - Test in Chrome, Firefox, Safari, Edge
+      - Verify fallback in unsupported browsers
+      - Test performance on mobile
+      - Test with different background types
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,111 @@
+<story-context id="epic-11/story-11-8" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.8</storyId>
+    <title>Effects Control Panel UI</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-8-effects-control-panel-ui.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>a unified effects control panel in my editor</iWant>
+    <soThat>I can easily discover and customize all visual effects in one place</soThat>
+    <tasks>
+      - Add animation_intensity column to database
+      - Update shared schema
+      - Create EffectsPanel component with accordion structure
+      - Implement Button Effects section (hover, glow, gradient border, glass)
+      - Implement Title Effects section (gradient text, glow, shadow)
+      - Implement Background Effects section (animated gradient, particles)
+      - Add Animation Intensity global control
+      - Implement Reset Effects button
+      - Integrate EffectsPanel into DesignTab
+      - Create CSS variables for intensity levels
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Effects section visible in Design tab with collapsible panel
+    AC2: Organized sections: Button Effects, Title Effects, Background Effects
+    AC3: Each toggle reveals additional customization options (progressive disclosure)
+    AC4: All changes trigger immediate preview updates
+    AC5: Reset Effects button resets all effects to defaults
+    AC6: Summary shows count of active effects (e.g., "3 effects active")
+    AC7: Global Animation Intensity control: Subtle, Medium, Bold
+    AC8: Animation intensity affects timing across all animations
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.8">Epic specification</doc>
+      <doc path="docs/sprint-artifacts/11-1-button-hover-effects.md">Button hover effects</doc>
+      <doc path="docs/sprint-artifacts/11-2-button-glow-gradient-borders.md">Button glow/borders</doc>
+      <doc path="docs/sprint-artifacts/11-3-gradient-text-for-titles.md">Gradient text</doc>
+      <doc path="docs/sprint-artifacts/11-4-text-glow-shadow-effects.md">Text glow/shadow</doc>
+      <doc path="docs/sprint-artifacts/11-5-animated-gradient-backgrounds.md">Animated backgrounds</doc>
+      <doc path="docs/sprint-artifacts/11-6-floating-particles-animation.md">Particles</doc>
+      <doc path="docs/sprint-artifacts/11-7-glassmorphism-card-effects.md">Glassmorphism</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add animationIntensity field</file>
+      <file path="client/src/components/landing/editor/EffectsPanel.tsx" relevance="HIGH">New component to create</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Integrate EffectsPanel</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="MEDIUM">May need intensity CSS vars</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="MEDIUM">Apply intensity CSS vars</file>
+    </code>
+    <dependencies>
+      <dep>Stories 11.1-11.7 - All individual effects exist</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use accordion/collapsible UI for organized sections</constraint>
+    <constraint>Progressive disclosure - options appear when toggle enabled</constraint>
+    <constraint>Must count active effects for summary display</constraint>
+    <constraint>Reset must confirm before clearing all effects</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN animation_intensity TEXT DEFAULT 'medium';
+      -- Values: 'subtle' | 'medium' | 'bold'
+    </interface>
+    <interface type="component">
+      EffectsPanel({ data, onUpdate })
+      - Collapsible accordion with Button/Title/Background sections
+      - Active effects counter
+      - Animation Intensity selector
+      - Reset Effects button with confirmation
+    </interface>
+    <interface type="css">
+      [data-intensity="subtle"] {
+        --animation-speed-multiplier: 1.5;
+        --animation-intensity-multiplier: 0.7;
+      }
+      [data-intensity="bold"] {
+        --animation-speed-multiplier: 0.7;
+        --animation-intensity-multiplier: 1.3;
+      }
+    </interface>
+    <interface type="helper">
+      function countActiveEffects(data): number
+      // Counts enabled effects: hoverEffect!='none', buttonGlow, buttonGradientBorder, etc.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing</locations>
+    <ideas>
+      - Test accordion expand/collapse
+      - Verify active effects counter updates
+      - Test Reset Effects clears all
+      - Test Animation Intensity affects all animations
+      - Verify progressive disclosure works
+      - Test preview updates in real-time
+    </ideas>
+  </tests>
+</story-context>

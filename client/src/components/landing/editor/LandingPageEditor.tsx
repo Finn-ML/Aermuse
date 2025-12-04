@@ -50,6 +50,7 @@ interface LandingPageData {
   backgroundType?: string | null;
   backgroundValue?: string | null;
   backgroundOverlay?: string | null;
+  backgroundPosition?: string | null; // Story 9.13
   socialIcons?: SocialIcon[] | null;
   showSocialBar?: boolean | null;
   layout?: string | null;
@@ -67,6 +68,9 @@ interface LandingPageEditorProps {
   onUpdateLink: (data: { id: string; enabled?: boolean; title?: string; url?: string; order?: string }) => void;
   onDeleteLink: (id: string) => void;
   onImageUpload: (file: File) => Promise<string>;
+  onAvatarUpload: (file: File) => Promise<string>;
+  onAvatarRemove: () => void;
+  onBackgroundRemove?: () => void; // Story 9.13
   onNavigateToUpgrade: () => void;
 }
 
@@ -79,6 +83,9 @@ export function LandingPageEditor({
   onUpdateLink,
   onDeleteLink,
   onImageUpload,
+  onAvatarUpload,
+  onAvatarRemove,
+  onBackgroundRemove,
   onNavigateToUpgrade,
 }: LandingPageEditorProps) {
   const [activeTab, setActiveTab] = useState<TabId>('design');
@@ -122,9 +129,9 @@ export function LandingPageEditor({
   const links = landingPageData.links || [];
 
   return (
-    <div className="flex h-[calc(100vh-200px)] min-h-[600px] gap-4">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-200px)] lg:min-h-[600px] gap-4">
       {/* Editor Panel */}
-      <div className="w-1/2 flex flex-col rounded-[20px] overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+      <div className="w-full lg:w-1/2 flex flex-col rounded-[20px] overflow-hidden min-h-[400px] lg:min-h-0" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
         {/* Tabs Header */}
         <div className="p-4 border-b border-[rgba(102,0,51,0.1)]">
           <div className="flex items-center justify-between mb-3">
@@ -179,6 +186,9 @@ export function LandingPageEditor({
               landingPageData={landingPageData}
               onUpdate={onUpdate}
               onImageUpload={onImageUpload}
+              onAvatarUpload={onAvatarUpload}
+              onAvatarRemove={onAvatarRemove}
+              onBackgroundRemove={onBackgroundRemove}
             />
           )}
           {activeTab === 'links' && (
@@ -227,7 +237,7 @@ export function LandingPageEditor({
       </div>
 
       {/* Preview Panel */}
-      <div className="w-1/2 rounded-[20px] overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+      <div className="w-full lg:w-1/2 rounded-[20px] overflow-hidden min-h-[500px] lg:min-h-0" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
         <EditorPreview
           page={landingPageData}
           links={links}

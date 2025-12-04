@@ -69,23 +69,23 @@ export function RiskScoreCard({ riskAssessment }: Props) {
 
   return (
     <div
-      className="rounded-[20px] p-7"
+      className="rounded-xl sm:rounded-[20px] p-4 sm:p-7"
       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
     >
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
         >
-          <Shield className="h-5 w-5 text-[#F7E6CA]" />
+          <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-[#F7E6CA]" />
         </div>
-        <h3 className="text-lg font-bold text-[#660033]">Risk Assessment</h3>
+        <h3 className="text-base sm:text-lg font-bold text-[#660033]">Risk Assessment</h3>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
         {/* Animated Score Circle */}
-        <div className="relative w-32 h-32 flex-shrink-0">
-          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+        <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0">
+          <svg className="w-24 h-24 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 120 120">
             <circle
               cx="60"
               cy="60"
@@ -114,25 +114,25 @@ export function RiskScoreCard({ riskAssessment }: Props) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold" style={{ color: config.color }}>
+            <span className="text-2xl sm:text-3xl font-bold" style={{ color: config.color }}>
               {animatedScore}
             </span>
-            <span className="text-xs text-[rgba(102,0,51,0.5)]">/ 100</span>
+            <span className="text-[10px] sm:text-xs text-[rgba(102,0,51,0.5)]">/ 100</span>
           </div>
         </div>
 
         {/* Summary */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
             <span
-              className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.05em] text-white"
+              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] text-white"
               style={{ background: config.gradient }}
             >
               {config.label}
             </span>
-            <Icon className="h-4 w-4" style={{ color: config.color }} />
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: config.color }} />
           </div>
-          <p className="text-sm text-[rgba(102,0,51,0.7)] leading-relaxed">
+          <p className="text-xs sm:text-sm text-[rgba(102,0,51,0.7)] leading-relaxed">
             {riskAssessment.summary || config.description}
           </p>
         </div>

@@ -1,0 +1,83 @@
+<story-context id="epic-11/story-11-2" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.2</storyId>
+    <title>Button Glow and Gradient Borders</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-2-button-glow-gradient-borders.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to add glow effects and gradient borders to my buttons</iWant>
+    <soThat>they look premium and eye-catching</soThat>
+    <tasks>
+      - Add button_glow, button_glow_intensity, button_gradient_border columns
+      - Update shared schema with new fields
+      - Implement glow CSS (box-shadow with accent color)
+      - Implement gradient border CSS (pseudo-element technique)
+      - Apply effects to ArtistPage buttons
+      - Add UI controls to DesignTab
+      - Update EditorPreview
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Glow toggle in Button Effects section
+    AC2: When glow enabled, buttons have soft colored glow using accent color
+    AC3: Glow intensity: Subtle (4px), Medium (8px), Strong (16px)
+    AC4: Gradient Border toggle available
+    AC5: When enabled, buttons show primary→accent gradient border
+    AC6: Gradient border animates on hover
+    AC7: Effects combine with hover effects from 11.1
+    AC8: Preview updates in real-time
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.2">Epic specification</doc>
+      <doc path="docs/sprint-artifacts/11-1-button-hover-effects.md">Prerequisite story</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add buttonGlow, buttonGlowIntensity, buttonGradientBorder</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Apply glow/border effects</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Add UI controls</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview effects</file>
+    </code>
+    <dependencies>
+      <dep>Story 11.1 - Button Effects section exists</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Glow uses box-shadow with accent color at 50% opacity</constraint>
+    <constraint>Gradient border via pseudo-element or border-image</constraint>
+    <constraint>Effects must combine correctly with hover effects</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN button_glow BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN button_glow_intensity TEXT DEFAULT 'medium';
+      ALTER TABLE landing_pages ADD COLUMN button_gradient_border BOOLEAN DEFAULT false;
+    </interface>
+    <interface type="css">
+      .button-glow-subtle { box-shadow: 0 0 4px var(--accent-50); }
+      .button-glow-medium { box-shadow: 0 0 8px var(--accent-50); }
+      .button-glow-strong { box-shadow: 0 0 16px var(--accent-50); }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing</locations>
+    <ideas>
+      - Test glow at all 3 intensity levels
+      - Verify gradient border animates on hover
+      - Test combining with hover effects
+      - Verify effects persist after save
+    </ideas>
+  </tests>
+</story-context>

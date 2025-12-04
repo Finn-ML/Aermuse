@@ -21,6 +21,9 @@ This document outlines the epics and user stories required to complete the Aermu
 | [EPIC-006](./epic-6-admin-dashboard.md) | Admin Dashboard | P1 | 37 | 3-4 days |
 | [EPIC-007](./epic-7-landing-page-enhancements.md) | Landing Page Enhancements | P2 | 12 | 1-2 days |
 | [EPIC-008](./epic-8-contract-storage-search.md) | Contract Storage & Search | P1 | 21 | 2 days |
+| EPIC-009 | Landing Page Customization | P2 | 41 | - |
+| EPIC-010 | Analytics & Insights | P2 | 7 | - |
+| [EPIC-011](./epic-11-visual-effects.md) | Visual Effects & Premium Customization | P1 | 24 | - |
 
 ---
 

@@ -12,6 +12,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ContractView from "@/pages/ContractView";
 import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 import Pricing from "@/pages/Pricing";
 import Checkout from "@/pages/Checkout";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/contracts/:id" component={ContractView} />
       <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/pricing" component={Pricing} />

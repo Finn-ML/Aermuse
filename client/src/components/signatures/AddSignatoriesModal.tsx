@@ -106,6 +106,10 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle premium required error
+        if (data.code === 'PREMIUM_REQUIRED') {
+          throw new Error('E-signing is a premium feature. Please upgrade to continue.');
+        }
         throw new Error(data.error || 'Failed to create signature request');
       }
 

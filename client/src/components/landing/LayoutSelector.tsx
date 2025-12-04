@@ -1,4 +1,4 @@
-import { AlignCenter, AlignLeft, Grid2X2, User, UserCircle, EyeOff, Maximize2, Minimize2, Square } from "lucide-react";
+import { AlignCenter, AlignLeft, Grid2X2, Maximize2, Minimize2, Square } from "lucide-react";
 
 export type Layout = "centered" | "left" | "grid";
 export type AvatarPosition = "top" | "left" | "hidden";
@@ -6,13 +6,6 @@ export type LinkWidth = "full" | "medium" | "compact";
 
 interface LayoutOption {
   id: Layout;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-}
-
-interface AvatarPositionOption {
-  id: AvatarPosition;
   name: string;
   description: string;
   icon: React.ReactNode;
@@ -31,12 +24,6 @@ export const LAYOUT_OPTIONS: LayoutOption[] = [
   { id: "grid", name: "Grid", description: "Links in 2-column grid", icon: <Grid2X2 className="w-5 h-5" /> },
 ];
 
-export const AVATAR_POSITIONS: AvatarPositionOption[] = [
-  { id: "top", name: "Top", description: "Avatar above name", icon: <UserCircle className="w-5 h-5" /> },
-  { id: "left", name: "Left", description: "Avatar beside name", icon: <User className="w-5 h-5" /> },
-  { id: "hidden", name: "Hidden", description: "No avatar shown", icon: <EyeOff className="w-5 h-5" /> },
-];
-
 export const LINK_WIDTHS: LinkWidthOption[] = [
   { id: "full", name: "Full Width", description: "100% container width", icon: <Maximize2 className="w-5 h-5" /> },
   { id: "medium", name: "Medium", description: "80% container width", icon: <Square className="w-5 h-5" /> },
@@ -45,19 +32,15 @@ export const LINK_WIDTHS: LinkWidthOption[] = [
 
 interface LayoutSelectorProps {
   layout: Layout;
-  avatarPosition: AvatarPosition;
   linkWidth: LinkWidth;
   onLayoutChange: (layout: Layout) => void;
-  onAvatarPositionChange: (position: AvatarPosition) => void;
   onLinkWidthChange: (width: LinkWidth) => void;
 }
 
 export function LayoutSelector({
   layout,
-  avatarPosition,
   linkWidth,
   onLayoutChange,
-  onAvatarPositionChange,
   onLinkWidthChange,
 }: LayoutSelectorProps) {
   return (
@@ -83,34 +66,6 @@ export function LayoutSelector({
                 {option.icon}
               </div>
               <span className={`text-xs font-medium ${layout === option.id ? "text-[#660033]" : "text-[rgba(102,0,51,0.6)]"}`}>
-                {option.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Avatar Position */}
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-3">
-          Avatar Position
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          {AVATAR_POSITIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onAvatarPositionChange(option.id)}
-              className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
-                avatarPosition === option.id
-                  ? "border-[#660033] bg-[rgba(102,0,51,0.05)]"
-                  : "border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)]"
-              }`}
-            >
-              <div className={avatarPosition === option.id ? "text-[#660033]" : "text-[rgba(102,0,51,0.4)]"}>
-                {option.icon}
-              </div>
-              <span className={`text-xs font-medium ${avatarPosition === option.id ? "text-[#660033]" : "text-[rgba(102,0,51,0.6)]"}`}>
                 {option.name}
               </span>
             </button>

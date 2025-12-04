@@ -1,0 +1,218 @@
+<story-context id="9-12-avatar-image-upload" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>12</storyId>
+    <title>Avatar Image Upload</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-12-avatar-image-upload.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to upload an avatar image for my landing page</iWant>
+    <soThat>I can personalize my page with my photo or logo</soThat>
+    <tasks>
+      <task id="1" title="Add Backend Avatar Endpoint" acs="1,2,3,8">
+        <subtask>Add uploadAvatarImage function to fileStorage.ts</subtask>
+        <subtask>Add downloadAvatarImage function to fileStorage.ts</subtask>
+        <subtask>Add POST /api/landing-page/avatar endpoint</subtask>
+        <subtask>Add GET /api/landing-page/avatar/:path endpoint</subtask>
+        <subtask>Add DELETE /api/landing-page/avatar endpoint</subtask>
+        <subtask>Reuse imageUpload middleware (2MB, jpg/png/webp)</subtask>
+      </task>
+      <task id="2" title="Add Frontend Avatar Upload UI" acs="1,4,5,6,7">
+        <subtask>Create AvatarUpload component in DesignTab.tsx</subtask>
+        <subtask>Add circular preview display</subtask>
+        <subtask>Add file input with accept filter</subtask>
+        <subtask>Add preview before upload (FileReader)</subtask>
+        <subtask>Add "Change Avatar" button</subtask>
+        <subtask>Add "Remove Avatar" button</subtask>
+      </task>
+      <task id="3" title="Integrate Upload in Dashboard" acs="8">
+        <subtask>Add avatar upload handler in Dashboard.tsx</subtask>
+        <subtask>Add avatar remove mutation in Dashboard.tsx</subtask>
+        <subtask>Pass handlers to LandingPageEditor/DesignTab</subtask>
+      </task>
+      <task id="4" title="Testing">
+        <subtask>Test upload with valid jpg/png/webp</subtask>
+        <subtask>Test rejection of invalid file types</subtask>
+        <subtask>Test rejection of files over 2MB</subtask>
+        <subtask>Test preview displays before upload</subtask>
+        <subtask>Test avatar displays on public page</subtask>
+        <subtask>Test avatar remove clears image</subtask>
+        <subtask>Test replacing existing avatar</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">Upload button in landing page editor (DesignTab)</criterion>
+    <criterion id="AC-2">Accepts jpg, png, webp formats</criterion>
+    <criterion id="AC-3">Max file size 2MB</criterion>
+    <criterion id="AC-4">Image preview before upload (circular preview)</criterion>
+    <criterion id="AC-5">Circular crop preview matching avatar display</criterion>
+    <criterion id="AC-6">Replace existing avatar</criterion>
+    <criterion id="AC-7">Remove avatar option</criterion>
+    <criterion id="AC-8">Image stored securely via existing file storage</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-9-landing-page-customization.md</path>
+        <title>Epic 9: Landing Page Customization</title>
+        <section>Story 9.12: Avatar Image Upload</section>
+        <snippet>Technical notes: New API endpoint POST /api/landing-page/avatar, store in file storage or S3, update avatarUrl field in landing_pages table.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/9-5-background-customization.md</path>
+        <title>Story 9.5: Background Customization</title>
+        <section>Background Image Upload Pattern</section>
+        <snippet>Provides the image upload pattern to follow: imageUpload middleware (2MB, jpg/png/webp), uploadBackgroundImage/downloadBackgroundImage functions.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>server/services/fileStorage.ts</path>
+        <kind>service</kind>
+        <symbol>uploadBackgroundImage, downloadBackgroundImage, getImageContentType</symbol>
+        <lines>92-127</lines>
+        <reason>Pattern to follow for avatar upload. Add uploadAvatarImage and downloadAvatarImage functions using same structure.</reason>
+      </file>
+      <file>
+        <path>server/middleware/upload.ts</path>
+        <kind>middleware</kind>
+        <symbol>imageUpload</symbol>
+        <lines>68-83</lines>
+        <reason>Reuse existing imageUpload multer config for avatar endpoint (2MB max, jpg/png/webp).</reason>
+      </file>
+      <file>
+        <path>server/routes.ts</path>
+        <kind>routes</kind>
+        <symbol>POST /api/landing-page/background-image</symbol>
+        <lines>1306-1343</lines>
+        <reason>Pattern for avatar endpoint. Follow same structure: auth check, find landing page, upload image, return URL.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/editor/DesignTab.tsx</path>
+        <kind>component</kind>
+        <symbol>DesignTab</symbol>
+        <lines>1-183</lines>
+        <reason>Primary file to modify. Add AvatarUpload component above ThemeSelector section.</reason>
+      </file>
+      <file>
+        <path>client/src/components/landing/editor/LandingPageEditor.tsx</path>
+        <kind>component</kind>
+        <symbol>LandingPageEditor</symbol>
+        <reason>Parent component that passes onImageUpload to DesignTab. May need onAvatarUpload and onAvatarRemove props.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/Dashboard.tsx</path>
+        <kind>page</kind>
+        <symbol>LandingPage mutations</symbol>
+        <reason>Contains mutations for landing page. May need avatar-specific upload handler or reuse existing onImageUpload pattern.</reason>
+      </file>
+      <file>
+        <path>client/src/pages/ArtistPage.tsx</path>
+        <kind>page</kind>
+        <symbol>Avatar display</symbol>
+        <lines>235-244</lines>
+        <reason>Public page that displays avatar. Existing code handles avatarUrl - no changes needed if URL pattern is consistent.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@replit/object-storage</package>
+        <version>^1.0.0</version>
+        <note>File storage for avatar images (same as background images)</note>
+      </node>
+      <node>
+        <package>multer</package>
+        <version>^2.0.2</version>
+        <note>Multipart form handling for file upload</note>
+      </node>
+      <node>
+        <package>react</package>
+        <version>^18.3.1</version>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.453.0</version>
+        <note>User icon for avatar placeholder</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>imageUpload middleware</name>
+      <kind>multer middleware</kind>
+      <signature>imageUpload.single("image")</signature>
+      <path>server/middleware/upload.ts:68</path>
+    </interface>
+    <interface>
+      <name>uploadBackgroundImage</name>
+      <kind>function</kind>
+      <signature>async (userId: string, landingPageId: string, buffer: Buffer, extension: string): Promise&lt;UploadResult&gt;</signature>
+      <path>server/services/fileStorage.ts:92</path>
+    </interface>
+    <interface>
+      <name>getImageContentType</name>
+      <kind>function</kind>
+      <signature>(extension: string): string</signature>
+      <path>server/services/fileStorage.ts:119</path>
+    </interface>
+    <interface>
+      <name>DesignTabProps.onImageUpload</name>
+      <kind>callback</kind>
+      <signature>(file: File) => Promise&lt;string&gt;</signature>
+      <path>client/src/components/landing/editor/DesignTab.tsx:43</path>
+    </interface>
+    <interface>
+      <name>POST /api/landing-page/background-image</name>
+      <kind>REST endpoint</kind>
+      <signature>POST multipart/form-data { image: File } -> { success: boolean, url: string, path: string }</signature>
+      <path>server/routes.ts:1306</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint type="pattern">Follow existing background image upload pattern in fileStorage.ts and routes.ts</constraint>
+    <constraint type="pattern">Use existing imageUpload middleware (2MB max, jpg/png/webp)</constraint>
+    <constraint type="architecture">Store images in @replit/object-storage with path: avatars/{userId}/{landingPageId}-{timestamp}.{ext}</constraint>
+    <constraint type="architecture">Serve images through API endpoint /api/landing-page/avatar/:path</constraint>
+    <constraint type="architecture">Update avatarUrl field in landing_pages table after successful upload</constraint>
+    <constraint type="ux">Show circular preview matching avatar display style</constraint>
+    <constraint type="ux">Show image preview before upload using FileReader</constraint>
+    <constraint type="ux">Allow replacing and removing existing avatar</constraint>
+    <constraint type="styling">Use existing #660033 primary color scheme</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit and integration testing. Tests located in client and server directories.
+      Run tests with: npm test (vitest run) or npm run test:watch (vitest).
+      TypeScript type checking with: npm run check (tsc).
+    </standards>
+    <locations>
+      <location>client/**/*.test.ts</location>
+      <location>client/**/*.test.tsx</location>
+      <location>server/**/*.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test AvatarUpload component renders upload button</idea>
+      <idea ac="2">Test file input accepts jpg/png/webp (check accept attribute)</idea>
+      <idea ac="3">Test server returns 400 for files over 2MB</idea>
+      <idea ac="4">Test FileReader preview displays selected image</idea>
+      <idea ac="5">Test avatar preview has rounded-full class</idea>
+      <idea ac="6">Test uploading new image replaces avatarUrl in database</idea>
+      <idea ac="7">Test DELETE endpoint clears avatarUrl</idea>
+      <idea ac="8">Test uploadAvatarImage stores file in object storage</idea>
+      <idea ac="8">Test GET endpoint returns image with correct content-type</idea>
+    </ideas>
+  </tests>
+</story-context>

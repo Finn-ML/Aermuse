@@ -6,10 +6,9 @@ let storage: Client | null = null;
 function getStorage(): Client {
   if (!storage) {
     try {
-      // Use explicit bucket name if env var not set
-      const bucketName = process.env.REPLIT_OBJECT_STORAGE_BUCKET || 'CrushingTragicVolume';
-      storage = new Client({ bucketId: bucketName });
-      console.log(`[STORAGE] Initialized with bucket: ${bucketName}`);
+      // Use default Replit Object Storage - it auto-configures the bucket
+      storage = new Client();
+      console.log('[STORAGE] Initialized with default Replit Object Storage');
     } catch (error) {
       console.error('[STORAGE] Failed to initialize Object Storage:', error);
       throw new Error('Object Storage is not configured.');
@@ -124,4 +123,32 @@ export function getImageContentType(extension: string): string {
     webp: 'image/webp'
   };
   return types[extension.toLowerCase()] || 'image/jpeg';
+}
+
+// Avatar image upload/download functions (Story 9.12)
+export async function uploadAvatarImage(
+  userId: string,
+  landingPageId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `avatars/${userId}/${landingPageId}-${timestamp}.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+export async function downloadAvatarImage(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download avatar: ${result.error.message}`);
+  }
+
+  return result.value![0];
 }

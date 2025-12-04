@@ -1,0 +1,87 @@
+<story-context id="epic-11/story-11-4" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.4</storyId>
+    <title>Text Glow and Shadow Effects</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-4-text-glow-shadow-effects.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to add glow or shadow effects to my title text</iWant>
+    <soThat>it pops against the background and looks professional</soThat>
+    <tasks>
+      - Add title_glow, title_glow_color, title_shadow columns
+      - Update shared schema with new fields
+      - Create getTitleTextShadow() helper function
+      - Apply effects to ArtistPage title h1
+      - Add UI controls to Title Effects section in DesignTab
+      - Update EditorPreview
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Text Glow toggle in Title Effects section
+    AC2: When glow enabled, artist name has soft colored glow behind it
+    AC3: User can select glow color (default: accent color)
+    AC4: Text Shadow toggle available
+    AC5: When shadow enabled, subtle drop shadow adds depth
+    AC6: Both effects can be enabled simultaneously
+    AC7: When both off, text appears flat (default)
+    AC8: Preview updates in real-time
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.4">Epic specification</doc>
+      <doc path="docs/sprint-artifacts/11-3-gradient-text-for-titles.md">Related story - Title Effects section</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add titleGlow, titleGlowColor, titleShadow</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Apply text-shadow to h1</file>
+      <file path="client/src/components/landing/editor/DesignTab.tsx" relevance="HIGH">Add glow/shadow toggles and color picker</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview text effects</file>
+      <file path="client/src/components/landing/ColorPicker.tsx" relevance="MEDIUM">Reuse for glow color</file>
+    </code>
+    <dependencies>
+      <dep>Story 11.3 - Title Effects section exists</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Glow uses text-shadow with multiple layers for soft effect</constraint>
+    <constraint>Shadow uses subtle drop shadow: 2px 2px 4px rgba(0,0,0,0.3)</constraint>
+    <constraint>Both effects can combine in single text-shadow property</constraint>
+    <constraint>Glow color defaults to accent color when not specified</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN title_glow BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN title_glow_color TEXT;
+      ALTER TABLE landing_pages ADD COLUMN title_shadow BOOLEAN DEFAULT false;
+    </interface>
+    <interface type="css">
+      .title-glow { text-shadow: 0 0 20px var(--glow-color), 0 0 40px var(--glow-color-50); }
+      .title-shadow { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    </interface>
+    <interface type="helper">
+      function getTitleTextShadow(glow, glowColor, shadow, accentColor): string | undefined
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing</locations>
+    <ideas>
+      - Test glow effect visibility
+      - Test custom glow color selection
+      - Test shadow effect
+      - Test combined glow + shadow
+      - Verify default state (no effects)
+    </ideas>
+  </tests>
+</story-context>

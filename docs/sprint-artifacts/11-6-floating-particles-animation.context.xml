@@ -1,0 +1,103 @@
+<story-context id="epic-11/story-11-6" v="1.0">
+  <metadata>
+    <epicId>11</epicId>
+    <storyId>11.6</storyId>
+    <title>Floating Particles Animation</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/11-6-floating-particles-animation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>artist</asA>
+    <iWant>to add subtle floating particles or ambient animation to my page</iWant>
+    <soThat>it creates atmosphere and visual interest</soThat>
+    <tasks>
+      - Add particles, particle_style, particle_density, particle_color columns
+      - Update shared schema with new fields
+      - Create ParticleBackground component
+      - Define styles for Dots, Stars, Sparkles, Bokeh
+      - Add ParticleBackground to ArtistPage
+      - Add UI controls to BackgroundEditor
+      - Update EditorPreview
+      - Test mobile performance
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Ambient Particles toggle in Background section
+    AC2: When enabled, subtle particles float gently across background
+    AC3: Style options: Dots, Stars, Sparkles, Bokeh
+    AC4: Density options: Sparse, Normal, Dense
+    AC5: User can select particle color (default: accent at 30% opacity)
+    AC6: Mobile automatically reduces density for performance
+    AC7: Respects prefers-reduced-motion
+    AC8: Particles render behind content (proper z-index)
+    AC9: Preview updates in real-time
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-11-visual-effects.md" section="Story-11.6">Epic specification</doc>
+    </docs>
+    <code>
+      <file path="shared/schema.ts" relevance="HIGH">Add particles, particleStyle, particleDensity, particleColor</file>
+      <file path="client/src/components/landing/ParticleBackground.tsx" relevance="HIGH">New component to create</file>
+      <file path="client/src/pages/ArtistPage.tsx" relevance="HIGH">Add ParticleBackground</file>
+      <file path="client/src/components/landing/BackgroundEditor.tsx" relevance="HIGH">Add particle controls</file>
+      <file path="client/src/components/landing/editor/EditorPreview.tsx" relevance="HIGH">Preview particles</file>
+    </code>
+    <dependencies>
+      <dep>No story dependencies - can start independently</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use CSS-only particle system for simplicity</constraint>
+    <constraint>Particles must be pointer-events: none to not block interaction</constraint>
+    <constraint>Must reduce particle count on mobile for performance</constraint>
+    <constraint>Respect prefers-reduced-motion media query</constraint>
+    <constraint>Z-index must place particles behind content</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      ALTER TABLE landing_pages ADD COLUMN particles BOOLEAN DEFAULT false;
+      ALTER TABLE landing_pages ADD COLUMN particle_style TEXT DEFAULT 'dots';
+      -- Values: 'dots' | 'stars' | 'sparkles' | 'bokeh'
+      ALTER TABLE landing_pages ADD COLUMN particle_density TEXT DEFAULT 'normal';
+      -- Values: 'sparse' | 'normal' | 'dense'
+      ALTER TABLE landing_pages ADD COLUMN particle_color TEXT;
+    </interface>
+    <interface type="component">
+      ParticleBackground({ enabled, style, density, color, accentColor })
+      - Renders floating particles with CSS animation
+      - Density counts: sparse=15, normal=30, dense=50 (halved on mobile)
+    </interface>
+    <interface type="css">
+      @keyframes float {
+        0%, 100% { transform: translateY(100vh); opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { transform: translateY(-100vh); opacity: 0; }
+      }
+      .particle { position: absolute; animation: float linear infinite; }
+      .particle-dots { width: 6px; height: 6px; border-radius: 50%; }
+      .particle-bokeh { width: 20px; height: 20px; filter: blur(4px); }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Type check must pass</standards>
+    <locations>Manual visual testing, mobile device testing</locations>
+    <ideas>
+      - Test all 4 particle styles
+      - Test all 3 density levels
+      - Test custom color selection
+      - Verify mobile density reduction
+      - Test prefers-reduced-motion
+      - Verify z-index (particles behind content)
+    </ideas>
+  </tests>
+</story-context>

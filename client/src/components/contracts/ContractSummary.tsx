@@ -10,20 +10,20 @@ export function ContractSummary({ analysis }: Props) {
 
   return (
     <div
-      className="rounded-[20px] p-7"
+      className="rounded-xl sm:rounded-[20px] p-4 sm:p-7"
       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
     >
       {/* Header */}
-      <div className="flex items-start gap-4 mb-6">
+      <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
         >
-          <FileText className="h-5 w-5 text-[#F7E6CA]" />
+          <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[#F7E6CA]" />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-lg font-bold text-[#660033]">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h2 className="text-base sm:text-lg font-bold text-[#660033]">
               Contract Summary
             </h2>
             {summary.contractType && (
@@ -49,17 +49,17 @@ export function ContractSummary({ analysis }: Props) {
 
       {/* Overview */}
       <div
-        className="mb-6 p-4 rounded-xl"
+        className="mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg sm:rounded-xl"
         style={{
           background: 'rgba(102, 0, 51, 0.05)',
           border: '1px solid rgba(102, 0, 51, 0.1)'
         }}
       >
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="h-4 w-4 text-[#660033]" />
-          <span className="text-[11px] font-bold text-[#660033] uppercase tracking-[0.05em]">AI Summary</span>
+          <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#660033]" />
+          <span className="text-[10px] sm:text-[11px] font-bold text-[#660033] uppercase tracking-[0.05em]">AI Summary</span>
         </div>
-        <p className="text-[rgba(102,0,51,0.8)] text-sm leading-relaxed">
+        <p className="text-[rgba(102,0,51,0.8)] text-xs sm:text-sm leading-relaxed">
           {summary.overview}
         </p>
       </div>
