@@ -160,19 +160,10 @@ export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onC
       >
         <h2 className="text-lg font-bold text-[#660033] mb-4">Actions</h2>
         <div className="flex flex-wrap gap-3">
-          <a
-            href={`mailto:${proposal.senderEmail}?subject=Re: Your ${PROPOSAL_TYPE_LABELS[proposal.proposalType] || ''} Proposal`}
-            onClick={() => onStatusChange('responded')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
-          >
-            <Mail size={18} />
-            Reply via Email
-          </a>
-
           {proposal.status !== 'responded' && (
             <button
               onClick={() => onStatusChange('responded')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
             >
               <CheckCircle size={18} />
               Mark as Responded

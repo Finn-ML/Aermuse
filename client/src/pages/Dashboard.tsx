@@ -59,6 +59,8 @@ import {
   Filter,
   Inbox,
   Menu,
+  CreditCard,
+  Pen,
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
@@ -247,6 +249,19 @@ export default function Dashboard() {
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
   const unreadProposalCount = proposalCountData?.count || 0;
+
+  // Fetch upcoming events for dashboard widget
+  interface UpcomingEvent {
+    id: string;
+    title: string;
+    date: string;
+    type: 'contract' | 'signature' | 'payment';
+  }
+  const { data: upcomingEventsData, isLoading: upcomingEventsLoading } = useQuery<{ events: UpcomingEvent[] }>({
+    queryKey: ['/api/upcoming-events'],
+    enabled: !!user,
+  });
+  const upcomingEvents = upcomingEventsData?.events || [];
 
   // Proposal types (Story 7.5)
   interface Proposal {
@@ -562,11 +577,6 @@ export default function Dashboard() {
     },
   ];
 
-  const upcomingEvents = [
-    { title: 'Contract Renewal Due', date: 'Dec 1, 2025', type: 'contract' },
-    { title: 'Fan Meetup - LA', date: 'Dec 5, 2025', type: 'event' },
-    { title: 'Royalty Payment', date: 'Dec 15, 2025', type: 'payment' }
-  ];
 
   // Format duration from seconds to human readable (Story 10.1)
   const formatDuration = (seconds: number | undefined): string => {
@@ -597,18 +607,18 @@ export default function Dashboard() {
   const getEventIcon = (type: string) => {
     switch (type) {
       case 'contract': return <FileText size={18} />;
-      case 'event': return <Calendar size={18} />;
+      case 'signature': return <Pen size={18} />;
       case 'payment': return <DollarSign size={18} />;
-      default: return null;
+      default: return <Calendar size={18} />;
     }
   };
 
   const getEventColor = (type: string) => {
     switch (type) {
       case 'contract': return 'bg-[rgba(102,0,51,0.1)] text-[#660033]';
-      case 'event': return 'bg-[rgba(40,167,69,0.15)] text-[#28a745]';
+      case 'signature': return 'bg-[rgba(40,167,69,0.15)] text-[#28a745]';
       case 'payment': return 'bg-[rgba(255,193,7,0.15)] text-[#B8860B]';
-      default: return '';
+      default: return 'bg-[rgba(102,0,51,0.06)] text-[rgba(102,0,51,0.6)]';
     }
   };
 
@@ -799,21 +809,13 @@ export default function Dashboard() {
             </button>
 
             {profileOpen && (
-              <div 
+              <div
                 className="absolute top-[calc(100%+8px)] right-0 bg-white rounded-2xl p-2 min-w-[200px] z-[100]"
                 style={{ boxShadow: '0 20px 50px rgba(102, 0, 51, 0.15)' }}
               >
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all" data-testid="button-profile-settings">
-                  <User size={18} />
-                  Profile Settings
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all" data-testid="button-account-settings">
-                  <Settings size={18} />
-                  Account Settings
-                </button>
-                <button 
+                <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all" 
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all"
                   data-testid="button-signout"
                 >
                   <LogOut size={18} />
@@ -910,22 +912,30 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center mb-4 sm:mb-6">
                     <h3 className="text-base sm:text-lg font-bold">Upcoming</h3>
                   </div>
-                  <div className="space-y-4">
-                    {upcomingEvents.map((event, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center gap-4 py-4 border-b border-[rgba(102,0,51,0.06)] last:border-0"
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getEventColor(event.type)}`}>
-                          {getEventIcon(event.type)}
+                  {upcomingEventsLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="animate-spin text-[#660033]" size={24} />
+                    </div>
+                  ) : upcomingEvents.length === 0 ? (
+                    <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No upcoming events in the next 30 days.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {upcomingEvents.map((event) => (
+                        <div
+                          key={event.id}
+                          className="flex items-center gap-4 py-4 border-b border-[rgba(102,0,51,0.06)] last:border-0"
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getEventColor(event.type)}`}>
+                            {getEventIcon(event.type)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[15px] mb-1">{event.title}</div>
+                            <div className="text-[13px] text-[rgba(102,0,51,0.5)]">{formatDate(event.date)}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-semibold text-[15px] mb-1">{event.title}</div>
-                          <div className="text-[13px] text-[rgba(102,0,51,0.5)]">{event.date}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -933,17 +943,15 @@ export default function Dashboard() {
 
           {activeNav === 'contracts' && (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:-mx-10 lg:-mt-10 lg:-mb-10">
-              {/* Folder Sidebar - hidden on mobile, shown on lg+ */}
-              <div className="hidden lg:block">
-                <FolderSidebar
-                  selectedFolder={selectedFolder}
-                  onSelectFolder={setSelectedFolder}
-                />
-              </div>
+            <div className="flex flex-col gap-4">
+              {/* Folder Bar - horizontal at top */}
+              <FolderSidebar
+                selectedFolder={selectedFolder}
+                onSelectFolder={setSelectedFolder}
+              />
 
               {/* Main Content */}
-              <div className="flex-1 lg:p-10">
+              <div className="flex-1">
               {/* Header with action buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex items-center gap-4">
@@ -1675,6 +1683,36 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Subscription Management */}
+              {isPremium && (
+                <div
+                  className="mt-6 rounded-[20px] p-5 sm:p-7"
+                  style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                    >
+                      <CreditCard size={20} className="text-[#F7E6CA]" />
+                    </div>
+                    <h3 className="text-lg font-bold">Subscription</h3>
+                  </div>
+                  <p className="text-sm text-[rgba(102,0,51,0.6)] mb-4">
+                    Manage your subscription, update payment methods, view invoices, or cancel your plan.
+                  </p>
+                  <a
+                    href="https://billing.stripe.com/p/login/test_fZu28jbxQ7X47WG83dcwg00"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                    data-testid="button-manage-subscription"
+                  >
+                    Manage Subscription
+                  </a>
+                </div>
+              )}
 
               {/* Danger Zone */}
               <div

@@ -147,17 +147,6 @@ export function ProposalCard({ proposal, onStatusChange, onDelete, onSelect }: P
                 <Eye size={16} />
                 View Details
               </button>
-              <a
-                href={`mailto:${proposal.senderEmail}?subject=Re: Your ${PROPOSAL_TYPE_LABELS[proposal.proposalType] || ''} Proposal`}
-                onClick={() => {
-                  onStatusChange(proposal.id, 'responded');
-                  setShowMenu(false);
-                }}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all"
-              >
-                <Mail size={16} />
-                Reply via Email
-              </a>
               {proposal.status !== 'responded' && (
                 <button
                   onClick={() => {

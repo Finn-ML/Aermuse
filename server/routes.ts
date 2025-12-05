@@ -426,6 +426,94 @@ export async function registerRoutes(
     }
   });
 
+  // Upcoming events endpoint for dashboard widget
+  app.get("/api/upcoming-events", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      const now = new Date();
+      const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const events: Array<{
+        id: string;
+        title: string;
+        date: string;
+        type: 'contract' | 'signature' | 'payment';
+      }> = [];
+
+      // 1. Contract expiry dates (within next 30 days)
+      const expiringContracts = await storage.getContractsByUser(userId);
+      for (const contract of expiringContracts) {
+        if (contract.expiryDate) {
+          const expiry = new Date(contract.expiryDate);
+          if (expiry >= now && expiry <= thirtyDaysFromNow) {
+            events.push({
+              id: `contract-${contract.id}`,
+              title: `${contract.name} expires`,
+              date: expiry.toISOString(),
+              type: 'contract',
+            });
+          }
+        }
+      }
+
+      // 2. Pending signature requests (expiring within 30 days)
+      const pendingSignatures = await db
+        .select()
+        .from(signatureRequests)
+        .where(
+          and(
+            eq(signatureRequests.initiatorId, userId),
+            or(
+              eq(signatureRequests.status, 'pending'),
+              eq(signatureRequests.status, 'in_progress')
+            )
+          )
+        );
+
+      for (const sig of pendingSignatures) {
+        if (sig.expiresAt) {
+          const expiry = new Date(sig.expiresAt);
+          if (expiry >= now && expiry <= thirtyDaysFromNow) {
+            // Get contract name
+            const contract = await storage.getContract(sig.contractId);
+            events.push({
+              id: `signature-${sig.id}`,
+              title: `Signature due: ${contract?.name || 'Contract'}`,
+              date: expiry.toISOString(),
+              type: 'signature',
+            });
+          }
+        }
+      }
+
+      // 3. Subscription renewal (if premium)
+      const user = await storage.getUser(userId);
+      if (user?.subscriptionCurrentPeriodEnd && (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing')) {
+        const renewalDate = new Date(user.subscriptionCurrentPeriodEnd);
+        if (renewalDate >= now && renewalDate <= thirtyDaysFromNow) {
+          events.push({
+            id: `payment-subscription`,
+            title: user.subscriptionCancelAtPeriodEnd ? 'Subscription ends' : 'Subscription renews',
+            date: renewalDate.toISOString(),
+            type: 'payment',
+          });
+        }
+      }
+
+      // Sort by date ascending
+      events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Return top 5
+      res.json({ events: events.slice(0, 5) });
+    } catch (error) {
+      console.error("Get upcoming events error:", error);
+      res.status(500).json({ error: "Failed to get upcoming events" });
+    }
+  });
+
   // Contracts routes
   app.get("/api/contracts", async (req: Request, res: Response) => {
     try {
