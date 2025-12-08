@@ -61,6 +61,7 @@ import {
   Menu,
   CreditCard,
   Pen,
+  Shield,
 } from 'lucide-react';
 
 type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
@@ -127,7 +128,7 @@ export default function Dashboard() {
     })
   );
 
-  const { user, logout, isLoading: authLoading } = useAuth();
+  const { user, logout, isLoading: authLoading, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   // Templates for proposal-to-contract flow (Story 7.6)
@@ -813,6 +814,19 @@ export default function Dashboard() {
                 className="absolute top-[calc(100%+8px)] right-0 bg-white rounded-2xl p-2 min-w-[200px] z-[100]"
                 style={{ boxShadow: '0 20px 50px rgba(102, 0, 51, 0.15)' }}
               >
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      setLocation('/admin');
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all"
+                    data-testid="button-admin-portal"
+                  >
+                    <Shield size={18} />
+                    Admin Portal
+                  </button>
+                )}
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] text-sm font-medium text-[#660033] hover:bg-[rgba(102,0,51,0.06)] transition-all"
