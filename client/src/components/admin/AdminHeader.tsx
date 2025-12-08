@@ -89,15 +89,8 @@ export function AdminHeader({ pageTitle }: AdminHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Notifications (placeholder) */}
-          <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-            <Bell className="h-5 w-5" />
-            {/* Notification badge */}
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
-
           {/* User info */}
-          <div className="flex items-center gap-3 pl-4 border-l">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#660033] rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-medium">
                 {user?.name?.charAt(0).toUpperCase() || 'A'}
