@@ -15,6 +15,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 36373
+externalPort = 3001
+
+[[ports]]
 localPort = 38197
 externalPort = 3000
 
@@ -58,3 +62,4 @@ defaultBucketID = "replit-objstore-ff2f1431-d9f8-4393-9b30-883b8b30fc98"
 [userenv.shared]
 ADMIN_EMAIL = "admin@aermuse.com"
 ADMIN_NAME = "Admin"
+FROM_EMAIL = "noreply@aermuse.com"

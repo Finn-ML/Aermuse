@@ -1952,6 +1952,76 @@ export async function registerRoutes(
   });
 
   // Admin Routes - Protected by requireAdmin middleware
+  
+  // Admin test email endpoint
+  app.post("/api/admin/test-email", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      const targetEmail = email || req.user?.email;
+      
+      if (!targetEmail) {
+        return res.status(400).json({ error: "Email address required" });
+      }
+      
+      // Import postmark client status check
+      const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
+      
+      if (!POSTMARK_API_KEY) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "POSTMARK_API_KEY not configured",
+          configured: false 
+        });
+      }
+      
+      // Use a simple test email via postmark
+      const postmark = await import('postmark');
+      const client = new postmark.ServerClient(POSTMARK_API_KEY);
+      
+      const result = await client.sendEmail({
+        From: process.env.FROM_EMAIL || 'noreply@aermuse.com',
+        To: targetEmail,
+        Subject: 'Aermuse Email Test - Success!',
+        HtmlBody: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #660033;">Email Service Test Successful</h2>
+            <p>This is a test email from your Aermuse application.</p>
+            <p>If you received this email, your Postmark integration is working correctly!</p>
+            <hr style="border: 1px solid #eee; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">Sent at: ${new Date().toISOString()}</p>
+            <p style="color: #660033; font-weight: bold;">- The Aermuse Team</p>
+          </div>
+        `,
+        TextBody: `
+Email Service Test Successful
+
+This is a test email from your Aermuse application.
+If you received this email, your Postmark integration is working correctly!
+
+Sent at: ${new Date().toISOString()}
+
+- The Aermuse Team
+        `,
+        MessageStream: 'outbound'
+      });
+      
+      console.log(`[EMAIL] Test email sent to ${targetEmail}, MessageID: ${result.MessageID}`);
+      res.json({ 
+        success: true, 
+        messageId: result.MessageID,
+        sentTo: targetEmail,
+        configured: true
+      });
+    } catch (error) {
+      console.error("[EMAIL] Test email failed:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: String(error),
+        configured: true
+      });
+    }
+  });
+
   // Placeholder admin stats endpoint (full implementation in Epic 6)
   app.get("/api/admin/stats", requireAdmin, async (req: Request, res: Response) => {
     try {

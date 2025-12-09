@@ -1,7 +1,7 @@
 import * as postmark from 'postmark';
 
 const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@aermuse.com';
 
 // Only create client if API key is configured
