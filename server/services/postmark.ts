@@ -13,6 +13,173 @@ interface EmailResult {
   error?: string;
 }
 
+// Design System Colors
+const COLORS = {
+  burgundy: '#660033',
+  burgundyLight: '#8B0045',
+  burgundyDark: '#4A0026',
+  champagne: '#F7E6CA',
+  champagneLight: '#FDF8F0',
+  cream: '#FFFAF3',
+  text: '#2D2D2D',
+  textMuted: '#666666',
+  textLight: '#999999',
+  success: '#28a745',
+  successLight: '#d4edda',
+  warning: '#f0ad4e',
+  gray: '#6c757d',
+};
+
+// Base email template with champagne/burgundy design system
+function emailTemplate({
+  title,
+  preheader,
+  greeting,
+  content,
+  buttonText,
+  buttonUrl,
+  footerNote,
+  accentColor = COLORS.burgundy,
+}: {
+  title: string;
+  preheader?: string;
+  greeting: string;
+  content: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  footerNote?: string;
+  accentColor?: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  ${preheader ? `<!--[if !mso]><!-- --><span style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${preheader}</span><!--<![endif]-->` : ''}
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: ${COLORS.champagne};">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${COLORS.champagne};">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto;">
+          
+          <!-- Logo Header -->
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, ${COLORS.burgundy} 0%, ${COLORS.burgundyLight} 100%); padding: 16px 32px; border-radius: 50px;">
+                    <span style="font-size: 24px; font-weight: 700; color: ${COLORS.champagne}; letter-spacing: 2px; text-transform: lowercase;">aermuse</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Main Card -->
+          <tr>
+            <td>
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${COLORS.cream}; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 24px rgba(102, 0, 51, 0.08);">
+                
+                <!-- Accent Bar -->
+                <tr>
+                  <td style="height: 6px; background: linear-gradient(90deg, ${accentColor} 0%, ${COLORS.burgundyLight} 100%);"></td>
+                </tr>
+                
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 48px 40px;">
+                    <!-- Title -->
+                    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: ${COLORS.burgundy}; text-align: center;">
+                      ${title}
+                    </h1>
+                    
+                    <!-- Greeting -->
+                    <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${COLORS.text};">
+                      ${greeting}
+                    </p>
+                    
+                    <!-- Main Content -->
+                    <div style="margin: 0 0 28px 0; font-size: 16px; line-height: 1.7; color: ${COLORS.text};">
+                      ${content}
+                    </div>
+                    
+                    ${buttonText && buttonUrl ? `
+                    <!-- CTA Button -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin: 32px 0;">
+                      <tr>
+                        <td style="text-align: center;">
+                          <a href="${buttonUrl}" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, ${COLORS.burgundy} 0%, ${COLORS.burgundyLight} 100%); color: ${COLORS.champagne}; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 16px; letter-spacing: 0.5px; box-shadow: 0 4px 16px rgba(102, 0, 51, 0.25);">
+                            ${buttonText}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Fallback Link -->
+                    <p style="margin: 24px 0 0 0; font-size: 13px; color: ${COLORS.textLight}; text-align: center;">
+                      Or copy this link: <br>
+                      <a href="${buttonUrl}" style="color: ${COLORS.burgundy}; word-break: break-all;">${buttonUrl}</a>
+                    </p>
+                    ` : ''}
+                    
+                    ${footerNote ? `
+                    <!-- Footer Note -->
+                    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(102, 0, 51, 0.1);">
+                      <p style="margin: 0; font-size: 14px; color: ${COLORS.textMuted}; line-height: 1.6;">
+                        ${footerNote}
+                      </p>
+                    </div>
+                    ` : ''}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 20px; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: ${COLORS.burgundy}; font-weight: 600;">
+                The Aermuse Team
+              </p>
+              <p style="margin: 0; font-size: 12px; color: ${COLORS.textMuted};">
+                Empowering artists to own their careers
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// Info box component for highlighting important information
+function infoBox(content: string, title?: string): string {
+  return `
+    <div style="background-color: ${COLORS.champagneLight}; border-left: 4px solid ${COLORS.burgundy}; border-radius: 12px; padding: 20px 24px; margin: 20px 0;">
+      ${title ? `<p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: ${COLORS.burgundy}; text-transform: uppercase; letter-spacing: 0.5px;">${title}</p>` : ''}
+      <p style="margin: 0; font-size: 15px; color: ${COLORS.text}; line-height: 1.5;">${content}</p>
+    </div>
+  `;
+}
+
+// Success box for confirmations
+function successBox(content: string): string {
+  return `
+    <div style="background-color: ${COLORS.successLight}; border-radius: 12px; padding: 20px 24px; margin: 20px 0; text-align: center;">
+      <span style="font-size: 32px; display: block; margin-bottom: 12px;">✓</span>
+      <p style="margin: 0; font-size: 15px; color: ${COLORS.success}; font-weight: 600;">${content}</p>
+    </div>
+  `;
+}
+
 /**
  * Send password reset email
  */
@@ -24,7 +191,6 @@ export async function sendPasswordResetEmail(
   const resetUrl = `${BASE_URL}/reset-password?token=${resetToken}`;
 
   if (!client) {
-    // Development mode - log email instead of sending
     console.log('[EMAIL] Password reset email (dev mode):');
     console.log(`  To: ${email}`);
     console.log(`  Name: ${userName}`);
@@ -37,28 +203,16 @@ export async function sendPasswordResetEmail(
       From: FROM_EMAIL,
       To: email,
       Subject: 'Reset Your Aermuse Password',
-      HtmlBody: `
-        <h2>Password Reset Request</h2>
-        <p>Hi ${userName},</p>
-        <p>We received a request to reset your password. Click the link below to set a new password:</p>
-        <p><a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #660033; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, you can safely ignore this email.</p>
-        <p>- The Aermuse Team</p>
-      `,
-      TextBody: `
-Hi ${userName},
-
-We received a request to reset your password. Visit this link to set a new password:
-
-${resetUrl}
-
-This link will expire in 1 hour.
-
-If you didn't request this, you can safely ignore this email.
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Password Reset',
+        preheader: 'Reset your Aermuse account password',
+        greeting: `Hi ${userName},`,
+        content: `We received a request to reset your password. Click the button below to create a new password for your account.`,
+        buttonText: 'Reset Password',
+        buttonUrl: resetUrl,
+        footerNote: 'This link will expire in 1 hour. If you didn\'t request this reset, you can safely ignore this email.',
+      }),
+      TextBody: `Hi ${userName},\n\nWe received a request to reset your password. Visit this link to set a new password:\n\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -81,7 +235,6 @@ export async function sendVerificationEmail(
   const verifyUrl = `${BASE_URL}/verify-email?token=${verificationToken}`;
 
   if (!client) {
-    // Development mode - log email instead of sending
     console.log('[EMAIL] Verification email (dev mode):');
     console.log(`  To: ${email}`);
     console.log(`  Name: ${userName}`);
@@ -93,26 +246,17 @@ export async function sendVerificationEmail(
     const result = await client.sendEmail({
       From: FROM_EMAIL,
       To: email,
-      Subject: 'Verify Your Aermuse Account',
-      HtmlBody: `
-        <h2>Welcome to Aermuse!</h2>
-        <p>Hi ${userName},</p>
-        <p>Thanks for signing up. Please verify your email address by clicking the link below:</p>
-        <p><a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background-color: #660033; color: white; text-decoration: none; border-radius: 4px;">Verify Email</a></p>
-        <p>This link will expire in 24 hours.</p>
-        <p>- The Aermuse Team</p>
-      `,
-      TextBody: `
-Hi ${userName},
-
-Thanks for signing up. Please verify your email address by visiting this link:
-
-${verifyUrl}
-
-This link will expire in 24 hours.
-
-- The Aermuse Team
-      `,
+      Subject: 'Welcome to Aermuse - Verify Your Email',
+      HtmlBody: emailTemplate({
+        title: 'Welcome to Aermuse!',
+        preheader: 'Verify your email to get started',
+        greeting: `Hi ${userName},`,
+        content: `Thanks for joining Aermuse! We're excited to help you take control of your music career. Please verify your email address to unlock all features.`,
+        buttonText: 'Verify Email',
+        buttonUrl: verifyUrl,
+        footerNote: 'This link will expire in 24 hours. If you didn\'t create this account, please ignore this email.',
+      }),
+      TextBody: `Hi ${userName},\n\nThanks for signing up. Please verify your email address by visiting this link:\n\n${verifyUrl}\n\nThis link will expire in 24 hours.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -147,45 +291,25 @@ export async function sendSignatureRequestEmail(
   }
 
   try {
+    const messageBox = message ? infoBox(`"${message}"`, 'Personal Message') : '';
+    
     const result = await client.sendEmail({
       From: FROM_EMAIL,
       To: signatoryEmail,
       Subject: `${initiatorName} has requested your signature on "${contractTitle}"`,
-      HtmlBody: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #660033 0%, #8B0045 100%); padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0;">Signature Request</h1>
-          </div>
-          <div style="padding: 32px; background: #f7e6ca;">
-            <p style="font-size: 16px; color: #333;">Hi ${signatoryName},</p>
-            <p style="font-size: 16px; color: #333;"><strong>${initiatorName}</strong> has requested your signature on the following contract:</p>
-            <div style="background: white; padding: 16px; border-radius: 8px; margin: 16px 0;">
-              <h2 style="color: #660033; margin: 0 0 8px 0;">${contractTitle}</h2>
-              ${message ? `<p style="color: #666; margin: 0;">"${message}"</p>` : ''}
-            </div>
-            <p style="text-align: center;">
-              <a href="${signingUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #660033 0%, #8B0045 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Sign Now</a>
-            </p>
-            <p style="font-size: 14px; color: #666; margin-top: 24px;">If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="font-size: 12px; color: #999; word-break: break-all;">${signingUrl}</p>
-          </div>
-          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
-            <p>Powered by Aermuse - Music Industry Contract Management</p>
-          </div>
-        </div>
-      `,
-      TextBody: `
-Hi ${signatoryName},
-
-${initiatorName} has requested your signature on the following contract:
-
-Contract: ${contractTitle}
-${message ? `Message: "${message}"` : ''}
-
-Sign here: ${signingUrl}
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Signature Request',
+        preheader: `${initiatorName} needs your signature on a contract`,
+        greeting: `Hi ${signatoryName},`,
+        content: `<strong>${initiatorName}</strong> has requested your signature on the following contract:
+          ${infoBox(contractTitle, 'Contract')}
+          ${messageBox}
+          Please review and sign the document at your earliest convenience.`,
+        buttonText: 'Review & Sign',
+        buttonUrl: signingUrl,
+        footerNote: 'This signature request was sent via Aermuse. If you weren\'t expecting this, please contact the sender directly.',
+      }),
+      TextBody: `Hi ${signatoryName},\n\n${initiatorName} has requested your signature on the following contract:\n\nContract: ${contractTitle}${message ? `\nMessage: "${message}"` : ''}\n\nSign here: ${signingUrl}\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -218,30 +342,17 @@ export async function sendSignatureConfirmationEmail(
       From: FROM_EMAIL,
       To: signatoryEmail,
       Subject: `You've signed "${contractTitle}"`,
-      HtmlBody: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0;">✓ Signature Confirmed</h1>
-          </div>
-          <div style="padding: 32px; background: #f7e6ca;">
-            <p style="font-size: 16px; color: #333;">Hi ${signatoryName},</p>
-            <p style="font-size: 16px; color: #333;">Your signature on <strong>"${contractTitle}"</strong> has been recorded.</p>
-            <p style="font-size: 14px; color: #666;">You'll receive the final signed copy once all parties have signed.</p>
-          </div>
-          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
-            <p>Powered by Aermuse - Music Industry Contract Management</p>
-          </div>
-        </div>
-      `,
-      TextBody: `
-Hi ${signatoryName},
-
-Your signature on "${contractTitle}" has been recorded.
-
-You'll receive the final signed copy once all parties have signed.
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Signature Confirmed',
+        preheader: 'Your signature has been recorded',
+        greeting: `Hi ${signatoryName},`,
+        content: `${successBox('Your signature has been recorded!')}
+          ${infoBox(contractTitle, 'Contract')}
+          You'll receive the final signed copy once all parties have completed signing.`,
+        footerNote: 'Keep this email for your records. A copy of the fully executed document will be sent when all signatures are collected.',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${signatoryName},\n\nYour signature on "${contractTitle}" has been recorded.\n\nYou'll receive the final signed copy once all parties have signed.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -276,35 +387,19 @@ export async function sendDocumentCompletedEmail(
       From: FROM_EMAIL,
       To: email,
       Subject: `"${contractTitle}" has been fully signed`,
-      HtmlBody: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0;">✓ Contract Complete</h1>
-          </div>
-          <div style="padding: 32px; background: #f7e6ca;">
-            <p style="font-size: 16px; color: #333;">Hi ${recipientName},</p>
-            <p style="font-size: 16px; color: #333;">All parties have signed <strong>"${contractTitle}"</strong>.</p>
-            <p style="text-align: center; margin: 24px 0;">
-              <a href="${downloadUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #660033 0%, #8B0045 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Download Signed Contract</a>
-            </p>
-            <p style="font-size: 14px; color: #666;">A copy has also been saved to your Aermuse account.</p>
-          </div>
-          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
-            <p>Powered by Aermuse - Music Industry Contract Management</p>
-          </div>
-        </div>
-      `,
-      TextBody: `
-Hi ${recipientName},
-
-All parties have signed "${contractTitle}".
-
-Download your signed copy here: ${downloadUrl}
-
-A copy has also been saved to your Aermuse account.
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Contract Complete!',
+        preheader: 'All parties have signed - download your copy',
+        greeting: `Hi ${recipientName},`,
+        content: `${successBox('All signatures collected!')}
+          ${infoBox(contractTitle, 'Contract')}
+          Great news! All parties have signed this contract. Your fully executed document is ready for download.`,
+        buttonText: 'Download Signed Contract',
+        buttonUrl: downloadUrl,
+        footerNote: 'A copy has also been saved to your Aermuse account for safekeeping. We recommend storing this document in a secure location.',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${recipientName},\n\nAll parties have signed "${contractTitle}".\n\nDownload your signed copy here: ${downloadUrl}\n\nA copy has also been saved to your Aermuse account.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -339,30 +434,19 @@ export async function sendSignatureCancelledEmail(
       From: FROM_EMAIL,
       To: email,
       Subject: `Signature request cancelled for "${contractTitle}"`,
-      HtmlBody: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #6c757d; padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0;">Request Cancelled</h1>
-          </div>
-          <div style="padding: 32px; background: #f7e6ca;">
-            <p style="font-size: 16px; color: #333;">Hi ${recipientName},</p>
-            <p style="font-size: 16px; color: #333;">The signature request for <strong>"${contractTitle}"</strong> has been cancelled by ${initiatorName}.</p>
-            <p style="font-size: 14px; color: #666;">No action is required from you.</p>
-          </div>
-          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
-            <p>Powered by Aermuse - Music Industry Contract Management</p>
-          </div>
-        </div>
-      `,
-      TextBody: `
-Hi ${recipientName},
-
-The signature request for "${contractTitle}" has been cancelled by ${initiatorName}.
-
-No action is required from you.
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Request Cancelled',
+        preheader: 'A signature request has been cancelled',
+        greeting: `Hi ${recipientName},`,
+        content: `${infoBox(contractTitle, 'Contract')}
+          The signature request for this contract has been cancelled by <strong>${initiatorName}</strong>.
+          <p style="margin-top: 16px; padding: 12px 16px; background-color: ${COLORS.champagneLight}; border-radius: 8px; font-size: 14px; color: ${COLORS.textMuted};">
+            No action is required from you.
+          </p>`,
+        footerNote: 'If you have questions about this cancellation, please contact the sender directly.',
+        accentColor: COLORS.gray,
+      }),
+      TextBody: `Hi ${recipientName},\n\nThe signature request for "${contractTitle}" has been cancelled by ${initiatorName}.\n\nNo action is required from you.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -393,25 +477,16 @@ export async function sendAccountDeletionEmail(
       From: FROM_EMAIL,
       To: email,
       Subject: 'Your Aermuse Account Has Been Deleted',
-      HtmlBody: `
-        <h2>Account Deleted</h2>
-        <p>Hi ${userName},</p>
-        <p>Your Aermuse account has been successfully deleted. Your data will be permanently removed after 30 days.</p>
-        <p>If you didn't request this deletion, please contact support immediately.</p>
-        <p>We're sorry to see you go. If you ever want to return, you can create a new account at any time.</p>
-        <p>- The Aermuse Team</p>
-      `,
-      TextBody: `
-Hi ${userName},
-
-Your Aermuse account has been successfully deleted. Your data will be permanently removed after 30 days.
-
-If you didn't request this deletion, please contact support immediately.
-
-We're sorry to see you go. If you ever want to return, you can create a new account at any time.
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'Account Deleted',
+        preheader: 'Your Aermuse account has been deleted',
+        greeting: `Hi ${userName},`,
+        content: `Your Aermuse account has been successfully deleted. Your data will be permanently removed after 30 days.
+          <p style="margin-top: 20px;">We're sorry to see you go. If you ever want to return, you're always welcome to create a new account.</p>`,
+        footerNote: 'If you didn\'t request this deletion, please contact support immediately at support@aermuse.com',
+        accentColor: COLORS.gray,
+      }),
+      TextBody: `Hi ${userName},\n\nYour Aermuse account has been successfully deleted. Your data will be permanently removed after 30 days.\n\nIf you didn't request this deletion, please contact support immediately.\n\nWe're sorry to see you go. If you ever want to return, you can create a new account at any time.\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
@@ -480,84 +555,50 @@ export async function sendProposalNotificationEmail(
   }
 
   try {
+    const proposalDetails = `
+      <div style="background-color: ${COLORS.cream}; border-radius: 16px; padding: 24px; margin: 20px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px; width: 100px;">From:</td>
+            <td style="padding: 10px 0; color: ${COLORS.text}; font-size: 14px; font-weight: 600;">${senderName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Email:</td>
+            <td style="padding: 10px 0;"><a href="mailto:${senderEmail}" style="color: ${COLORS.burgundy}; font-size: 14px;">${senderEmail}</a></td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Company:</td>
+            <td style="padding: 10px 0; color: ${COLORS.text}; font-size: 14px;">${senderCompany || 'Not specified'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Type:</td>
+            <td style="padding: 10px 0;">
+              <span style="display: inline-block; background: linear-gradient(135deg, ${COLORS.burgundy} 0%, ${COLORS.burgundyLight} 100%); color: ${COLORS.champagne}; font-size: 12px; padding: 6px 16px; border-radius: 50px; font-weight: 600;">${typeLabel}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+
     const result = await client.sendEmail({
       From: FROM_EMAIL,
       To: artistEmail,
       Subject: `New ${typeLabel} Proposal for ${landingPageTitle}`,
-      HtmlBody: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #722F37 0%, #8B3A42 100%); padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0;">New Proposal Received</h1>
-          </div>
-          <div style="padding: 32px; background: #f7e6ca;">
-            <p style="font-size: 16px; color: #333;">Hi ${artistName || 'there'},</p>
-            <p style="font-size: 16px; color: #333;">
-              You've received a new <strong>${typeLabel}</strong> proposal through your Aermuse page "<strong>${landingPageTitle}</strong>"!
-            </p>
-
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding: 8px 0; color: #666; font-size: 14px;">From:</td>
-                  <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${senderName}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Email:</td>
-                  <td style="padding: 8px 0;"><a href="mailto:${senderEmail}" style="color: #722F37; font-size: 14px;">${senderEmail}</a></td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Company:</td>
-                  <td style="padding: 8px 0; color: #333; font-size: 14px;">${senderCompany || 'Not specified'}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #666; font-size: 14px;">Type:</td>
-                  <td style="padding: 8px 0;">
-                    <span style="display: inline-block; background-color: #722F37; color: #fff; font-size: 12px; padding: 4px 12px; border-radius: 12px;">${typeLabel}</span>
-                  </td>
-                </tr>
-              </table>
-            </div>
-
-            <div style="margin-bottom: 24px;">
-              <p style="margin: 0 0 8px; color: #666; font-size: 14px; font-weight: 600;">Message:</p>
-              <p style="margin: 0; color: #333; font-size: 14px; line-height: 1.6; background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #722F37;">
-                ${messagePreview}
-              </p>
-            </div>
-
-            <p style="text-align: center;">
-              <a href="${viewProposalUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #722F37 0%, #8B3A42 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">View Full Proposal</a>
-            </p>
-
-            <p style="margin: 24px 0 0; color: #666; font-size: 14px; text-align: center;">
-              You can reply directly to <a href="mailto:${senderEmail}" style="color: #722F37;">${senderEmail}</a>
-            </p>
-          </div>
-          <div style="padding: 16px; text-align: center; color: #999; font-size: 12px; background: #f5f5f5;">
-            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Aermuse. All rights reserved.</p>
-            <p style="margin: 8px 0 0;">You received this because someone submitted a proposal through your Aermuse page.</p>
-          </div>
-        </div>
-      `,
-      TextBody: `
-Hi ${artistName || 'there'},
-
-You've received a new ${typeLabel} proposal through your Aermuse page "${landingPageTitle}"!
-
-From: ${senderName}
-Email: ${senderEmail}
-Company: ${senderCompany || 'Not specified'}
-Type: ${typeLabel}
-
-Message:
-${messagePreview}
-
-View full proposal: ${viewProposalUrl}
-
-You can reply directly to ${senderEmail}
-
-- The Aermuse Team
-      `,
+      HtmlBody: emailTemplate({
+        title: 'New Proposal Received!',
+        preheader: `${senderName} sent you a ${typeLabel} proposal`,
+        greeting: `Hi ${artistName || 'there'},`,
+        content: `You've received a new <strong>${typeLabel}</strong> proposal through your Aermuse page "<strong>${landingPageTitle}</strong>"!
+          ${proposalDetails}
+          ${infoBox(messagePreview, 'Message')}
+          <p style="margin-top: 16px; font-size: 14px; color: ${COLORS.textMuted}; text-align: center;">
+            You can also reply directly to <a href="mailto:${senderEmail}" style="color: ${COLORS.burgundy};">${senderEmail}</a>
+          </p>`,
+        buttonText: 'View Full Proposal',
+        buttonUrl: viewProposalUrl,
+        footerNote: 'You received this because someone submitted a proposal through your Aermuse landing page.',
+      }),
+      TextBody: `Hi ${artistName || 'there'},\n\nYou've received a new ${typeLabel} proposal through your Aermuse page "${landingPageTitle}"!\n\nFrom: ${senderName}\nEmail: ${senderEmail}\nCompany: ${senderCompany || 'Not specified'}\nType: ${typeLabel}\n\nMessage:\n${messagePreview}\n\nView full proposal: ${viewProposalUrl}\n\nYou can reply directly to ${senderEmail}\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 
