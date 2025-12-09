@@ -57,9 +57,10 @@ function emailTemplate({
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   ${preheader ? `<!--[if !mso]><!-- --><span style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${preheader}</span><!--<![endif]-->` : ''}
 </head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: ${COLORS.champagne};">
+<body style="margin: 0; padding: 0; font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: ${COLORS.champagne};">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${COLORS.champagne};">
     <tr>
       <td style="padding: 40px 20px;">
