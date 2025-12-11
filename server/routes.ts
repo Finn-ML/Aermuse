@@ -17,9 +17,10 @@ import { uploadContractFile, downloadContractFile, getContentType, uploadSignedP
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
+import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFFromRecord } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
-import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage } from "@shared/schema";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
@@ -1704,18 +1705,18 @@ export async function registerRoutes(
   // BILLING ROUTES (Epic 5)
   // ============================================
 
-  // Helper middleware to require auth (hoisted for billing routes)
-  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-    if (!(req.session as any).userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    next();
-  };
+  // Note: Uses requireAuth imported from ./middleware/auth which properly sets req.user
 
   // Create checkout session
   app.post("/api/billing/checkout", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
+      const { tier = 'beta' } = req.body as { tier?: 'beta' | 'alpha' };
+
+      // Validate tier
+      if (tier !== 'beta' && tier !== 'alpha') {
+        return res.status(400).json({ error: "Invalid tier. Must be 'beta' or 'alpha'" });
+      }
 
       // Dynamic import to avoid module load issues when Stripe key not set
       const stripe = await import("./services/stripe");
@@ -1725,10 +1726,10 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Check if already subscribed
+      // Check if already subscribed - redirect to upgrade endpoint instead
       if (user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing") {
         return res.status(400).json({
-          error: "You already have an active subscription",
+          error: "You already have an active subscription. Use the upgrade endpoint to change tiers.",
           redirect: "/settings/billing",
         });
       }
@@ -1749,10 +1750,11 @@ export async function registerRoutes(
         } as any);
       }
 
-      // Create checkout session
+      // Create checkout session with tier
       const session = await stripe.createCheckoutSession({
         customerId,
         userId: user.id,
+        tier,
         successUrl: `${stripe.stripeConfig.appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${stripe.stripeConfig.appUrl}/pricing?canceled=true`,
       });
@@ -1799,16 +1801,21 @@ export async function registerRoutes(
       const customerId = session.customer as string;
 
       if (subscriptionId) {
+        const stripeModule = await import("./services/stripe");
         const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
+        const priceId = subscription.items.data[0]?.price.id;
+        const tier = session.metadata?.tier || stripeModule.priceIdToTier(priceId);
+
         await storage.updateUser(userId, {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           subscriptionStatus: subscription.status === 'active' || subscription.status === 'trialing' ? subscription.status : 'active',
-          subscriptionPriceId: subscription.items.data[0]?.price.id || null,
+          subscriptionPriceId: priceId || null,
           subscriptionCurrentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
           subscriptionCancelAtPeriodEnd: subscription.cancel_at_period_end,
+          subscriptionTier: tier,
         } as any);
-        console.log(`[BILLING] Synced subscription ${subscriptionId} for user ${userId}: active`);
+        console.log(`[BILLING] Synced subscription ${subscriptionId} for user ${userId}: ${tier}`);
       }
 
       res.json({
@@ -1820,6 +1827,143 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[BILLING] Verify checkout error:", error);
       res.status(500).json({ error: "Failed to verify checkout session" });
+    }
+  });
+
+  // Preview upgrade proration (Story 12-8)
+  app.post("/api/subscriptions/preview-upgrade", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { targetTier } = req.body as { targetTier: 'alpha' };
+
+      if (targetTier !== 'alpha') {
+        return res.status(400).json({ error: "Can only preview upgrade to alpha" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.stripeSubscriptionId || !user.stripeCustomerId) {
+        return res.status(400).json({ error: "No active subscription found" });
+      }
+
+      const stripeModule = await import("./services/stripe");
+      const { stripe } = stripeModule;
+
+      // Get current subscription
+      const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+      const newPriceId = stripeModule.tierToPriceId('alpha');
+
+      // Preview proration - calculate estimate based on price difference
+      // The full Stripe proration preview requires more complex API calls
+      // For simplicity, return a calculated estimate
+      const currentPriceAmount = 9.99; // Beta price
+      const newPriceAmount = 19.99; // Alpha price
+      const daysInMonth = 30;
+      const sub = subscription as any;
+      const currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date();
+      const now = new Date();
+      const daysRemaining = Math.max(0, Math.ceil((currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      const dailyDifference = (newPriceAmount - currentPriceAmount) / daysInMonth;
+      const proratedAmount = Math.round(dailyDifference * daysRemaining * 100) / 100;
+
+      res.json({
+        amountDue: proratedAmount,
+        currency: 'gbp',
+        newPlanAmount: newPriceAmount,
+      });
+    } catch (error) {
+      console.error("[BILLING] Preview upgrade error:", error);
+      res.status(500).json({ error: "Failed to preview upgrade" });
+    }
+  });
+
+  // Upgrade subscription tier (Story 12-8)
+  app.post("/api/subscriptions/upgrade", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { targetTier } = req.body as { targetTier: 'alpha' };
+
+      if (targetTier !== 'alpha') {
+        return res.status(400).json({ error: "Can only upgrade to alpha" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.stripeSubscriptionId) {
+        return res.status(400).json({ error: "No active subscription to upgrade" });
+      }
+
+      if (user.subscriptionTier === 'alpha') {
+        return res.status(400).json({ error: "Already on alpha tier" });
+      }
+
+      const stripeModule = await import("./services/stripe");
+      const { stripe } = stripeModule;
+
+      // Get current subscription
+      const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+      const newPriceId = stripeModule.tierToPriceId('alpha');
+
+      // Update subscription with new price
+      const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+        items: [{
+          id: subscription.items.data[0].id,
+          price: newPriceId,
+        }],
+        proration_behavior: 'always_invoice',
+        metadata: {
+          ...subscription.metadata,
+          tier: 'alpha',
+        },
+      });
+
+      // Update user tier immediately
+      await storage.updateUser(userId, {
+        subscriptionTier: 'alpha',
+        subscriptionPriceId: newPriceId,
+      } as any);
+
+      console.log(`[BILLING] Upgraded user ${userId} from ${user.subscriptionTier} to alpha`);
+
+      res.json({
+        success: true,
+        tier: 'alpha',
+        effectiveDate: 'immediate',
+      });
+    } catch (error) {
+      console.error("[BILLING] Upgrade error:", error);
+      res.status(500).json({ error: "Failed to upgrade subscription" });
+    }
+  });
+
+  // Get contract usage (Story 12-9)
+  app.get("/api/contracts/usage", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Count user's contracts
+      const [result] = await db
+        .select({ count: count() })
+        .from(contracts)
+        .where(eq(contracts.userId, userId));
+
+      const contractCount = result?.count || 0;
+      const isActive = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
+      const tier = isActive ? (user.subscriptionTier || 'beta') : 'free';
+      const isLimited = tier === 'free';
+
+      res.json({
+        current: contractCount,
+        limit: isLimited ? FREE_TIER_LIMITS.maxContracts : null,
+        isLimited,
+        tier,
+      });
+    } catch (error) {
+      console.error("[CONTRACTS] Usage error:", error);
+      res.status(500).json({ error: "Failed to get contract usage" });
     }
   });
 

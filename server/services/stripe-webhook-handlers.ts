@@ -3,6 +3,7 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { mapStripeStatus } from './stripe.types';
+import { priceIdToTier } from './stripe';
 import type { SubscriptionUpdate } from '../../shared/types/subscription';
 
 // Type helpers for Stripe API v2024+ where some properties moved
@@ -117,13 +118,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
 
-  // Clear subscription data but keep customer ID
+  // Clear subscription data but keep customer ID, reset tier to free
   const update: SubscriptionUpdate = {
     stripeSubscriptionId: null,
     subscriptionStatus: 'canceled',
     subscriptionPriceId: null,
     subscriptionCurrentPeriodEnd: null,
     subscriptionCancelAtPeriodEnd: false,
+    subscriptionTier: 'free',
   };
 
   await updateUserByCustomerId(customerId, update);
@@ -184,13 +186,22 @@ function buildSubscriptionUpdate(subscription: Stripe.Subscription): Subscriptio
   const priceId = subscription.items.data[0]?.price.id;
   const subData = subscription as SubscriptionWithPeriodEnd;
   const periodEnd = subData.current_period_end;
+  const status = mapStripeStatus(subscription.status);
+
+  // Determine tier: use metadata if available, otherwise derive from price ID
+  const metadataTier = subscription.metadata?.tier as 'beta' | 'alpha' | undefined;
+  const tier = metadataTier || priceIdToTier(priceId);
+
+  // Only set tier if subscription is active/trialing
+  const isActive = status === 'active' || status === 'trialing';
 
   return {
     stripeSubscriptionId: subscription.id,
-    subscriptionStatus: mapStripeStatus(subscription.status),
+    subscriptionStatus: status,
     subscriptionPriceId: priceId || null,
     subscriptionCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
     subscriptionCancelAtPeriodEnd: subscription.cancel_at_period_end,
+    subscriptionTier: isActive ? tier : 'free',
   };
 }
 

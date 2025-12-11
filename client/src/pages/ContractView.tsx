@@ -12,6 +12,7 @@ import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { UpgradePrompt } from '../components/UpgradePrompt';
+import { BlurredUpgradeOverlay } from '../components/BlurredUpgradeOverlay';
 import { useContractAnalysis } from '../hooks/useContractAnalysis';
 import { usePremium } from '../hooks/usePremium';
 import { Contract, ContractAnalysis, ContractVersion } from '../types';
@@ -33,7 +34,7 @@ export default function ContractView() {
   const [isLoaded, setIsLoaded] = useState(false);
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
   const { toast } = useToast();
-  const { isPremium } = usePremium();
+  const { isPremium, canAccess } = usePremium();
   const isMountedRef = useRef(true);
 
   const fetchContract = useCallback(async () => {
@@ -485,9 +486,15 @@ export default function ContractView() {
                 }`}
                 style={{ transitionDelay: '450ms' }}
               >
-                <div className="h-full [&>div]:h-full [&>div]:flex [&>div]:flex-col">
-                  <RedFlagsCard redFlags={displayAnalysis.redFlags || []} />
-                </div>
+                {canAccess('ai-red-flags') ? (
+                  <div className="h-full [&>div]:h-full [&>div]:flex [&>div]:flex-col">
+                    <RedFlagsCard redFlags={displayAnalysis.redFlags || []} />
+                  </div>
+                ) : (
+                  <BlurredUpgradeOverlay feature="ai-red-flags" count={redFlagCount}>
+                    <RedFlagsCard redFlags={displayAnalysis.redFlags || []} />
+                  </BlurredUpgradeOverlay>
+                )}
               </div>
 
               {/* Row 2: Risk Score (left) + Key Terms (right) */}
@@ -510,9 +517,15 @@ export default function ContractView() {
                 }`}
                 style={{ transitionDelay: '550ms' }}
               >
-                <div className="h-full [&>div]:h-full [&>div]:flex [&>div]:flex-col">
-                  <KeyTermsCard keyTerms={displayAnalysis.keyTerms || []} />
-                </div>
+                {canAccess('ai-key-terms') ? (
+                  <div className="h-full [&>div]:h-full [&>div]:flex [&>div]:flex-col">
+                    <KeyTermsCard keyTerms={displayAnalysis.keyTerms || []} />
+                  </div>
+                ) : (
+                  <BlurredUpgradeOverlay feature="ai-key-terms" count={keyTermCount}>
+                    <KeyTermsCard keyTerms={displayAnalysis.keyTerms || []} />
+                  </BlurredUpgradeOverlay>
+                )}
               </div>
 
               {/* Row 3: Missing Clauses spanning full width */}
@@ -522,7 +535,13 @@ export default function ContractView() {
                 }`}
                 style={{ transitionDelay: '600ms' }}
               >
-                <MissingClausesCard missingClauses={displayAnalysis.missingClauses || []} />
+                {canAccess('ai-missing-clauses') ? (
+                  <MissingClausesCard missingClauses={displayAnalysis.missingClauses || []} />
+                ) : (
+                  <BlurredUpgradeOverlay feature="ai-missing-clauses" count={missingCount}>
+                    <MissingClausesCard missingClauses={displayAnalysis.missingClauses || []} />
+                  </BlurredUpgradeOverlay>
+                )}
               </div>
             </div>
 

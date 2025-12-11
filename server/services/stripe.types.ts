@@ -63,6 +63,7 @@ export interface CreateCheckoutOptions {
   customerId?: string;
   customerEmail?: string;
   userId: string;
+  tier?: 'beta' | 'alpha';
   successUrl?: string;
   cancelUrl?: string;
 }

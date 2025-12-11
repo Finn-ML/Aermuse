@@ -4,8 +4,8 @@
 
 This document outlines the epics and user stories required to complete the Aermuse MVP based on the PRD requirements.
 
-**Total Story Points:** 202
-**Estimated Duration:** 4-6 weeks
+**Total Story Points:** 236
+**Estimated Duration:** 5-7 weeks
 
 ---
 
@@ -24,6 +24,7 @@ This document outlines the epics and user stories required to complete the Aermu
 | EPIC-009 | Landing Page Customization | P2 | 41 | - |
 | EPIC-010 | Analytics & Insights | P2 | 7 | - |
 | [EPIC-011](./epic-11-visual-effects.md) | Visual Effects & Premium Customization | P1 | 24 | - |
+| [EPIC-012](./epic-12-pricing-tier-restructure.md) | Pricing Tier Restructure (Beta & Alpha) | P0 | 34 | 4-5 days |
 
 ---
 
@@ -90,7 +91,7 @@ EPIC-003 (Templates)
     └── EPIC-004 (E-Signing) - templates feed into signing
 
 EPIC-005 (Billing)
-    └── Standalone, can start early
+    └── EPIC-012 (Pricing Tiers) - extends billing with tiers
 
 EPIC-007 (Landing Page)
     └── Email service (shared with EPIC-004)
@@ -110,10 +111,11 @@ EPIC-008 (Storage)
 | Templates | 10 | 30 |
 | E-Signing | 10 | 35 |
 | Billing | 10 | 26 |
+| Pricing Tiers | 10 | 34 |
 | Admin | 9 | 37 |
 | Landing Pages | 6 | 12 |
 | Storage/Search | 6 | 21 |
-| **Total** | **64** | **202** |
+| **Total** | **74** | **236** |
 
 ---
 
@@ -143,11 +145,12 @@ EPIC-008 (Storage)
 
 ## Success Criteria (from PRD)
 
-- [ ] 50+ active subscribers at £9/month
+- [ ] 50+ active subscribers (Beta £9.99 + Alpha £19.99)
 - [ ] 200+ contracts uploaded or created
 - [ ] 100+ e-signatures completed
 - [ ] NPS > 30
 - [ ] Monthly churn < 10%
+- [ ] 20%+ Beta → Alpha upgrade rate
 
 ---
 

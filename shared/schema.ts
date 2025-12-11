@@ -4,6 +4,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
 
+// Subscription tier type (Epic 12)
+export type SubscriptionTier = 'free' | 'beta' | 'alpha';
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -27,10 +30,17 @@ export const users = pgTable("users", {
   subscriptionPriceId: varchar("subscription_price_id", { length: 50 }),
   subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end", { withTimezone: true }),
   subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false),
+  // Epic 12: Subscription Tier
+  subscriptionTier: text("subscription_tier").default("free").$type<SubscriptionTier>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
+// Zod schema for subscription tier validation
+const subscriptionTierSchema = z.enum(['free', 'beta', 'alpha']).nullable().optional();
+
+export const insertUserSchema = createInsertSchema(users, {
+  subscriptionTier: subscriptionTierSchema,
+}).omit({
   id: true,
   createdAt: true,
 });

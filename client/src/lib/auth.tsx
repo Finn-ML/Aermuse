@@ -46,7 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      // Clear user data immediately (not just invalidate)
+      queryClient.setQueryData(['/api/auth/me'], { user: null });
+      // Clear all user-related cached data
+      queryClient.removeQueries({ queryKey: ['/api/auth/me'] });
+      queryClient.removeQueries({ queryKey: ['/api/contracts'] });
+      queryClient.removeQueries({ queryKey: ['contract-usage'] });
+      queryClient.removeQueries({ queryKey: ['/api/contracts/limit'] });
     },
   });
 

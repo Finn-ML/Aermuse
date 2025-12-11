@@ -199,3 +199,20 @@ development_status:
   11-7-glassmorphism-card-effects: done
   11-8-effects-control-panel-ui: done
   epic-11-retrospective: optional
+
+  # ============================================
+  # EPIC 12: Pricing Tier Restructure (P0)
+  # 10 stories, 34 points
+  # ============================================
+  epic-12: review
+  12-1-subscription-tier-data-model: review
+  12-2-stripe-products-pricing-update: review
+  12-3-premium-hook-feature-gating-refactor: review
+  12-4-blurred-widget-component: review
+  12-5-animated-upgrade-cta-component: review
+  12-6-contract-analysis-page-tier-gating: review
+  12-7-pricing-page-redesign: review
+  12-8-upgrade-flow-tier-switching: review
+  12-9-free-tier-contract-limit: review
+  12-10-existing-subscriber-migration: review
+  epic-12-retrospective: optional

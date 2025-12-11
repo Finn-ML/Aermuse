@@ -43,12 +43,14 @@ export function hasPremiumAccess(
 
 /**
  * Get subscription tier based on status
+ * Note: This returns 'beta' as default for active subscriptions.
+ * The actual tier should be determined from the user's subscriptionTier field.
  */
 export function getSubscriptionTier(
   status: SubscriptionStatus,
   periodEnd: Date | null
 ): SubscriptionTier {
-  return hasPremiumAccess(status, periodEnd) ? 'premium' : 'free';
+  return hasPremiumAccess(status, periodEnd) ? 'beta' : 'free';
 }
 
 /**

@@ -22,6 +22,7 @@ import { ProposalCard, ProposalDetail } from '@/components/proposals';
 import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
 import { ContractLimitPrompt } from '@/components/UpgradePrompt';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { PremiumFeatureGate, PremiumBadge } from '@/components/PremiumFeatureGate';
 import { useTemplates } from '@/hooks/useTemplates';
 import { usePremium } from '@/hooks/usePremium';
@@ -105,6 +106,7 @@ export default function Dashboard() {
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   const [previewFormData, setPreviewFormData] = useState<TemplateFormData | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, 'unfiled' = unfiled
@@ -134,7 +136,7 @@ export default function Dashboard() {
   // Templates for proposal-to-contract flow (Story 7.6)
   const { templates } = useTemplates();
   // Premium subscription check
-  const { isPremium } = usePremium();
+  const { isPremium, tier } = usePremium();
   // Story 9.9: Check if user has Pro subscription (alias for backwards compat)
   const isPro = isPremium;
 
@@ -1716,15 +1718,27 @@ export default function Dashboard() {
                   <p className="text-sm text-[rgba(102,0,51,0.6)] mb-4">
                     Manage your subscription, update payment methods, view invoices, or cancel your plan.
                   </p>
-                  <a
-                    href="https://billing.stripe.com/p/login/test_fZu28jbxQ7X47WG83dcwg00"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
-                    data-testid="button-manage-subscription"
-                  >
-                    Manage Subscription
-                  </a>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href="https://billing.stripe.com/p/login/test_fZu28jbxQ7X47WG83dcwg00"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                      data-testid="button-manage-subscription"
+                    >
+                      Manage Subscription
+                    </a>
+                    {tier === 'beta' && (
+                      <button
+                        onClick={() => setShowUpgradeModal(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(212,175,55,0.3)] transition-all"
+                        data-testid="button-upgrade-alpha"
+                      >
+                        <Sparkles size={16} />
+                        Upgrade to Alpha
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1758,6 +1772,13 @@ export default function Dashboard() {
             <DeleteAccountModal
               onClose={() => setShowDeleteModal(false)}
               onDeleted={handleAccountDeleted}
+            />
+          )}
+
+          {showUpgradeModal && (
+            <UpgradeModal
+              isOpen={showUpgradeModal}
+              onClose={() => setShowUpgradeModal(false)}
             />
           )}
         </main>

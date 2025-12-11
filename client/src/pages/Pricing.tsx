@@ -1,18 +1,194 @@
-import { Sparkles, Check, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { usePremium } from '@/hooks/usePremium';
 import { FAQ } from '@/components/pricing/FAQ';
 import { Link } from 'wouter';
 import { useState } from 'react';
+import type { SubscriptionTier } from '@shared/schema';
+import { TIER_HIERARCHY } from '@shared/constants/tiers';
+
+interface PricingFeature {
+  text: string;
+  included: boolean;
+  teaser?: string;
+}
+
+interface PricingTier {
+  id: SubscriptionTier;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: PricingFeature[];
+  cta: string;
+  highlighted: boolean;
+  badge?: string;
+}
+
+const PRICING_TIERS: PricingTier[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '£0',
+    period: 'forever',
+    description: 'Get started with basic features',
+    features: [
+      { text: 'Up to 10 contracts', included: true },
+      { text: 'Contract templates', included: false },
+      { text: 'E-signing', included: false },
+      { text: 'AI Summary & Risk Score', included: false },
+      { text: 'AI Red Flags Analysis', included: false },
+      { text: 'AI Key Terms & Missing Clauses', included: false },
+    ],
+    cta: 'Get Started Free',
+    highlighted: false,
+  },
+  {
+    id: 'beta',
+    name: 'Aermuse Beta',
+    price: '£9.99',
+    period: '/month',
+    description: 'Essential tools for artists',
+    features: [
+      { text: 'Unlimited contracts', included: true },
+      { text: 'Contract templates', included: true },
+      { text: 'E-signing', included: true },
+      { text: 'AI Summary & Risk Score', included: true },
+      { text: 'AI Red Flags Analysis', included: false, teaser: 'Alpha only' },
+      { text: 'AI Key Terms & Missing Clauses', included: false, teaser: 'Alpha only' },
+    ],
+    cta: 'Start Beta',
+    highlighted: false,
+  },
+  {
+    id: 'alpha',
+    name: 'Aermuse Alpha',
+    price: '£19.99',
+    period: '/month',
+    description: 'Complete contract intelligence',
+    features: [
+      { text: 'Unlimited contracts', included: true },
+      { text: 'Contract templates', included: true },
+      { text: 'E-signing', included: true },
+      { text: 'AI Summary & Risk Score', included: true },
+      { text: 'AI Red Flags Analysis', included: true },
+      { text: 'AI Key Terms & Missing Clauses', included: true },
+    ],
+    cta: 'Go Alpha',
+    highlighted: true,
+    badge: 'Recommended',
+  },
+];
+
+interface PricingCardProps {
+  plan: PricingTier;
+  currentTier: SubscriptionTier;
+  isLoggedIn: boolean;
+  onSubscribe: (tier: 'beta' | 'alpha') => void;
+  isLoading: boolean;
+}
+
+function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe, isLoading }: PricingCardProps) {
+  const isCurrentPlan = currentTier === plan.id;
+  const canUpgrade = !isCurrentPlan && TIER_HIERARCHY[plan.id] > TIER_HIERARCHY[currentTier];
+  const isHigherTier = TIER_HIERARCHY[plan.id] < TIER_HIERARCHY[currentTier];
+
+  const handleClick = () => {
+    if (plan.id === 'free') {
+      window.location.href = isLoggedIn ? '/dashboard' : '/auth';
+    } else if (canUpgrade) {
+      onSubscribe(plan.id as 'beta' | 'alpha');
+    }
+  };
+
+  const getButtonText = () => {
+    if (isCurrentPlan) return 'Current Plan';
+    if (isHigherTier) return 'Included';
+    if (!isLoggedIn) return plan.cta;
+    return canUpgrade ? 'Upgrade' : plan.cta;
+  };
+
+  const isDisabled = isCurrentPlan || isHigherTier;
+
+  return (
+    <div
+      className={`rounded-2xl p-6 sm:p-8 relative transition-all ${
+        plan.highlighted
+          ? 'bg-gradient-to-br from-[#660033] to-[#8B0045] text-[#F7E6CA] ring-4 ring-[#D4AF37] scale-105'
+          : 'bg-white/80 text-[#660033]'
+      }`}
+    >
+      {plan.badge && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-block px-3 py-1 bg-[#D4AF37] text-[#660033] text-xs font-bold rounded-full whitespace-nowrap">
+          {plan.badge}
+        </span>
+      )}
+
+      <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+      <div className="flex items-baseline gap-1 mb-4">
+        <span className="text-4xl font-bold">{plan.price}</span>
+        <span className={`text-sm ${plan.highlighted ? 'opacity-70' : 'text-[#660033]/60'}`}>
+          {plan.period}
+        </span>
+      </div>
+
+      <p className={`text-sm mb-6 ${plan.highlighted ? 'opacity-80' : 'text-[#660033]/70'}`}>
+        {plan.description}
+      </p>
+
+      <ul className="space-y-3 mb-8">
+        {plan.features.map((feature, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm">
+            {feature.included ? (
+              <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'text-green-400' : 'text-green-600'}`} />
+            ) : (
+              <X className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'opacity-40' : 'opacity-30'}`} />
+            )}
+            <span className={feature.included ? '' : plan.highlighted ? 'opacity-50' : 'opacity-50'}>
+              {feature.text}
+              {feature.teaser && (
+                <span className={`text-xs ml-1 ${plan.highlighted ? 'text-[#D4AF37]' : 'text-amber-600'}`}>
+                  ({feature.teaser})
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        onClick={handleClick}
+        disabled={isDisabled || isLoading}
+        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+          plan.highlighted
+            ? isDisabled
+              ? 'bg-[#F7E6CA]/30 text-[#F7E6CA]/50 cursor-not-allowed'
+              : 'bg-[#F7E6CA] text-[#660033] hover:bg-[#f0d9b8]'
+            : isDisabled
+              ? 'bg-[#660033]/10 text-[#660033]/50 cursor-not-allowed'
+              : 'bg-[#660033] text-[#F7E6CA] hover:bg-[#4a0024]'
+        }`}
+      >
+        {isLoading && canUpgrade ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading...
+          </>
+        ) : (
+          getButtonText()
+        )}
+      </button>
+    </div>
+  );
+}
 
 export default function Pricing() {
   const { user } = useAuth();
+  const { tier } = usePremium();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user has premium subscription
-  const isPremium = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
-
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (targetTier: 'beta' | 'alpha') => {
     if (!user) {
       window.location.href = '/auth';
       return;
@@ -24,7 +200,9 @@ export default function Pricing() {
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ tier: targetTier }),
       });
 
       const data = await res.json();
@@ -33,7 +211,6 @@ export default function Pricing() {
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      // Redirect to Stripe Checkout
       if (data.url) {
         window.location.href = data.url;
       }
@@ -73,116 +250,35 @@ export default function Pricing() {
       </nav>
 
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold text-[#660033] mb-4">
-          Simple, Transparent Pricing
+      <div className="max-w-7xl mx-auto px-4 py-12 sm:py-16 text-center">
+        <h1 className="text-3xl sm:text-5xl font-bold text-[#660033] mb-4">
+          Choose Your Plan
         </h1>
-        <p className="text-xl text-[#660033]/80 max-w-2xl mx-auto">
-          Get the tools you need to understand and manage your music contracts with confidence.
+        <p className="text-lg sm:text-xl text-[#660033]/80 max-w-2xl mx-auto">
+          Protect your music career with AI-powered contract analysis
         </p>
       </div>
 
       {/* Pricing Cards */}
-      <div className="max-w-5xl mx-auto px-4 pb-16">
-        {isPremium ? (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="h-8 w-8 text-green-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-[#660033] mb-2">You're on Premium!</h3>
-            <p className="text-[#660033]/70 mb-6">
-              You have full access to all Aermuse features.
-            </p>
-            <Link
-              href="/dashboard"
-              className="px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors inline-block"
-            >
-              Go to Dashboard
-            </Link>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-bold text-[#660033] mb-2">Free</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-[#660033]">£0</span>
-                <span className="text-[#660033]/60">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2 text-[#660033]/80">
-                  <Check className="h-5 w-5 text-green-600" />
-                  <span>3 contract analyses per month</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#660033]/80">
-                  <Check className="h-5 w-5 text-green-600" />
-                  <span>Basic risk assessment</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#660033]/80">
-                  <Check className="h-5 w-5 text-green-600" />
-                  <span>Landing page builder</span>
-                </li>
-              </ul>
-              <Link
-                href={user ? "/dashboard" : "/auth"}
-                className="block w-full py-3 text-center border-2 border-[#660033] text-[#660033] rounded-lg hover:bg-[#660033]/5 transition-colors"
-              >
-                {user ? "Current Plan" : "Get Started"}
-              </Link>
-            </div>
-
-            {/* Premium Plan */}
-            <div className="bg-[#660033] rounded-2xl shadow-lg p-8 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F7E6CA] text-[#660033] text-sm font-semibold px-3 py-1 rounded-full">
-                Most Popular
-              </div>
-              <h3 className="text-xl font-bold text-[#F7E6CA] mb-2">Premium</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-[#F7E6CA]">£9</span>
-                <span className="text-[#F7E6CA]/60">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
-                  <Check className="h-5 w-5 text-green-400" />
-                  <span>Unlimited contract analyses</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
-                  <Check className="h-5 w-5 text-green-400" />
-                  <span>Advanced AI risk detection</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
-                  <Check className="h-5 w-5 text-green-400" />
-                  <span>Contract templates</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
-                  <Check className="h-5 w-5 text-green-400" />
-                  <span>E-signing integration</span>
-                </li>
-                <li className="flex items-center gap-2 text-[#F7E6CA]/90">
-                  <Check className="h-5 w-5 text-green-400" />
-                  <span>Priority support</span>
-                </li>
-              </ul>
-              {error && (
-                <p className="text-red-300 text-sm mb-4 text-center">{error}</p>
-              )}
-              <button
-                onClick={handleSubscribe}
-                disabled={isLoading}
-                className="w-full py-3 bg-[#F7E6CA] text-[#660033] font-semibold rounded-lg hover:bg-[#f0d9b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Subscribe Now"
-                )}
-              </button>
-            </div>
+      <div className="max-w-6xl mx-auto px-4 pb-16">
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-lg text-center">
+            {error}
           </div>
         )}
+
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 items-start">
+          {PRICING_TIERS.map((plan) => (
+            <PricingCard
+              key={plan.id}
+              plan={plan}
+              currentTier={tier}
+              isLoggedIn={!!user}
+              onSubscribe={handleSubscribe}
+              isLoading={isLoading}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Value Proposition */}

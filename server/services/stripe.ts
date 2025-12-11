@@ -1,10 +1,14 @@
 import Stripe from 'stripe';
 import type { CreateCheckoutOptions, CustomerMetadata } from './stripe.types';
 
+import type { SubscriptionTier } from '@shared/schema';
+
 // Validate required environment variables (support both TEST_ and regular names for Replit)
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || process.env.TEST_STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || process.env.TEST_STRIPE_WEBHOOK_SECRET;
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || process.env.TEST_STRIPE_PRICE_ID;
+const STRIPE_BETA_PRICE_ID = process.env.STRIPE_BETA_PRICE_ID;
+const STRIPE_ALPHA_PRICE_ID = process.env.STRIPE_ALPHA_PRICE_ID;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 if (!STRIPE_SECRET_KEY) {
@@ -29,11 +33,35 @@ export { stripe };
 
 export const stripeConfig = {
   priceId: STRIPE_PRICE_ID || '',
+  betaPriceId: STRIPE_BETA_PRICE_ID || '',
+  alphaPriceId: STRIPE_ALPHA_PRICE_ID || '',
   webhookSecret: STRIPE_WEBHOOK_SECRET || '',
   appUrl: APP_URL,
   currency: 'gbp',
   subscriptionMode: 'subscription' as const,
 };
+
+/**
+ * Map Stripe price ID to subscription tier
+ */
+export function priceIdToTier(priceId: string | null | undefined): SubscriptionTier {
+  if (!priceId) return 'free';
+  if (priceId === STRIPE_ALPHA_PRICE_ID) return 'alpha';
+  if (priceId === STRIPE_BETA_PRICE_ID) return 'beta';
+  // Legacy price ID maps to beta for backwards compatibility
+  if (priceId === STRIPE_PRICE_ID) return 'beta';
+  return 'free';
+}
+
+/**
+ * Get Stripe price ID for a tier
+ */
+export function tierToPriceId(tier: 'beta' | 'alpha'): string {
+  if (tier === 'alpha') {
+    return STRIPE_ALPHA_PRICE_ID || stripeConfig.priceId;
+  }
+  return STRIPE_BETA_PRICE_ID || stripeConfig.priceId;
+}
 
 // ============================================
 // CUSTOMER OPERATIONS
@@ -100,16 +128,20 @@ export async function createCheckoutSession(
     customerId,
     customerEmail,
     userId,
+    tier = 'beta',
     successUrl = `${APP_URL}/dashboard?subscription=success`,
     cancelUrl = `${APP_URL}/pricing?subscription=canceled`,
   } = options;
+
+  // Get the appropriate price ID based on tier
+  const priceId = tierToPriceId(tier);
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [
       {
-        price: stripeConfig.priceId,
+        price: priceId,
         quantity: 1,
       },
     ],
@@ -117,10 +149,12 @@ export async function createCheckoutSession(
     cancel_url: cancelUrl,
     metadata: {
       userId,
+      tier,
     },
     subscription_data: {
       metadata: {
         userId,
+        tier,
       },
     },
   };
@@ -132,12 +166,12 @@ export async function createCheckoutSession(
     sessionConfig.customer_email = customerEmail;
   }
 
-  console.log(`[STRIPE] Creating checkout with success_url: ${successUrl}`);
+  console.log(`[STRIPE] Creating checkout for tier: ${tier} with price: ${priceId}`);
   console.log(`[STRIPE] APP_URL env value: ${APP_URL}`);
 
   const session = await stripe.checkout.sessions.create(sessionConfig);
 
-  console.log(`[STRIPE] Checkout session created: ${session.id} for user ${userId}`);
+  console.log(`[STRIPE] Checkout session created: ${session.id} for user ${userId} tier ${tier}`);
   return session;
 }
 

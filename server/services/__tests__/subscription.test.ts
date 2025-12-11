@@ -82,17 +82,18 @@ describe('Subscription Service', () => {
   });
 
   describe('getSubscriptionTier', () => {
-    it('returns premium for active status', () => {
-      expect(getSubscriptionTier('active', null)).toBe('premium');
+    it('returns beta for active status', () => {
+      // Note: actual tier comes from user.subscriptionTier, this function returns default for active
+      expect(getSubscriptionTier('active', null)).toBe('beta');
     });
 
-    it('returns premium for trialing status', () => {
-      expect(getSubscriptionTier('trialing', null)).toBe('premium');
+    it('returns beta for trialing status', () => {
+      expect(getSubscriptionTier('trialing', null)).toBe('beta');
     });
 
-    it('returns premium for canceled with future period end', () => {
+    it('returns beta for canceled with future period end', () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      expect(getSubscriptionTier('canceled', futureDate)).toBe('premium');
+      expect(getSubscriptionTier('canceled', futureDate)).toBe('beta');
     });
 
     it('returns free for canceled with past period end', () => {

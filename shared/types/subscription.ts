@@ -1,3 +1,5 @@
+import type { SubscriptionTier } from '../schema';
+
 /**
  * Subscription status values - maps to Stripe subscription statuses
  */
@@ -12,9 +14,9 @@ export type SubscriptionStatus =
   | 'incomplete_expired'; // Initial payment failed
 
 /**
- * Subscription tier
+ * Subscription tier - re-export from schema for consistency
  */
-export type SubscriptionTier = 'free' | 'premium';
+export type { SubscriptionTier } from '../schema';
 
 /**
  * User subscription data (for frontend)
@@ -38,6 +40,7 @@ export interface SubscriptionUpdate {
   subscriptionPriceId?: string | null;
   subscriptionCurrentPeriodEnd?: Date | null;
   subscriptionCancelAtPeriodEnd?: boolean;
+  subscriptionTier?: SubscriptionTier;
 }
 
 /**

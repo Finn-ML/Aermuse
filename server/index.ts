@@ -16,6 +16,11 @@ declare module "http" {
   }
 }
 
+// Trust proxy - required for secure cookies behind reverse proxies (Replit, Heroku, etc.)
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // Session middleware
 app.use(
   session({
@@ -29,6 +34,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
     },
   })
 );
