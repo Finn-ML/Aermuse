@@ -45,6 +45,30 @@ const proposalRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Get the base URL from the request for constructing email links.
+ * Uses the Origin header, X-Forwarded-Host, or Host header to dynamically
+ * adapt to dev/production domains.
+ */
+function getBaseUrl(req: Request): string {
+  // Try Origin header first (set by browsers on same-origin requests)
+  const origin = req.get('origin');
+  if (origin) {
+    return origin;
+  }
+
+  // Fall back to constructing from host
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('x-forwarded-host') || req.get('host');
+
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+
+  // Last resort fallback
+  return process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -80,7 +104,7 @@ export async function registerRoutes(
       } as any);
 
       // Send verification email (fire and forget)
-      sendVerificationEmail(user.email, verificationToken, user.name).catch((err) => {
+      sendVerificationEmail(user.email, verificationToken, user.name, getBaseUrl(req)).catch((err) => {
         console.error("[AUTH] Failed to send verification email:", err);
       });
 
@@ -180,7 +204,7 @@ export async function registerRoutes(
       } as any);
 
       // Send email (fire and forget, don't fail the request)
-      sendPasswordResetEmail(user.email, token, user.name).catch((err) => {
+      sendPasswordResetEmail(user.email, token, user.name, getBaseUrl(req)).catch((err) => {
         console.error("[AUTH] Failed to send password reset email:", err);
       });
 
@@ -286,7 +310,7 @@ export async function registerRoutes(
         emailVerificationToken: verificationToken,
       } as any);
 
-      await sendVerificationEmail(user.email, verificationToken, user.name);
+      await sendVerificationEmail(user.email, verificationToken, user.name, getBaseUrl(req));
 
       console.log(`[AUTH] Verification email resent to ${user.email}`);
       res.json({ message: "Verification email sent" });
@@ -3339,7 +3363,7 @@ Sent at: ${new Date().toISOString()}
           await handleNextSignerReady(payload);
           break;
         case 'document.completed':
-          await handleDocumentCompleted(payload);
+          await handleDocumentCompleted(payload, req);
           break;
         default:
           console.log(`[WEBHOOK] Unhandled event type: ${eventType}`);
@@ -3481,7 +3505,7 @@ Sent at: ${new Date().toISOString()}
   }
 
   // Handle document completion (all signatures done)
-  async function handleDocumentCompleted(payload: any) {
+  async function handleDocumentCompleted(payload: any, req: Request) {
     try {
       // Handle both possible field naming conventions from DocuSeal
       const documentId = payload.documentId || payload.document_id;
@@ -3567,7 +3591,7 @@ Sent at: ${new Date().toISOString()}
       const contract = await storage.getContract(request.contractId);
       const initiator = await storage.getUser(request.initiatorId);
       const downloadUrl = signedPdfPath
-        ? `${process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000'}/api/contracts/${request.contractId}/signed-pdf`
+        ? `${getBaseUrl(req)}/api/contracts/${request.contractId}/signed-pdf`
         : '';
 
       // Send to initiator
@@ -3749,6 +3773,7 @@ Sent at: ${new Date().toISOString()}
           proposalType,
           message,
           proposalId: proposal.id,
+          baseUrl: getBaseUrl(req),
         }).catch((err) => {
           // Log but don't fail the request if email fails
           console.error('[PROPOSALS] Failed to send notification email:', err);

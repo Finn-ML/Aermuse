@@ -1,7 +1,6 @@
 import * as postmark from 'postmark';
 
 const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
-const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@aermuse.com';
 
 // Only create client if API key is configured
@@ -187,9 +186,10 @@ function successBox(content: string): string {
 export async function sendPasswordResetEmail(
   email: string,
   resetToken: string,
-  userName: string
+  userName: string,
+  baseUrl: string
 ): Promise<EmailResult> {
-  const resetUrl = `${BASE_URL}/reset-password?token=${resetToken}`;
+  const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
   if (!client) {
     console.log('[EMAIL] Password reset email (dev mode):');
@@ -231,9 +231,10 @@ export async function sendPasswordResetEmail(
 export async function sendVerificationEmail(
   email: string,
   verificationToken: string,
-  userName: string
+  userName: string,
+  baseUrl: string
 ): Promise<EmailResult> {
-  const verifyUrl = `${BASE_URL}/verify-email?token=${verificationToken}`;
+  const verifyUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
 
   if (!client) {
     console.log('[EMAIL] Verification email (dev mode):');
@@ -509,6 +510,7 @@ interface ProposalNotificationParams {
   proposalType: string;
   message: string;
   proposalId: string;
+  baseUrl: string;
 }
 
 /**
@@ -527,6 +529,7 @@ export async function sendProposalNotificationEmail(
     proposalType,
     message,
     proposalId,
+    baseUrl,
   } = params;
 
   const proposalTypeLabels: Record<string, string> = {
@@ -540,7 +543,7 @@ export async function sendProposalNotificationEmail(
 
   const typeLabel = proposalTypeLabels[proposalType] || 'Other';
   const messagePreview = message.length > 200 ? message.substring(0, 200) + '...' : message;
-  const viewProposalUrl = `${BASE_URL}/dashboard?tab=proposals&id=${proposalId}`;
+  const viewProposalUrl = `${baseUrl}/dashboard?tab=proposals&id=${proposalId}`;
 
   if (!client) {
     console.log('[EMAIL] Proposal notification email (dev mode):');
