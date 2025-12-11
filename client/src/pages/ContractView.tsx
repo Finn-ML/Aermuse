@@ -637,6 +637,7 @@ export default function ContractView() {
             <SignatureStatusPanel
               contractId={contract.id}
               onClose={() => setShowSignatureStatus(false)}
+              onStatusChange={fetchContract}
             />
           </div>
         </div>

@@ -41,9 +41,10 @@ interface SignatureRequest {
 interface Props {
   contractId: string;
   onClose?: () => void;
+  onStatusChange?: () => void;
 }
 
-export function SignatureStatusPanel({ contractId, onClose }: Props) {
+export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Props) {
   const [request, setRequest] = useState<SignatureRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +140,8 @@ export function SignatureStatusPanel({ contractId, onClose }: Props) {
 
       // Refresh the status
       await fetchStatus();
+      // Notify parent to refresh contract data
+      onStatusChange?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to cancel request');
     } finally {
