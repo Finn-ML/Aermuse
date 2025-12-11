@@ -20,7 +20,7 @@ function getOpenAIClient(): OpenAI {
 
 // Configuration
 const CONFIG = {
-  model: 'gpt-4-turbo-preview',
+  model: 'gpt-4o-mini',
   maxTokens: 4000,
   temperature: 0.3,  // Lower for consistent analysis
   timeout: 45000,    // 45 second timeout
