@@ -25,7 +25,8 @@ interface UseTemplateFormReturn {
 
 export function useTemplateForm(
   template: ContractTemplate,
-  templateId: string
+  templateId: string,
+  initialData?: Record<string, string | number | Date | null>
 ): UseTemplateFormReturn {
   const storageKey = `template-draft-${templateId}`;
 
@@ -35,6 +36,35 @@ export function useTemplateForm(
 
   // Initialize from localStorage or defaults
   const getInitialData = useCallback((): TemplateFormData => {
+    // If initialData is provided (e.g., from a proposal), use it instead of localStorage
+    if (initialData && Object.keys(initialData).length > 0) {
+      // Start with defaults, then overlay initialData
+      const fields: Record<string, string | number | Date | null> = {};
+      for (const field of templateFields) {
+        if (field.defaultValue !== undefined) {
+          fields[field.id] = field.defaultValue as string | number | Date | null;
+        }
+      }
+      // Also add default values for clause fields
+      for (const clause of templateClauses) {
+        if (clause.fields) {
+          for (const field of clause.fields) {
+            if (field.defaultValue !== undefined) {
+              fields[field.id] = field.defaultValue as string | number | Date | null;
+            }
+          }
+        }
+      }
+      // Overlay initialData
+      Object.assign(fields, initialData);
+
+      const enabledClauses = templateClauses
+        .filter(c => c.defaultEnabled)
+        .map(c => c.id);
+
+      return { fields, enabledClauses };
+    }
+
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -75,7 +105,7 @@ export function useTemplateForm(
       .map(c => c.id);
 
     return { fields, enabledClauses };
-  }, [storageKey, templateFields, templateClauses]);
+  }, [storageKey, templateFields, templateClauses, initialData]);
 
   const [formData, setFormData] = useState<TemplateFormData>(getInitialData);
   const [errors, setErrors] = useState<Record<string, string>>({});

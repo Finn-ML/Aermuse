@@ -17,9 +17,11 @@ interface Props {
   template: ContractTemplate;
   onBack: () => void;
   onPreview: (formData: TemplateFormData) => void;
+  initialData?: Record<string, string | number | Date | null>;
+  proposalId?: string;
 }
 
-export function TemplateForm({ template, onBack, onPreview }: Props) {
+export function TemplateForm({ template, onBack, onPreview, initialData, proposalId }: Props) {
   const templateFields = (template.fields || []) as TemplateField[];
   const templateClauses = (template.optionalClauses || []) as OptionalClause[];
 
@@ -33,7 +35,7 @@ export function TemplateForm({ template, onBack, onPreview }: Props) {
     clearDraft,
     saveDraft,
     lastSaved,
-  } = useTemplateForm(template, template.id);
+  } = useTemplateForm(template, proposalId ? `${template.id}-proposal-${proposalId}` : template.id, initialData);
 
   // Group fields by group property
   const fieldGroups = useMemo(() => {

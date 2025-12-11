@@ -120,6 +120,11 @@ export default function Dashboard() {
   // Story 7.6: Proposal to Contract flow
   const [showTemplateSelection, setShowTemplateSelection] = useState(false);
   const [creatingContractFromProposal, setCreatingContractFromProposal] = useState(false);
+  const [proposalTemplateData, setProposalTemplateData] = useState<{
+    template: ContractTemplate;
+    proposalId: string;
+    initialData: Record<string, string | number | Date | null>;
+  } | null>(null);
 
   // Configure drag sensor with activation constraint to prevent accidental drags
   const sensors = useSensors(
@@ -515,11 +520,38 @@ export default function Dashboard() {
 
   const handleSelectTemplateForContract = (template: ContractTemplate) => {
     if (!selectedProposalId) return;
-    setCreatingContractFromProposal(true);
-    createContractFromProposalMutation.mutate({
+
+    // Find the selected proposal to get its data for pre-filling
+    const selectedProposal = proposalsData?.proposals.find(p => p.id === selectedProposalId);
+
+    // Build initial data from proposal fields
+    const initialData: Record<string, string | number | Date | null> = {};
+    if (selectedProposal) {
+      // Map proposal fields to common template field names
+      if (selectedProposal.senderName) {
+        initialData['party_name'] = selectedProposal.senderName;
+        initialData['client_name'] = selectedProposal.senderName;
+        initialData['collaborator_name'] = selectedProposal.senderName;
+        initialData['licensee_name'] = selectedProposal.senderName;
+      }
+      if (selectedProposal.senderEmail) {
+        initialData['party_email'] = selectedProposal.senderEmail;
+        initialData['client_email'] = selectedProposal.senderEmail;
+      }
+      if (selectedProposal.senderCompany) {
+        initialData['company_name'] = selectedProposal.senderCompany;
+        initialData['party_company'] = selectedProposal.senderCompany;
+      }
+    }
+
+    // Store the template and proposal data, then navigate to templates section
+    setProposalTemplateData({
+      template,
       proposalId: selectedProposalId,
-      templateId: template.id,
+      initialData,
     });
+    setShowTemplateSelection(false);
+    setActiveNav('templates');
   };
 
   const handleViewContractFromProposal = (contractId: string) => {
@@ -1364,16 +1396,25 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'templates' && (
-            previewFormData && selectedTemplate ? (
+            previewFormData && (selectedTemplate || proposalTemplateData) ? (
               <ContractPreview
-                template={selectedTemplate}
+                template={(selectedTemplate || proposalTemplateData?.template)!}
                 formData={previewFormData}
                 onBack={() => setPreviewFormData(null)}
+                proposalId={proposalTemplateData?.proposalId}
                 onContractCreated={(contractId) => {
                   toast({
                     title: 'Contract Created',
-                    description: 'Your contract has been saved as a draft.',
+                    description: proposalTemplateData
+                      ? 'Your contract has been created from the proposal.'
+                      : 'Your contract has been saved as a draft.',
                   });
+                  // Clear proposal template data if it was from a proposal
+                  if (proposalTemplateData) {
+                    setProposalTemplateData(null);
+                    // Invalidate proposals to update the contractId
+                    queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+                  }
                   setSelectedTemplate(null);
                   setPreviewFormData(null);
                   // Switch to contracts view
@@ -1381,6 +1422,19 @@ export default function Dashboard() {
                   // Refresh contracts list
                   queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
                 }}
+              />
+            ) : proposalTemplateData ? (
+              <TemplateForm
+                template={proposalTemplateData.template}
+                onBack={() => {
+                  setProposalTemplateData(null);
+                  setActiveNav('proposals');
+                }}
+                onPreview={(formData) => {
+                  setPreviewFormData(formData);
+                }}
+                initialData={proposalTemplateData.initialData}
+                proposalId={proposalTemplateData.proposalId}
               />
             ) : selectedTemplate ? (
               <TemplateForm

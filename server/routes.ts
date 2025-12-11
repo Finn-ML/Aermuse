@@ -2417,10 +2417,11 @@ Sent at: ${new Date().toISOString()}
         });
       }
 
-      const { templateId, formData, title } = req.body as {
+      const { templateId, formData, title, proposalId } = req.body as {
         templateId: string;
         formData: TemplateFormData;
         title?: string;
+        proposalId?: string;
       };
 
       const template = await storage.getTemplate(templateId);
@@ -2456,6 +2457,15 @@ Sent at: ${new Date().toISOString()}
         templateData: formData,
         renderedContent: html,
       });
+
+      // If created from a proposal, link the contract to it
+      if (proposalId) {
+        await db
+          .update(proposals)
+          .set({ contractId: contract.id })
+          .where(eq(proposals.id, proposalId));
+        console.log(`[CONTRACT] Linked to proposal ${proposalId}`);
+      }
 
       console.log(`[CONTRACT] Created from template ${templateId}: ${contract.id}`);
       res.json({ contract });

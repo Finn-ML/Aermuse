@@ -17,9 +17,10 @@ interface Props {
   formData: TemplateFormData;
   onBack: () => void;
   onContractCreated: (contractId: string) => void;
+  proposalId?: string;
 }
 
-export function ContractPreview({ template, formData, onBack, onContractCreated }: Props) {
+export function ContractPreview({ template, formData, onBack, onContractCreated, proposalId }: Props) {
   const [renderedHtml, setRenderedHtml] = useState<string>('');
   const [renderedTitle, setRenderedTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -53,12 +54,16 @@ export function ContractPreview({ template, formData, onBack, onContractCreated 
         templateId: template.id,
         formData,
         title: renderedTitle,
+        proposalId,
       });
       return response.json();
     },
     onSuccess: (data) => {
-      // Clear draft
-      localStorage.removeItem(`template-draft-${template.id}`);
+      // Clear draft - use proposal-specific key if from proposal
+      const draftKey = proposalId
+        ? `template-draft-${template.id}-proposal-${proposalId}`
+        : `template-draft-${template.id}`;
+      localStorage.removeItem(draftKey);
       onContractCreated(data.contract.id);
     },
   });
