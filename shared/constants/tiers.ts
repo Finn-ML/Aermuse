@@ -49,6 +49,15 @@ export const TIER_HIERARCHY: Record<SubscriptionTier, number> = {
 };
 
 /**
+ * Stripe Payment Links for subscriptions
+ * These are pre-configured payment links from Stripe Dashboard
+ */
+export const STRIPE_PAYMENT_LINKS = {
+  beta: 'https://buy.stripe.com/test_9B600b59s6T03Gq57hcwg01',
+  alpha: 'https://buy.stripe.com/test_fZu28jbxQ7X47WG83dcwg00',
+} as const;
+
+/**
  * Check if a tier can access a specific feature
  */
 export function canAccessFeature(tier: SubscriptionTier, feature: Feature): boolean {

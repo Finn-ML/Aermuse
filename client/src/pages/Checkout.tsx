@@ -1,92 +1,37 @@
-import { useEffect, useState } from 'react';
-import { useLocation } from 'wouter';
-import { Loader2, CreditCard, AlertCircle } from 'lucide-react';
+import { useEffect } from 'react';
+import { useLocation, useSearch } from 'wouter';
+import { Loader2, CreditCard } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/button';
+import { STRIPE_PAYMENT_LINKS } from '@shared/constants/tiers';
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { user, isLoading: authLoading } = useAuth();
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return;
 
+    // Get tier from query params, default to 'alpha'
+    const params = new URLSearchParams(search);
+    const tier = params.get('tier') as 'beta' | 'alpha' || 'alpha';
+
     if (!user) {
-      setLocation('/auth?redirect=/checkout');
+      setLocation(`/auth?redirect=/checkout?tier=${tier}`);
       return;
     }
 
-    initiateCheckout();
-  }, [user, authLoading]);
+    // Build payment link URL with prefilled email and client reference
+    const paymentLink = STRIPE_PAYMENT_LINKS[tier];
+    const checkoutParams = new URLSearchParams();
 
-  const initiateCheckout = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.redirect) {
-          setLocation(data.redirect);
-          return;
-        }
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start checkout');
-      setIsLoading(false);
+    if (user.email) {
+      checkoutParams.set('prefilled_email', user.email);
     }
-  };
+    checkoutParams.set('client_reference_id', user.id.toString());
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-          </div>
-
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Checkout Error
-          </h1>
-
-          <p className="text-gray-600 mb-6">{error}</p>
-
-          <div className="flex gap-4 justify-center">
-            <Button
-              variant="ghost"
-              onClick={() => setLocation('/pricing')}
-            >
-              Back to Pricing
-            </Button>
-            <Button
-              onClick={initiateCheckout}
-              className="bg-[#660033] hover:bg-[#4a0024] text-white"
-            >
-              Try Again
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    window.location.href = `${paymentLink}?${checkoutParams.toString()}`;
+  }, [user, authLoading, search]);
 
   return (
     <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center p-4">

@@ -1,11 +1,10 @@
-import { Sparkles, Check, X, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { usePremium } from '@/hooks/usePremium';
 import { FAQ } from '@/components/pricing/FAQ';
 import { Link } from 'wouter';
-import { useState } from 'react';
 import type { SubscriptionTier } from '@shared/schema';
-import { TIER_HIERARCHY } from '@shared/constants/tiers';
+import { TIER_HIERARCHY, STRIPE_PAYMENT_LINKS } from '@shared/constants/tiers';
 
 interface PricingFeature {
   text: string;
@@ -85,10 +84,9 @@ interface PricingCardProps {
   currentTier: SubscriptionTier;
   isLoggedIn: boolean;
   onSubscribe: (tier: 'beta' | 'alpha') => void;
-  isLoading: boolean;
 }
 
-function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe, isLoading }: PricingCardProps) {
+function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe }: PricingCardProps) {
   const isCurrentPlan = currentTier === plan.id;
   const canUpgrade = !isCurrentPlan && TIER_HIERARCHY[plan.id] > TIER_HIERARCHY[currentTier];
   const isHigherTier = TIER_HIERARCHY[plan.id] < TIER_HIERARCHY[currentTier];
@@ -158,7 +156,7 @@ function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe, isLoading }: 
 
       <button
         onClick={handleClick}
-        disabled={isDisabled || isLoading}
+        disabled={isDisabled}
         className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
           plan.highlighted
             ? isDisabled
@@ -169,14 +167,7 @@ function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe, isLoading }: 
               : 'bg-[#660033] text-[#F7E6CA] hover:bg-[#4a0024]'
         }`}
       >
-        {isLoading && canUpgrade ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading...
-          </>
-        ) : (
-          getButtonText()
-        )}
+        {getButtonText()}
       </button>
     </div>
   );
@@ -185,40 +176,23 @@ function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe, isLoading }: 
 export default function Pricing() {
   const { user } = useAuth();
   const { tier } = usePremium();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSubscribe = async (targetTier: 'beta' | 'alpha') => {
+  const handleSubscribe = (targetTier: 'beta' | 'alpha') => {
     if (!user) {
-      window.location.href = '/auth';
+      window.location.href = `/auth?redirect=/pricing&tier=${targetTier}`;
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    // Build payment link URL with prefilled email and client reference
+    const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
+    const params = new URLSearchParams();
 
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tier: targetTier }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setIsLoading(false);
+    if (user.email) {
+      params.set('prefilled_email', user.email);
     }
+    params.set('client_reference_id', user.id.toString());
+
+    window.location.href = `${paymentLink}?${params.toString()}`;
   };
 
   return (
@@ -261,12 +235,6 @@ export default function Pricing() {
 
       {/* Pricing Cards */}
       <div className="max-w-6xl mx-auto px-4 pb-16">
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-lg text-center">
-            {error}
-          </div>
-        )}
-
         <div className="grid md:grid-cols-3 gap-6 sm:gap-8 items-start">
           {PRICING_TIERS.map((plan) => (
             <PricingCard
@@ -275,7 +243,6 @@ export default function Pricing() {
               currentTier={tier}
               isLoggedIn={!!user}
               onSubscribe={handleSubscribe}
-              isLoading={isLoading}
             />
           ))}
         </div>
