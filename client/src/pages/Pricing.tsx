@@ -183,7 +183,16 @@ export default function Pricing() {
       return;
     }
 
-    window.location.href = STRIPE_PAYMENT_LINKS[targetTier];
+    // Build payment link URL with prefilled email and client reference
+    const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
+    const params = new URLSearchParams();
+
+    if (user.email) {
+      params.set('prefilled_email', user.email);
+    }
+    params.set('client_reference_id', user.id.toString());
+
+    window.location.href = `${paymentLink}?${params.toString()}`;
   };
 
   return (

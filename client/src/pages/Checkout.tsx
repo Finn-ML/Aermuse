@@ -21,7 +21,16 @@ export default function Checkout() {
       return;
     }
 
-    window.location.href = STRIPE_PAYMENT_LINKS[tier];
+    // Build payment link URL with prefilled email and client reference
+    const paymentLink = STRIPE_PAYMENT_LINKS[tier];
+    const checkoutParams = new URLSearchParams();
+
+    if (user.email) {
+      checkoutParams.set('prefilled_email', user.email);
+    }
+    checkoutParams.set('client_reference_id', user.id.toString());
+
+    window.location.href = `${paymentLink}?${checkoutParams.toString()}`;
   }, [user, authLoading, search]);
 
   return (
