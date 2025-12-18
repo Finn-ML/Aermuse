@@ -183,16 +183,14 @@ export default function Pricing() {
       return;
     }
 
-    // Build payment link URL with prefilled email and client reference
+    // Build payment link URL with prefilled email
     const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
-    const params = new URLSearchParams();
 
     if (user.email) {
-      params.set('prefilled_email', user.email);
+      window.location.href = `${paymentLink}?prefilled_email=${encodeURIComponent(user.email)}`;
+    } else {
+      window.location.href = paymentLink;
     }
-    params.set('client_reference_id', user.id.toString());
-
-    window.location.href = `${paymentLink}?${params.toString()}`;
   };
 
   return (
