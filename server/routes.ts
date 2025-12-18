@@ -1795,19 +1795,24 @@ export async function registerRoutes(
     }
   });
 
-  // Verify checkout success
-  app.get("/api/billing/checkout/verify/:sessionId", requireAuth, async (req: Request, res: Response) => {
+  // Verify checkout success (supports both authenticated users and Payment Link redirects)
+  app.get("/api/billing/checkout/verify/:sessionId", async (req: Request, res: Response) => {
     try {
       const { sessionId } = req.params;
-      const userId = req.user!.id;
 
       // Dynamic import
       const { stripe } = await import("./services/stripe");
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      // Verify session belongs to this user (check both metadata.userId and client_reference_id for Payment Links)
+      // Get user ID from session (metadata.userId for API sessions, client_reference_id for Payment Links)
       const sessionUserId = session.metadata?.userId || session.client_reference_id;
-      if (sessionUserId !== userId) {
+
+      if (!sessionUserId) {
+        return res.status(400).json({ error: "No user ID associated with this session" });
+      }
+
+      // If user is authenticated, verify session belongs to them
+      if (req.user && req.user.id !== sessionUserId) {
         return res.status(403).json({ error: "Session does not belong to this user" });
       }
 
@@ -1831,7 +1836,7 @@ export async function registerRoutes(
         const priceId = subscription.items.data[0]?.price.id;
         const tier = session.metadata?.tier || stripeModule.priceIdToTier(priceId);
 
-        await storage.updateUser(userId, {
+        await storage.updateUser(sessionUserId, {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           subscriptionStatus: subscription.status === 'active' || subscription.status === 'trialing' ? subscription.status : 'active',
@@ -1840,7 +1845,7 @@ export async function registerRoutes(
           subscriptionCancelAtPeriodEnd: subscription.cancel_at_period_end,
           subscriptionTier: tier,
         } as any);
-        console.log(`[BILLING] Synced subscription ${subscriptionId} for user ${userId}: ${tier}`);
+        console.log(`[BILLING] Synced subscription ${subscriptionId} for user ${sessionUserId}: ${tier}`);
       }
 
       res.json({
