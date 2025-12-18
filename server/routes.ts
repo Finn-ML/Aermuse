@@ -1805,8 +1805,9 @@ export async function registerRoutes(
       const { stripe } = await import("./services/stripe");
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      // Verify session belongs to this user
-      if (session.metadata?.userId !== userId) {
+      // Verify session belongs to this user (check both metadata.userId and client_reference_id for Payment Links)
+      const sessionUserId = session.metadata?.userId || session.client_reference_id;
+      if (sessionUserId !== userId) {
         return res.status(403).json({ error: "Session does not belong to this user" });
       }
 

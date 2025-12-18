@@ -57,11 +57,12 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`[STRIPE WEBHOOK] Checkout completed: ${session.id}`);
 
-  const userId = session.metadata?.userId;
+  // Check both metadata.userId (API-created sessions) and client_reference_id (Payment Links)
+  const userId = session.metadata?.userId || session.client_reference_id;
   const customerId = session.customer as string;
 
   if (!userId) {
-    console.error('[STRIPE WEBHOOK] No userId in session metadata');
+    console.error('[STRIPE WEBHOOK] No userId in session metadata or client_reference_id');
     return;
   }
 
