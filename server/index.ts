@@ -1,14 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import MemoryStore from "memorystore";
+import { pool } from "./db";
 import { seedAdmin } from "./scripts/seed-admin";
 
 const app = express();
 const httpServer = createServer(app);
-const MemoryStoreSession = MemoryStore(session);
+const PgStore = pgSession(session);
 
 declare module "http" {
   interface IncomingMessage {
@@ -21,19 +22,21 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
-// Session middleware
+// Session middleware with PostgreSQL store for persistence across restarts
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "aermuse-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStoreSession({
-      checkPeriod: 86400000, // prune expired entries every 24h
+    store: new PgStore({
+      pool: pool as any,
+      tableName: 'session',
+      createTableIfMissing: true,
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
     },
   })

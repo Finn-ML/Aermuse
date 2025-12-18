@@ -4,6 +4,15 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
 
+// Session table for connect-pg-simple (persistent auth sessions)
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { precision: 6, withTimezone: true }).notNull(),
+}, (table) => ({
+  expireIdx: index('IDX_session_expire').on(table.expire),
+}));
+
 // Subscription tier type (Epic 12)
 export type SubscriptionTier = 'free' | 'beta' | 'alpha';
 
