@@ -183,14 +183,7 @@ export default function Pricing() {
       return;
     }
 
-    // Build payment link URL with prefilled email
-    const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
-
-    if (user.email) {
-      window.location.href = `${paymentLink}?prefilled_email=${encodeURIComponent(user.email)}`;
-    } else {
-      window.location.href = paymentLink;
-    }
+    window.location.href = STRIPE_PAYMENT_LINKS[targetTier];
   };
 
   return (
