@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Lock, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { validatePassword } from '@shared/passwordValidation';
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -15,8 +17,9 @@ export function ChangePasswordForm() {
     setSuccess(false);
 
     // Client-side validation
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters');
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.errors[0]);
       return;
     }
 
@@ -122,7 +125,7 @@ export function ChangePasswordForm() {
             required
             data-testid="input-new-password"
           />
-          <p className="mt-2 text-xs text-[rgba(102,0,51,0.5)]">Minimum 8 characters</p>
+          <PasswordStrengthIndicator password={newPassword} />
         </div>
 
         <div>

@@ -5,6 +5,8 @@ import GrainOverlay from '@/components/GrainOverlay';
 import { Eye, EyeOff, Loader2, X, Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { validatePassword } from '@shared/passwordValidation';
 
 // Forgot Password Modal Component
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
@@ -158,6 +160,17 @@ export default function Auth() {
           description: "You've been signed in successfully.",
         });
       } else {
+        // Validate password strength
+        const passwordValidation = validatePassword(formData.password);
+        if (!passwordValidation.isValid) {
+          toast({
+            title: "Password too weak",
+            description: passwordValidation.errors[0],
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
         if (formData.password !== formData.confirmPassword) {
           toast({
             title: "Error",
@@ -409,10 +422,10 @@ export default function Auth() {
                   onChange={handleInputChange}
                   className="input-field pr-14"
                   required
-                  minLength={6}
+                  minLength={8}
                   data-testid="input-password"
                 />
-                <button 
+                <button
                   type="button"
                   className="absolute right-5 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)] hover:text-[#660033] transition-colors p-1"
                   onClick={() => setShowPassword(!showPassword)}
@@ -421,6 +434,9 @@ export default function Auth() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              {activeTab === 'register' && (
+                <PasswordStrengthIndicator password={formData.password} />
+              )}
             </div>
 
             <div 

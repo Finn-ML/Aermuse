@@ -7,6 +7,7 @@ import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
+import { validatePassword } from "@shared/passwordValidation";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
@@ -81,7 +82,13 @@ export async function registerRoutes(
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const data = insertUserSchema.parse(req.body);
-      
+
+      // Validate password strength
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({ error: passwordValidation.errors[0] });
+      }
+
       const existingUser = await storage.getUserByEmail(data.email);
       if (existingUser) {
         if (existingUser.deletedAt) {
@@ -224,8 +231,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Reset token is required" });
       }
 
-      if (!password || password.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      // Validate password strength
+      const passwordValidation = validatePassword(password || '');
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({ error: passwordValidation.errors[0] });
       }
 
       // Find user with valid, non-expired token
@@ -334,8 +343,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Current and new password are required" });
       }
 
-      if (newPassword.length < 8) {
-        return res.status(400).json({ error: "New password must be at least 8 characters" });
+      // Validate password strength
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({ error: passwordValidation.errors[0] });
       }
 
       const user = await storage.getUser(userId);
