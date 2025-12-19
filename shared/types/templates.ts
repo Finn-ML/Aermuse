@@ -49,6 +49,9 @@ export interface FieldValidation {
   patternMessage?: string;
   min?: number;
   max?: number;
+  // Cross-field date validation
+  afterField?: string;      // This date must be after the specified field
+  afterFieldMessage?: string; // Custom error message for afterField validation
 }
 
 /**

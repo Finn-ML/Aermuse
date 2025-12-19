@@ -137,7 +137,11 @@ export const artistAgreementTemplate: TemplateDefinition = {
       label: 'Expected Completion Date',
       type: 'date',
       required: false,
-      group: 'Dates'
+      group: 'Dates',
+      validation: {
+        afterField: 'effective_date',
+        afterFieldMessage: 'Expected completion date must be after agreement start date'
+      }
     },
 
     // Territory

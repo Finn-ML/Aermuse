@@ -103,7 +103,11 @@ export const workForHireAgreementTemplate: TemplateDefinition = {
       label: 'Delivery Deadline',
       type: 'date',
       required: true,
-      group: 'Timeline'
+      group: 'Timeline',
+      validation: {
+        afterField: 'start_date',
+        afterFieldMessage: 'Delivery deadline must be after project start date'
+      }
     },
 
     // Payment
