@@ -103,12 +103,20 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
         }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('Server returned an invalid response. Please try again.');
+      }
 
       if (!response.ok) {
-        // Handle premium required error
+        // Handle specific error codes
         if (data.code === 'PREMIUM_REQUIRED') {
           throw new Error('E-signing is a premium feature. Please upgrade to continue.');
+        }
+        if (data.code === 'DOCUSEAL_NOT_CONFIGURED') {
+          throw new Error('E-signing service is temporarily unavailable. Please try again later.');
         }
         throw new Error(data.error || 'Failed to create signature request');
       }

@@ -59,20 +59,33 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch signature status');
+        // Try to get detailed error message from response
+        let errorMessage = 'Failed to fetch signature status';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       const requests = data.signatureRequests || [];
 
-      // Get the most recent request for this contract
-      const latestRequest = requests.find(
-        (r: SignatureRequest) => r.contractId === contractId
-      );
+      // Get the most recent request for this contract (server now filters by contractId)
+      const latestRequest = requests.length > 0 ? requests[0] : null;
 
-      setRequest(latestRequest || null);
+      setRequest(latestRequest);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // Provide more helpful error messages for common issues
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      if (errorMessage === 'Failed to fetch') {
+        setError('Unable to connect to server. Please check your connection and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
