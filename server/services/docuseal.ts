@@ -220,91 +220,160 @@ export class DocuSealService {
 
   /**
    * Download signed document as Buffer
+   * Tries multiple strategies to retrieve the signed PDF
    */
   async downloadSignedDocument(documentId: string): Promise<Buffer> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    const errors: string[] = [];
+
     try {
-      // First, try to get document details to find the result URL
-      const docDetails = await this.getDocument(documentId);
-      console.log(`[DOCUSEAL] Document details for ${documentId}:`, JSON.stringify(docDetails, null, 2));
+      // Strategy 1: Try to get document details to find the result URL
+      try {
+        const docDetails = await this.getDocument(documentId);
+        console.log(`[DOCUSEAL] Document details for ${documentId}:`, JSON.stringify(docDetails, null, 2));
 
-      // Check if there's a result_url or download_url in the document
-      const resultUrl = (docDetails as any).result_url || (docDetails as any).resultUrl ||
-                        (docDetails as any).download_url || (docDetails as any).downloadUrl;
+        // Check multiple possible field names for the signed PDF URL
+        const resultUrl = (docDetails as any).result_url || (docDetails as any).resultUrl ||
+                          (docDetails as any).download_url || (docDetails as any).downloadUrl ||
+                          (docDetails as any).signed_pdf_url || (docDetails as any).signedPdfUrl ||
+                          (docDetails as any).pdf_url || (docDetails as any).pdfUrl ||
+                          (docDetails as any).file_url || (docDetails as any).fileUrl;
 
-      if (resultUrl) {
-        console.log(`[DOCUSEAL] Using result_url for download: ${resultUrl}`);
-        const pdfResponse = await fetch(resultUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        if (resultUrl) {
+          console.log(`[DOCUSEAL] Using result_url for download: ${resultUrl}`);
+          const pdfResponse = await fetch(resultUrl, { signal: controller.signal });
 
-        if (!pdfResponse.ok) {
-          throw new DocuSealServiceError(
-            `Failed to download from result URL: ${pdfResponse.status}`,
-            pdfResponse.status
-          );
+          if (pdfResponse.ok) {
+            const arrayBuffer = await pdfResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            // Verify it's a PDF
+            if (buffer.slice(0, 5).toString() === '%PDF-') {
+              clearTimeout(timeoutId);
+              return buffer;
+            }
+            console.log(`[DOCUSEAL] Response from result_url is not a PDF`);
+          } else {
+            errors.push(`result_url returned ${pdfResponse.status}`);
+          }
         }
-
-        const arrayBuffer = await pdfResponse.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+      } catch (docError) {
+        errors.push(`getDocument failed: ${(docError as Error).message}`);
+        console.log(`[DOCUSEAL] Failed to get document details: ${(docError as Error).message}`);
       }
 
-      // Fallback: Try the download endpoint directly
+      // Strategy 2: Try the direct download endpoint
       console.log(`[DOCUSEAL] Trying direct download endpoint`);
-      const response = await fetch(
-        `${this.baseUrl}/documents/${documentId}/download`,
-        {
-          headers: {
-            'X-API-Key': this.apiKey,
-            'Accept': 'application/pdf',
-          },
-          signal: controller.signal,
+      try {
+        const response = await fetch(
+          `${this.baseUrl}/documents/${documentId}/download`,
+          {
+            headers: {
+              'X-API-Key': this.apiKey,
+              'Accept': 'application/pdf',
+            },
+            signal: controller.signal,
+          }
+        );
+
+        const contentType = response.headers.get('content-type') || '';
+        console.log(`[DOCUSEAL] Download response status: ${response.status}, content-type: ${contentType}`);
+
+        if (response.ok) {
+          // If response is JSON, it might contain a URL to the actual PDF
+          if (contentType.includes('application/json')) {
+            const jsonResponse = await response.json();
+            console.log(`[DOCUSEAL] Download returned JSON:`, JSON.stringify(jsonResponse, null, 2));
+
+            // Try to find a download URL in the JSON response
+            const pdfUrl = jsonResponse.url || jsonResponse.download_url || jsonResponse.result_url ||
+                           jsonResponse.downloadUrl || jsonResponse.resultUrl || jsonResponse.file_url ||
+                           jsonResponse.signed_pdf_url || jsonResponse.signedPdfUrl;
+
+            if (pdfUrl) {
+              console.log(`[DOCUSEAL] Following PDF URL from JSON response: ${pdfUrl}`);
+              const pdfResponse = await fetch(pdfUrl, { signal: controller.signal });
+              if (pdfResponse.ok) {
+                const arrayBuffer = await pdfResponse.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                if (buffer.slice(0, 5).toString() === '%PDF-') {
+                  clearTimeout(timeoutId);
+                  return buffer;
+                }
+              }
+              errors.push(`PDF URL from JSON returned ${pdfResponse.status}`);
+            }
+
+            // Check if the JSON contains base64 PDF content
+            const base64Content = jsonResponse.content || jsonResponse.pdf || jsonResponse.data ||
+                                  jsonResponse.signedContent || jsonResponse.signed_content;
+            if (base64Content && typeof base64Content === 'string') {
+              console.log(`[DOCUSEAL] Found base64 content in JSON response`);
+              const buffer = Buffer.from(base64Content, 'base64');
+              if (buffer.slice(0, 5).toString() === '%PDF-') {
+                clearTimeout(timeoutId);
+                return buffer;
+              }
+            }
+
+            errors.push('JSON response did not contain valid PDF URL or content');
+          } else {
+            // Assume it's the PDF directly
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            if (buffer.slice(0, 5).toString() === '%PDF-') {
+              clearTimeout(timeoutId);
+              return buffer;
+            }
+            errors.push('Download response was not a valid PDF');
+          }
+        } else {
+          errors.push(`Download endpoint returned ${response.status}`);
         }
-      );
+      } catch (downloadError) {
+        errors.push(`Download endpoint failed: ${(downloadError as Error).message}`);
+      }
+
+      // Strategy 3: Try alternative endpoint patterns
+      const alternativeEndpoints = [
+        `/documents/${documentId}/signed`,
+        `/documents/${documentId}/result`,
+        `/signed-documents/${documentId}`,
+        `/submissions/${documentId}/download`,
+      ];
+
+      for (const endpoint of alternativeEndpoints) {
+        try {
+          console.log(`[DOCUSEAL] Trying alternative endpoint: ${endpoint}`);
+          const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            headers: {
+              'X-API-Key': this.apiKey,
+              'Accept': 'application/pdf',
+            },
+            signal: controller.signal,
+          });
+
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            if (buffer.slice(0, 5).toString() === '%PDF-') {
+              clearTimeout(timeoutId);
+              return buffer;
+            }
+          }
+        } catch (e) {
+          // Continue to next endpoint
+        }
+      }
 
       clearTimeout(timeoutId);
 
-      const contentType = response.headers.get('content-type') || '';
-      console.log(`[DOCUSEAL] Download response content-type: ${contentType}`);
-
-      if (!response.ok) {
-        throw new DocuSealServiceError(
-          'Failed to download signed document',
-          response.status
-        );
-      }
-
-      // If response is JSON, it might contain a URL to the actual PDF
-      if (contentType.includes('application/json')) {
-        const jsonResponse = await response.json();
-        console.log(`[DOCUSEAL] Download returned JSON:`, JSON.stringify(jsonResponse, null, 2));
-
-        // Try to find a download URL in the JSON response
-        const pdfUrl = jsonResponse.url || jsonResponse.download_url || jsonResponse.result_url ||
-                       jsonResponse.downloadUrl || jsonResponse.resultUrl || jsonResponse.file_url;
-
-        if (pdfUrl) {
-          console.log(`[DOCUSEAL] Following PDF URL from JSON response: ${pdfUrl}`);
-          const pdfResponse = await fetch(pdfUrl);
-          if (!pdfResponse.ok) {
-            throw new DocuSealServiceError(
-              `Failed to download from PDF URL: ${pdfResponse.status}`,
-              pdfResponse.status
-            );
-          }
-          const arrayBuffer = await pdfResponse.arrayBuffer();
-          return Buffer.from(arrayBuffer);
-        }
-
-        throw new DocuSealServiceError(
-          'Download returned JSON without PDF URL',
-          500
-        );
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      // All strategies failed
+      throw new DocuSealServiceError(
+        `Failed to download signed document. Tried multiple strategies. Errors: ${errors.join('; ')}`,
+        500
+      );
     } catch (error) {
       clearTimeout(timeoutId);
 
