@@ -1108,10 +1108,14 @@ export default function Dashboard() {
                   <ContractUpload
                     onUploadComplete={(contract) => {
                       queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/contracts/limit'] });
                       setShowUploadContract(false);
                       toast({ title: "Contract uploaded", description: `${contract.fileName || contract.name} has been uploaded.` });
                     }}
                     onCancel={() => setShowUploadContract(false)}
+                    currentContractCount={contractLimitData?.current}
+                    contractLimit={contractLimitData?.limit}
+                    isPremium={isPremium}
                   />
                 </div>
               )}
