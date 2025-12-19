@@ -324,6 +324,59 @@ export async function sendSignatureRequestEmail(
 }
 
 /**
+ * Send signature reminder email to signatory
+ */
+export async function sendSignatureReminderEmail(
+  signatoryEmail: string,
+  signatoryName: string,
+  initiatorName: string,
+  contractTitle: string,
+  signingUrl: string,
+  message?: string | null
+): Promise<EmailResult> {
+  if (!client) {
+    console.log('[EMAIL] Signature reminder email (dev mode):');
+    console.log(`  To: ${signatoryEmail}`);
+    console.log(`  Signatory: ${signatoryName}`);
+    console.log(`  From: ${initiatorName}`);
+    console.log(`  Contract: ${contractTitle}`);
+    console.log(`  Signing URL: ${signingUrl}`);
+    console.log(`  Message: ${message || '(none)'}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const messageBox = message ? infoBox(`"${message}"`, 'Personal Message') : '';
+
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: signatoryEmail,
+      Subject: `Reminder: ${initiatorName} is waiting for your signature on "${contractTitle}"`,
+      HtmlBody: emailTemplate({
+        title: 'Signature Reminder',
+        preheader: `Friendly reminder: ${initiatorName} needs your signature`,
+        greeting: `Hi ${signatoryName},`,
+        content: `This is a friendly reminder that <strong>${initiatorName}</strong> is still waiting for your signature on the following contract:
+          ${infoBox(contractTitle, 'Contract')}
+          ${messageBox}
+          Please review and sign the document at your earliest convenience.`,
+        buttonText: 'Review & Sign Now',
+        buttonUrl: signingUrl,
+        footerNote: 'This reminder was sent via Aermuse. If you\'ve already signed or no longer need to sign, please contact the sender directly.',
+      }),
+      TextBody: `Hi ${signatoryName},\n\nThis is a friendly reminder that ${initiatorName} is still waiting for your signature on the following contract:\n\nContract: ${contractTitle}${message ? `\nMessage: "${message}"` : ''}\n\nSign here: ${signingUrl}\n\n- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Signature reminder email sent to ${signatoryEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send signature reminder email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
  * Send signature completed confirmation to signatory
  */
 export async function sendSignatureConfirmationEmail(

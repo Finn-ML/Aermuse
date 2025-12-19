@@ -24,7 +24,7 @@ import { signatureRequests, signatories, insertSignatureRequestSchema, insertSig
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
-import { sendSignatureRequestEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
+import { sendSignatureRequestEmail, sendSignatureReminderEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 import { registerAnalyticsRoutes } from "./routes/analytics";
 
 // Rate limiter for resend verification (1 per 5 minutes)
@@ -2911,6 +2911,33 @@ Sent at: ${new Date().toISOString()}
       // Update contract status
       await storage.updateContract(input.contractId, { status: 'pending_signature' } as any);
 
+      // Get initiator info for email
+      const initiator = await storage.getUser(userId);
+      const initiatorName = initiator?.name || initiator?.email || 'Someone';
+
+      // Send signature request emails to pending signatories
+      // For sequential signing, only the first signer gets an email initially
+      // Others will receive emails via the handleNextSignerReady webhook when it's their turn
+      console.log(`[SIGNATURES] Sending emails to pending signatories`);
+      for (const signatory of signatoryRecords) {
+        if (signatory.status === 'pending' && signatory.signingUrl) {
+          try {
+            await sendSignatureRequestEmail(
+              signatory.email,
+              signatory.name,
+              initiatorName,
+              contract.name,
+              signatory.signingUrl,
+              input.message
+            );
+            console.log(`[SIGNATURES] Email sent to ${signatory.email}`);
+          } catch (emailError) {
+            // Log but don't fail the request - the signing URL is still valid
+            console.error(`[SIGNATURES] Failed to send email to ${signatory.email}:`, emailError);
+          }
+        }
+      }
+
       console.log(`[SIGNATURES] Request created: ${signatureRequest.id}`);
 
       res.json({
@@ -3195,8 +3222,31 @@ Sent at: ${new Date().toISOString()}
         });
       }
 
-      // TODO: Send reminder email via postmark
-      console.log(`[SIGNATURES] Reminder would be sent to ${signatory.email} for request ${request.id}`);
+      // Get contract and initiator info for email
+      const contract = await storage.getContract(request.contractId);
+      const initiator = await storage.getUser(request.initiatorId);
+      const initiatorName = initiator?.name || initiator?.email || 'Someone';
+
+      if (!signatory.signingUrl) {
+        return res.status(400).json({ error: 'Signing URL not available' });
+      }
+
+      // Send reminder email
+      const emailResult = await sendSignatureReminderEmail(
+        signatory.email,
+        signatory.name,
+        initiatorName,
+        contract?.name || 'Contract',
+        signatory.signingUrl,
+        request.message
+      );
+
+      if (!emailResult.success) {
+        console.error(`[SIGNATURES] Failed to send reminder to ${signatory.email}:`, emailResult.error);
+        return res.status(500).json({ error: 'Failed to send reminder email' });
+      }
+
+      console.log(`[SIGNATURES] Reminder sent to ${signatory.email} for request ${request.id}`);
 
       res.json({ success: true });
     } catch (error) {
