@@ -196,6 +196,21 @@ export function useTemplateForm(
           newErrors[field.id] = `Must be at most ${field.validation.max}`;
         }
       }
+
+      // Cross-field date validation
+      if (field.type === 'date' && field.validation?.afterField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+        const afterFieldValue = formData.fields[field.validation.afterField];
+        if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
+          const currentDate = fieldValue instanceof Date ? fieldValue : new Date(fieldValue as string);
+          const afterDate = afterFieldValue instanceof Date ? afterFieldValue : new Date(afterFieldValue as string);
+
+          if (!isNaN(currentDate.getTime()) && !isNaN(afterDate.getTime())) {
+            if (currentDate <= afterDate) {
+              newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the start date`;
+            }
+          }
+        }
+      }
     }
 
     // Validate optional clause fields
@@ -218,6 +233,21 @@ export function useTemplateForm(
             }
             if (field.validation.max !== undefined && value > field.validation.max) {
               newErrors[field.id] = `Must be at most ${field.validation.max}`;
+            }
+          }
+
+          // Cross-field date validation for clause fields
+          if (field.type === 'date' && field.validation?.afterField && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const afterFieldValue = formData.fields[field.validation.afterField];
+            if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
+              const currentDate = clauseFieldValue instanceof Date ? clauseFieldValue : new Date(clauseFieldValue as string);
+              const afterDate = afterFieldValue instanceof Date ? afterFieldValue : new Date(afterFieldValue as string);
+
+              if (!isNaN(currentDate.getTime()) && !isNaN(afterDate.getTime())) {
+                if (currentDate <= afterDate) {
+                  newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the start date`;
+                }
+              }
             }
           }
         }

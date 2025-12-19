@@ -137,7 +137,11 @@ export const licenseAgreementTemplate: TemplateDefinition = {
       type: 'date',
       required: false,
       helpText: 'Leave blank for perpetual license',
-      group: 'Territory & Duration'
+      group: 'Territory & Duration',
+      validation: {
+        afterField: 'effective_date',
+        afterFieldMessage: 'License end date must be after start date'
+      }
     },
 
     // Fees
