@@ -4,6 +4,8 @@ import ShaderAnimation from '@/components/ShaderAnimation';
 import GrainOverlay from '@/components/GrainOverlay';
 import { Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { validatePassword } from '@shared/passwordValidation';
 
 export default function ResetPassword() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -27,13 +29,15 @@ export default function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.errors[0]);
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -215,7 +219,7 @@ export default function ResetPassword() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="At least 8 characters"
+                  placeholder="Create a strong password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input-field pr-14"
@@ -230,6 +234,7 @@ export default function ResetPassword() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              <PasswordStrengthIndicator password={password} />
             </div>
 
             <div className="mb-8">
