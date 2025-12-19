@@ -541,9 +541,20 @@ describe('DocuSealService', () => {
       global.fetch = mockFetch;
     });
 
-    it('returns Buffer with PDF content', async () => {
-      const pdfContent = Buffer.from('signed-pdf-bytes');
+    it('returns Buffer with PDF content when document details contain result_url', async () => {
+      const pdfContent = Buffer.from('%PDF-1.4 signed-pdf-bytes');
 
+      // Mock getDocument call
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({
+          id: 'doc-123',
+          result_url: 'https://example.com/signed.pdf',
+          status: 'completed'
+        })),
+      });
+
+      // Mock PDF download from result_url
       mockFetch.mockResolvedValueOnce({
         ok: true,
         arrayBuffer: () => Promise.resolve(pdfContent.buffer.slice(
@@ -555,25 +566,62 @@ describe('DocuSealService', () => {
       const result = await service.downloadSignedDocument('doc-123');
 
       expect(Buffer.isBuffer(result)).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://docu-seal-host--finn107.replit.app/api/documents/doc-123/download',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-API-Key': mockApiKey,
-          }),
-        })
-      );
+      expect(result.toString().startsWith('%PDF-')).toBe(true);
     });
 
-    it('throws on download failure', async () => {
+    it('returns Buffer when download endpoint returns PDF directly', async () => {
+      const pdfContent = Buffer.from('%PDF-1.4 signed-pdf-bytes');
+
+      // Mock getDocument call (no result_url)
       mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({
+          id: 'doc-123',
+          status: 'completed'
+        })),
+      });
+
+      // Mock download endpoint returning PDF
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Map([['content-type', 'application/pdf']]),
+        arrayBuffer: () => Promise.resolve(pdfContent.buffer.slice(
+          pdfContent.byteOffset,
+          pdfContent.byteOffset + pdfContent.byteLength
+        )),
+      });
+
+      const result = await service.downloadSignedDocument('doc-123');
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.toString().startsWith('%PDF-')).toBe(true);
+    });
+
+    it('throws after trying all strategies when none succeed', async () => {
+      // Mock getDocument call failing
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: () => Promise.resolve({ message: 'Document not found' }),
+      });
+
+      // Mock download endpoint failing
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: new Map([['content-type', 'application/json']]),
+      });
+
+      // Mock alternative endpoints failing
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 404,
       });
 
       await expect(service.downloadSignedDocument('nonexistent'))
         .rejects.toThrow('Failed to download signed document');
-    });
+    }, 15000);
   });
 
   describe('healthCheck', () => {

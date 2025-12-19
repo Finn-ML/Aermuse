@@ -3604,11 +3604,21 @@ Sent at: ${new Date().toISOString()}
       // Handle both possible field naming conventions from DocuSeal
       const documentId = payload.documentId || payload.document_id;
       const submissionId = payload.submissionId || payload.submission_id;
-      const signedContent = payload.signedContent || payload.signed_content;
+
+      // Check multiple possible field names for signed PDF content
+      const signedContent = payload.signedContent || payload.signed_content ||
+                           payload.signedPdf || payload.signed_pdf ||
+                           payload.result || payload.pdfContent || payload.pdf_content;
+
+      // Check for direct URL to signed PDF
+      const signedPdfUrl = payload.resultUrl || payload.result_url ||
+                          payload.downloadUrl || payload.download_url ||
+                          payload.signedPdfUrl || payload.signed_pdf_url ||
+                          payload.pdfUrl || payload.pdf_url;
 
       console.log(`[WEBHOOK] Document completed - payload keys: ${Object.keys(payload).join(', ')}`);
       console.log(`[WEBHOOK] Document completed: ${documentId}, submissionId: ${submissionId}`);
-      console.log(`[WEBHOOK] Has signedContent: ${!!signedContent}`);
+      console.log(`[WEBHOOK] Has signedContent: ${!!signedContent}, Has signedPdfUrl: ${!!signedPdfUrl}`);
 
       // Find the signature request by DocuSeal document ID
       const [request] = await db
@@ -3632,6 +3642,15 @@ Sent at: ${new Date().toISOString()}
           // Use base64-encoded PDF from webhook payload
           console.log(`[WEBHOOK] Using signedContent from webhook payload`);
           signedPdfBuffer = Buffer.from(signedContent, 'base64');
+        } else if (signedPdfUrl) {
+          // Download from the URL provided in the webhook
+          console.log(`[WEBHOOK] Downloading signed PDF from URL: ${signedPdfUrl}`);
+          const response = await fetch(signedPdfUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to download from URL: ${response.status} ${response.statusText}`);
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          signedPdfBuffer = Buffer.from(arrayBuffer);
         } else {
           // Download from DocuSeal API
           console.log(`[WEBHOOK] Downloading signed PDF from DocuSeal API`);
@@ -3657,10 +3676,15 @@ Sent at: ${new Date().toISOString()}
 
         console.log(`[WEBHOOK] Signed PDF stored at: ${signedPdfPath}`);
       } catch (downloadError) {
-        console.error('[WEBHOOK] Failed to download/store signed PDF:', downloadError);
+        const errorMessage = downloadError instanceof Error ? downloadError.message : String(downloadError);
+        console.error('[WEBHOOK] Failed to download/store signed PDF:', errorMessage);
+        console.error('[WEBHOOK] Full error:', downloadError);
+        // Log full payload to help debug what fields are available
+        console.error('[WEBHOOK] Full payload for debugging:', JSON.stringify(payload, null, 2));
       }
 
-      // Update signature request status
+      // Update signature request status (completed even if PDF download failed)
+      // The signedPdfPath will be null if download failed, which the UI should handle
       await db
         .update(signatureRequests)
         .set({
