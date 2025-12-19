@@ -1,8 +1,8 @@
 import { Link } from 'wouter';
-import { Lock, Sparkles, ExternalLink, Mail, BarChart3 } from 'lucide-react';
+import { Lock, Sparkles, ExternalLink, Mail, BarChart3, FileText } from 'lucide-react';
 
 interface PremiumFeatureGateProps {
-  feature: 'landing' | 'proposals' | 'analytics';
+  feature: 'landing' | 'proposals' | 'analytics' | 'contract-templates';
   children?: React.ReactNode;
 }
 
@@ -41,6 +41,20 @@ const featureInfo = {
       'Link click analytics',
       'Time on page metrics',
       'Traffic source insights',
+    ],
+  },
+  'contract-templates': {
+    title: 'Contract Templates',
+    description: 'Access professionally-crafted music industry contract templates to streamline your workflow.',
+    icon: FileText,
+    benefits: [
+      'Artist collaboration agreements',
+      'Sync licensing contracts',
+      'Production and beat licensing deals',
+      'Management contracts',
+      'Distribution agreements',
+      'Pre-filled custom fields',
+      'Legally reviewed templates',
     ],
   },
 };

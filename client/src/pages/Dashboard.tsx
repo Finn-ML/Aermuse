@@ -575,7 +575,7 @@ export default function Dashboard() {
   const navItems = [
     { id: 'dashboard' as NavId, label: 'Dashboard', icon: LayoutGrid },
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
-    { id: 'templates' as NavId, label: 'Templates', icon: Layout },
+    { id: 'templates' as NavId, label: 'Templates', icon: Layout, premium: true },
     { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined, premium: true },
     { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink, premium: true },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
@@ -1400,60 +1400,64 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'templates' && (
-            previewFormData && (selectedTemplate || proposalTemplateData) ? (
-              <ContractPreview
-                template={(selectedTemplate || proposalTemplateData?.template)!}
-                formData={previewFormData}
-                onBack={() => setPreviewFormData(null)}
-                proposalId={proposalTemplateData?.proposalId}
-                onContractCreated={(contractId) => {
-                  toast({
-                    title: 'Contract Created',
-                    description: proposalTemplateData
-                      ? 'Your contract has been created from the proposal.'
-                      : 'Your contract has been saved as a draft.',
-                  });
-                  // Clear proposal template data if it was from a proposal
-                  if (proposalTemplateData) {
+            isPremium ? (
+              previewFormData && (selectedTemplate || proposalTemplateData) ? (
+                <ContractPreview
+                  template={(selectedTemplate || proposalTemplateData?.template)!}
+                  formData={previewFormData}
+                  onBack={() => setPreviewFormData(null)}
+                  proposalId={proposalTemplateData?.proposalId}
+                  onContractCreated={(contractId) => {
+                    toast({
+                      title: 'Contract Created',
+                      description: proposalTemplateData
+                        ? 'Your contract has been created from the proposal.'
+                        : 'Your contract has been saved as a draft.',
+                    });
+                    // Clear proposal template data if it was from a proposal
+                    if (proposalTemplateData) {
+                      setProposalTemplateData(null);
+                      // Invalidate proposals to update the contractId
+                      queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+                    }
+                    setSelectedTemplate(null);
+                    setPreviewFormData(null);
+                    // Switch to contracts view
+                    setActiveNav('contracts');
+                    // Refresh contracts list
+                    queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+                  }}
+                />
+              ) : proposalTemplateData ? (
+                <TemplateForm
+                  template={proposalTemplateData.template}
+                  onBack={() => {
                     setProposalTemplateData(null);
-                    // Invalidate proposals to update the contractId
-                    queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
-                  }
-                  setSelectedTemplate(null);
-                  setPreviewFormData(null);
-                  // Switch to contracts view
-                  setActiveNav('contracts');
-                  // Refresh contracts list
-                  queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
-                }}
-              />
-            ) : proposalTemplateData ? (
-              <TemplateForm
-                template={proposalTemplateData.template}
-                onBack={() => {
-                  setProposalTemplateData(null);
-                  setActiveNav('proposals');
-                }}
-                onPreview={(formData) => {
-                  setPreviewFormData(formData);
-                }}
-                initialData={proposalTemplateData.initialData}
-                proposalId={proposalTemplateData.proposalId}
-              />
-            ) : selectedTemplate ? (
-              <TemplateForm
-                template={selectedTemplate}
-                onBack={() => setSelectedTemplate(null)}
-                onPreview={(formData) => {
-                  setPreviewFormData(formData);
-                }}
-              />
+                    setActiveNav('proposals');
+                  }}
+                  onPreview={(formData) => {
+                    setPreviewFormData(formData);
+                  }}
+                  initialData={proposalTemplateData.initialData}
+                  proposalId={proposalTemplateData.proposalId}
+                />
+              ) : selectedTemplate ? (
+                <TemplateForm
+                  template={selectedTemplate}
+                  onBack={() => setSelectedTemplate(null)}
+                  onPreview={(formData) => {
+                    setPreviewFormData(formData);
+                  }}
+                />
+              ) : (
+                <TemplateGallery
+                  onSelectTemplate={(template) => {
+                    setSelectedTemplate(template);
+                  }}
+                />
+              )
             ) : (
-              <TemplateGallery
-                onSelectTemplate={(template) => {
-                  setSelectedTemplate(template);
-                }}
-              />
+              <PremiumFeatureGate feature="contract-templates" />
             )
           )}
 
