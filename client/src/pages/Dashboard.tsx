@@ -1285,7 +1285,7 @@ export default function Dashboard() {
                               >
                                 <Eye size={16} className="sm:w-[18px] sm:h-[18px]" />
                               </Link>
-                            ) : (
+                            ) : isPremium ? (
                               <button
                                 onClick={() => analyzeContractMutation.mutate(contract.id)}
                                 disabled={analyzeContractMutation.isPending && analyzeContractMutation.variables === contract.id}
@@ -1299,7 +1299,7 @@ export default function Dashboard() {
                                   <Sparkles size={16} className="sm:w-[18px] sm:h-[18px]" />
                                 )}
                               </button>
-                            )}
+                            ) : null}
                             {contract.status === 'pending' && (
                               <button
                                 onClick={() => signContractMutation.mutate(contract.id)}
