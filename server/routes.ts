@@ -2857,7 +2857,16 @@ Sent at: ${new Date().toISOString()}
 
       // Upload to DocuSeal
       console.log(`[SIGNATURES] Uploading to DocuSeal`);
-      const docusealService = getDocuSealService();
+      let docusealService;
+      try {
+        docusealService = getDocuSealService();
+      } catch (err) {
+        console.error('[SIGNATURES] DocuSeal service not configured:', err);
+        return res.status(503).json({
+          error: 'E-signing service is not configured. Please contact support.',
+          code: 'DOCUSEAL_NOT_CONFIGURED'
+        });
+      }
       const filename = `${contract.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
       const docusealDoc = await docusealService.uploadDocument(pdfBuffer, filename);
 
@@ -3277,16 +3286,24 @@ Sent at: ${new Date().toISOString()}
   app.get("/api/signatures", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const { status } = req.query;
+      const { status, contractId } = req.query;
 
-      let query = db
+      // Build query with proper filtering
+      let conditions = [eq(signatureRequests.initiatorId, userId)];
+
+      // Add contractId filter if provided
+      if (contractId && typeof contractId === 'string') {
+        conditions.push(eq(signatureRequests.contractId, contractId));
+      }
+
+      const requests = await db
         .select()
         .from(signatureRequests)
-        .where(eq(signatureRequests.initiatorId, userId));
+        .where(and(...conditions))
+        .orderBy(desc(signatureRequests.createdAt))
+        .limit(50);
 
-      const requests = await query.orderBy(desc(signatureRequests.createdAt)).limit(50);
-
-      // Filter by status if provided
+      // Filter by status if provided (client-side filter for backwards compatibility)
       const filteredRequests = status && typeof status === 'string'
         ? requests.filter(r => r.status === status)
         : requests;
