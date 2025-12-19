@@ -120,7 +120,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
   const backgroundOverlay = (page.backgroundOverlay as BackgroundOverlay) || 'none';
   const socialIcons = page.socialIcons || [];
   const showSocialBar = page.showSocialBar !== false;
-  const layout = (page.layout as 'centered' | 'left' | 'grid') || 'centered';
+  const layout = (page.layout as 'centered' | 'left' | 'right') || 'centered';
   const avatarPosition = (page.avatarPosition as 'top' | 'left' | 'hidden') || 'top';
   const linkWidth = (page.linkWidth as 'full' | 'medium' | 'compact') || 'full';
 
@@ -194,7 +194,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
             <div className="p-6 relative z-10">
               <div
                 className={`${
-                  layout === 'centered' ? 'text-center' : 'text-left'
+                  layout === 'centered' ? 'text-center' : layout === 'right' ? 'text-right' : 'text-left'
                 } ${
                   avatarPosition === 'left' ? 'flex items-center gap-4' : ''
                 }`}
@@ -207,7 +207,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                       alt={page.artistName || 'Artist'}
                       className={`w-16 h-16 rounded-full border-2 object-cover ${
                         avatarPosition === 'top' ? 'mx-auto mb-3' : ''
-                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                       style={{ borderColor: accentColor }}
                       onError={(e) => {
                         console.error('Avatar failed to load:', page.avatarUrl);
@@ -218,7 +218,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                     <div
                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center text-xl font-bold ${
                         avatarPosition === 'top' ? 'mx-auto mb-3' : ''
-                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                      } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                       style={{
                         borderColor: accentColor,
                         backgroundColor: `${accentColor}30`,
@@ -264,7 +264,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
 
                   {/* Social Icons */}
                   {showSocialBar && socialIcons.length > 0 && (
-                    <div className={`flex gap-3 ${layout === 'centered' ? 'justify-center' : ''}`}>
+                    <div className={`flex gap-3 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
                       {socialIcons
                         .sort((a, b) => a.order - b.order)
                         .map((icon) => (
@@ -289,15 +289,11 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
             {visibleLinks.length > 0 && (
               <div className="px-6 pb-6 relative z-10">
                 <div
-                  className={`mx-auto space-y-2 ${
-                    layout === 'grid' ? 'grid grid-cols-2 gap-2 space-y-0' : ''
-                  }`}
+                  className={`mx-auto space-y-2 ${layout === 'right' ? 'ml-auto mr-0' : ''}`}
                   style={{
-                    maxWidth: layout !== 'grid' ? (
-                      linkWidth === 'full' ? '100%' :
+                    maxWidth: linkWidth === 'full' ? '100%' :
                       linkWidth === 'medium' ? '80%' :
-                      '60%'
-                    ) : undefined,
+                      '60%',
                   }}
                 >
                   {visibleLinks.map((link) => {
@@ -306,9 +302,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                       return (
                         <h3
                           key={link.id}
-                          className={`text-xs font-semibold mt-3 mb-1 ${
-                            layout === 'grid' ? 'col-span-2' : ''
-                          }`}
+                          className="text-xs font-semibold mt-3 mb-1"
                           style={{
                             color: textColor,
                             fontFamily: `"${headingFont}", system-ui, sans-serif`,
@@ -327,9 +321,7 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
                       return (
                         <div
                           key={link.id}
-                          className={`rounded overflow-hidden ${
-                            layout === 'grid' ? 'col-span-2' : ''
-                          }`}
+                          className="rounded overflow-hidden"
                         >
                           {link.title && (
                             <p

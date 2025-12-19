@@ -1,6 +1,6 @@
-import { AlignCenter, AlignLeft, Grid2X2, Maximize2, Minimize2, Square } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Maximize2, Minimize2, Square } from "lucide-react";
 
-export type Layout = "centered" | "left" | "grid";
+export type Layout = "centered" | "left" | "right";
 export type AvatarPosition = "top" | "left" | "hidden";
 export type LinkWidth = "full" | "medium" | "compact";
 
@@ -21,7 +21,7 @@ interface LinkWidthOption {
 export const LAYOUT_OPTIONS: LayoutOption[] = [
   { id: "centered", name: "Centered", description: "Content centered on page", icon: <AlignCenter className="w-5 h-5" /> },
   { id: "left", name: "Left Aligned", description: "Content aligned to left", icon: <AlignLeft className="w-5 h-5" /> },
-  { id: "grid", name: "Grid", description: "Links in 2-column grid", icon: <Grid2X2 className="w-5 h-5" /> },
+  { id: "right", name: "Right Aligned", description: "Content aligned to right", icon: <AlignRight className="w-5 h-5" /> },
 ];
 
 export const LINK_WIDTHS: LinkWidthOption[] = [

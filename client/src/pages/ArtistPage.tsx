@@ -196,7 +196,7 @@ export default function ArtistPage() {
   const socialIcons = (page.socialIcons as SocialIcon[]) || [];
   const showSocialBar = page.showSocialBar !== false;
   // Layout options (Story 9.8)
-  const layout = (page.layout as 'centered' | 'left' | 'grid') || 'centered';
+  const layout = (page.layout as 'centered' | 'left' | 'right') || 'centered';
   const avatarPosition = (page.avatarPosition as 'top' | 'left' | 'hidden') || 'top';
   const linkWidth = (page.linkWidth as 'full' | 'medium' | 'compact') || 'full';
 
@@ -229,7 +229,7 @@ export default function ArtistPage() {
 
         <div
           className={`max-w-4xl mx-auto relative z-10 ${
-            layout === 'centered' ? 'text-center' : 'text-left'
+            layout === 'centered' ? 'text-center' : layout === 'right' ? 'text-right' : 'text-left'
           } ${
             avatarPosition === 'left' ? 'flex flex-col sm:flex-row items-center sm:items-start gap-6' : ''
           }`}
@@ -242,7 +242,7 @@ export default function ArtistPage() {
                 alt={page.artistName}
                 className={`w-32 h-32 rounded-full border-4 shadow-lg object-cover ${
                   avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
-                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                 style={{ borderColor: accentColor }}
                 onError={(e) => {
                   // Hide broken image, show fallback
@@ -253,7 +253,7 @@ export default function ArtistPage() {
               <div
                 className={`w-32 h-32 rounded-full border-4 shadow-lg flex items-center justify-center text-4xl font-bold ${
                   avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
-                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''}`}
+                } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                 style={{
                   borderColor: accentColor,
                   backgroundColor: `${accentColor}30`,
@@ -290,7 +290,7 @@ export default function ArtistPage() {
             {/* Bio */}
             {page.bio && (
               <p
-                className={`mb-6 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-2xl'}`}
+                className={`mb-6 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : layout === 'right' ? 'max-w-2xl ml-auto' : 'max-w-2xl'}`}
                 style={{ color: `${textColor}cc` }}
               >
                 {page.bio}
@@ -299,7 +299,7 @@ export default function ArtistPage() {
 
             {/* Social Icons - right after bio */}
             {showSocialBar && socialIcons.length > 0 && (
-              <div className={`flex gap-4 ${layout === 'centered' ? 'justify-center' : ''}`}>
+              <div className={`flex gap-4 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
                 {socialIcons
                   .sort((a, b) => a.order - b.order)
                   .map((icon) => (
@@ -329,17 +329,11 @@ export default function ArtistPage() {
       {page.links && page.links.length > 0 && (
         <section className="py-4 px-4">
           <div
-            className={`mx-auto ${
-              layout === 'grid'
-                ? 'max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-4'
-                : 'max-w-md space-y-4'
-            } ${layout === 'left' ? 'ml-0 mr-auto' : ''}`}
+            className={`mx-auto max-w-md space-y-4 ${layout === 'left' ? 'ml-0 mr-auto' : ''} ${layout === 'right' ? 'mr-0 ml-auto' : ''}`}
             style={{
-              maxWidth: layout !== 'grid' ? (
-                linkWidth === 'full' ? '28rem' :
+              maxWidth: linkWidth === 'full' ? '28rem' :
                 linkWidth === 'medium' ? '22rem' :
-                '18rem'
-              ) : undefined,
+                '18rem',
             }}
           >
             {page.links
@@ -354,14 +348,11 @@ export default function ArtistPage() {
               .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
               .map((link) => {
                 // Render section headers differently (Story 9.7)
-                // In grid layout, headers span both columns
                 if (link.type === 'header') {
                   return (
                     <h3
                       key={link.id}
-                      className={`text-lg font-semibold mt-6 mb-2 first:mt-0 ${
-                        layout === 'grid' ? 'col-span-1 sm:col-span-2' : ''
-                      }`}
+                      className="text-lg font-semibold mt-6 mb-2 first:mt-0"
                       style={{
                         color: textColor,
                         fontFamily: `"${headingFont}", system-ui, sans-serif`,
@@ -380,9 +371,7 @@ export default function ArtistPage() {
                   return (
                     <div
                       key={link.id}
-                      className={`rounded-lg overflow-hidden ${
-                        layout === 'grid' ? 'col-span-1 sm:col-span-2' : ''
-                      }`}
+                      className="rounded-lg overflow-hidden"
                     >
                       {link.title && (
                         <p
