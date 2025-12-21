@@ -93,6 +93,17 @@ export function DynamicField({ field, value, onChange, error }: Props) {
           />
         );
 
+      case 'time':
+        return (
+          <input
+            type="time"
+            value={(value as string) || ''}
+            onChange={(e) => onChange(e.target.value || null)}
+            className={baseInputClass}
+            data-testid={`field-${field.id}`}
+          />
+        );
+
       case 'select':
         return (
           <select

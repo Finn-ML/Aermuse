@@ -97,17 +97,15 @@ export const tourAgreementTemplate: TemplateDefinition = {
     {
       id: 'doors_time',
       label: 'Doors Open Time',
-      type: 'text',
+      type: 'time',
       required: true,
-      placeholder: 'e.g., 7:00 PM',
       group: 'Performance Details'
     },
     {
       id: 'set_time',
       label: 'Set Start Time',
-      type: 'text',
+      type: 'time',
       required: true,
-      placeholder: 'e.g., 9:00 PM',
       group: 'Performance Details'
     },
     {

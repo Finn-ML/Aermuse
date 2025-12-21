@@ -26,6 +26,7 @@ export type FieldType =
   | 'text'
   | 'textarea'
   | 'date'
+  | 'time'
   | 'number'
   | 'select'
   | 'email'

@@ -35,6 +35,24 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Format a time value (HH:MM) for display in contracts
+ */
+export function formatTime(time: string): string {
+  const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+  const match = time.match(timeRegex);
+  if (!match) return time;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const period = hours >= 12 ? 'PM' : 'AM';
+
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+
+  return `${hours}:${minutes} ${period}`;
+}
+
+/**
  * Check if a string is an ISO date format
  */
 function isISODateString(value: string): boolean {
@@ -69,6 +87,11 @@ export function substituteVariables(
     // Format currency for amount/fee fields
     if (typeof value === 'number' && (variable.includes('amount') || variable.includes('fee') || variable.includes('price') || variable.includes('value'))) {
       return formatCurrency(value);
+    }
+
+    // Format time values (HH:MM) nicely
+    if (typeof value === 'string' && /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+      return formatTime(value);
     }
 
     return String(value);
@@ -148,7 +171,6 @@ export function validateFormData(
             errors[field.id] = `${field.label} must be at most ${validation.max}`;
           }
         }
-
         // Cross-field date validation
         if (validation.afterField && field.type === 'date') {
           const afterFieldValue = formData.fields[validation.afterField];
@@ -162,6 +184,14 @@ export function validateFormData(
               }
             }
           }
+        }
+      }
+
+      // Validate time format (HH:MM) for time fields
+      if (field.type === 'time') {
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (typeof value === 'string' && !timeRegex.test(value)) {
+          errors[field.id] = `${field.label} must be a valid time (e.g., 14:30)`;
         }
       }
     }
@@ -193,6 +223,14 @@ export function validateFormData(
                   errors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the start date`;
                 }
               }
+            }
+          }
+
+          // Validate time format for clause fields (HH:MM)
+          if (field.type === 'time' && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (typeof clauseFieldValue === 'string' && !timeRegex.test(clauseFieldValue)) {
+              errors[field.id] = `${field.label} must be a valid time (e.g., 14:30)`;
             }
           }
         }
