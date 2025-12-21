@@ -1221,10 +1221,11 @@ export default function Dashboard() {
                       data-testid={`contract-${contract.id}`}
                     >
                       {/* Status badge positioned at top right */}
-                      <span className={`absolute top-3 right-3 sm:top-4 sm:right-4 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
+                      <span className={`absolute top-3 right-3 sm:top-4 sm:right-4 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] z-10 ${getStatusClass(contract.status)}`}>
                         {contract.status}
                       </span>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      {/* Add top padding to prevent overlap with badge */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-8 sm:pt-0 sm:pr-24">
                         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                           <div
                             className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
