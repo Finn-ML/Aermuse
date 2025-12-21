@@ -22,12 +22,12 @@ const categories: { value: TemplateCategory | 'all'; label: string }[] = [
 
 export function CategoryFilter({ selected, onChange }: Props) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
       {categories.map((cat) => (
         <button
           key={cat.value}
           onClick={() => onChange(cat.value)}
-          className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
             selected === cat.value
               ? 'bg-[#660033] text-[#F7E6CA]'
               : 'bg-[rgba(255,255,255,0.6)] text-[rgba(102,0,51,0.7)] hover:bg-[rgba(255,255,255,0.8)]'

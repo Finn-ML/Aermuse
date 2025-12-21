@@ -27,22 +27,22 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
   } = useTemplates();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 overflow-hidden">
       {/* Filters Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <CategoryFilter selected={category} onChange={setCategory} />
 
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative w-full sm:max-w-xs">
           <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]"
+            size={16}
+            className="sm:w-[18px] sm:h-[18px] absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]"
           />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search templates..."
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm"
+            className="w-full pl-9 sm:pl-11 pr-4 py-2 sm:py-2.5 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm"
             data-testid="search-templates"
           />
         </div>
@@ -58,22 +58,22 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
       {/* Error State */}
       {error && !loading && (
         <div
-          className="rounded-[20px] p-12 text-center"
+          className="rounded-[20px] p-6 sm:p-12 text-center"
           style={{ background: 'rgba(220, 53, 69, 0.05)' }}
         >
-          <p className="text-[#dc3545]">{error}</p>
+          <p className="text-[#dc3545] text-sm sm:text-base">{error}</p>
         </div>
       )}
 
       {/* Empty State */}
       {!loading && !error && templates.length === 0 && (
         <div
-          className="rounded-[20px] p-12 text-center"
+          className="rounded-[20px] p-6 sm:p-12 text-center"
           style={{ background: 'rgba(255, 255, 255, 0.6)' }}
         >
-          <FileText size={48} className="mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
-          <h3 className="text-lg font-bold text-[#660033] mb-2">No templates found</h3>
-          <p className="text-[rgba(102,0,51,0.6)]">
+          <FileText size={40} className="sm:w-12 sm:h-12 mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+          <h3 className="text-base sm:text-lg font-bold text-[#660033] mb-2">No templates found</h3>
+          <p className="text-sm sm:text-base text-[rgba(102,0,51,0.6)]">
             {searchQuery
               ? 'Try a different search term'
               : 'No templates available in this category'}
@@ -83,7 +83,7 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
 
       {/* Template Grid */}
       {!loading && !error && templates.length > 0 && (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
             <TemplateCard
               key={template.id}
