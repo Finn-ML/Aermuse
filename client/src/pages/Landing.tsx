@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
+import { Menu, X } from 'lucide-react';
 import ShaderAnimation from '@/components/ShaderAnimation';
 import GrainOverlay from '@/components/GrainOverlay';
 
 export default function Landing() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -173,18 +175,79 @@ export default function Landing() {
             </button>
           </Link>
         </div>
-        {/* Mobile nav */}
-        <div className="flex md:hidden gap-3">
-          <Link href="/auth?mode=login" className="nav-link text-xs self-center">
-            Sign In
-          </Link>
-          <Link href="/auth">
-            <button className="btn-primary px-4 py-2.5 text-xs" data-testid="button-get-started-mobile">
-              Start Free
-            </button>
-          </Link>
-        </div>
+        {/* Mobile burger menu button */}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="md:hidden p-2 -mr-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] text-[#660033]"
+          data-testid="button-mobile-menu"
+        >
+          <Menu size={24} />
+        </button>
       </nav>
+
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Menu panel */}
+          <div
+            className="absolute top-0 right-0 w-[280px] h-full bg-[#F7E6CA] p-6"
+            style={{ boxShadow: '-10px 0 40px rgba(102, 0, 51, 0.2)' }}
+          >
+            <div className="flex justify-between items-center mb-8">
+              <div className="text-xl font-light tracking-[0.25em] lowercase text-[#660033]">
+                aermuse
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 -mr-2 rounded-lg hover:bg-[rgba(102,0,51,0.06)] text-[#660033]"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-2">
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-[#660033] font-medium hover:bg-[rgba(102,0,51,0.06)] transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#testimonials"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-[#660033] font-medium hover:bg-[rgba(102,0,51,0.06)] transition-colors"
+              >
+                Testimonials
+              </a>
+              <Link
+                href="/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-[#660033] font-medium hover:bg-[rgba(102,0,51,0.06)] transition-colors"
+              >
+                Pricing
+              </Link>
+              <div className="border-t border-[rgba(102,0,51,0.1)] my-4" />
+              <Link
+                href="/auth?mode=login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-[#660033] font-medium hover:bg-[rgba(102,0,51,0.06)] transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link href="/auth" onClick={() => setMobileMenuOpen(false)}>
+                <button className="w-full btn-primary px-6 py-3 mt-2" data-testid="button-get-started-mobile">
+                  Start Free
+                </button>
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
 
       <section
         className="relative min-h-[60vh] lg:min-h-[80vh] px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 xl:gap-20 items-center"
