@@ -51,7 +51,22 @@ export function ContractFilters({ filters, onChange }: ContractFiltersProps) {
   ].filter(Boolean).length;
 
   const handleChange = (key: keyof FilterState, value: string) => {
-    onChange({ ...filters, [key]: value });
+    const newFilters = { ...filters, [key]: value };
+
+    // Auto-correct date range if dates are inverted
+    if (newFilters.dateFrom && newFilters.dateTo) {
+      const fromDate = new Date(newFilters.dateFrom);
+      const toDate = new Date(newFilters.dateTo);
+
+      if (fromDate > toDate) {
+        // Swap the dates to ensure valid range
+        const temp = newFilters.dateFrom;
+        newFilters.dateFrom = newFilters.dateTo;
+        newFilters.dateTo = temp;
+      }
+    }
+
+    onChange(newFilters);
   };
 
   const handleClearAll = () => {
