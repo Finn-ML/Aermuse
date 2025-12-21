@@ -54,7 +54,8 @@ export default function VerifyEmail() {
 
       <GrainOverlay />
 
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      {/* Logo section - hidden on mobile */}
+      <div className="hidden md:flex flex-1 relative items-center justify-center overflow-hidden">
         <ShaderAnimation variant="auth" />
 
         <div
@@ -74,7 +75,8 @@ export default function VerifyEmail() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-15 relative z-10">
+      {/* Verification content - full width on mobile */}
+      <div className="w-full md:flex-1 flex items-center justify-center p-8 md:p-15 relative z-10">
         <div
           className={`w-full max-w-[440px] transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
