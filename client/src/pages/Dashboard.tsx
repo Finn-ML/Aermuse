@@ -884,7 +884,7 @@ export default function Dashboard() {
         )}
 
         <main
-          className={`flex-1 p-4 sm:p-6 lg:p-10 transition-all duration-500 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+          className={`flex-1 p-4 sm:p-6 lg:p-10 transition-all duration-500 delay-200 overflow-x-hidden ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
         >
           {activeNav === 'dashboard' && (
             <>
