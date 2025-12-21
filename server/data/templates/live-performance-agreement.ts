@@ -101,7 +101,11 @@ export const livePerformanceAgreementTemplate: TemplateDefinition = {
       label: 'Event Date',
       type: 'date',
       required: true,
-      group: 'Event Details'
+      group: 'Event Details',
+      validation: {
+        afterField: 'agreement_date',
+        afterFieldMessage: 'Event date must be after the agreement date'
+      }
     },
     {
       id: 'event_location',
@@ -212,7 +216,13 @@ export const livePerformanceAgreementTemplate: TemplateDefinition = {
           id: 'deposit_due_date',
           label: 'Deposit Due Date',
           type: 'date',
-          required: true
+          required: true,
+          validation: {
+            afterField: 'agreement_date',
+            afterFieldMessage: 'Deposit due date must be after the agreement date',
+            beforeField: 'event_date',
+            beforeFieldMessage: 'Deposit due date must be before the event date'
+          }
         }
       ]
     },

@@ -50,8 +50,10 @@ export interface FieldValidation {
   min?: number;
   max?: number;
   // Cross-field date validation
-  afterField?: string;      // This date must be after the specified field
+  afterField?: string;        // This date must be after the specified field
   afterFieldMessage?: string; // Custom error message for afterField validation
+  beforeField?: string;       // This date must be before the specified field
+  beforeFieldMessage?: string; // Custom error message for beforeField validation
 }
 
 /**
