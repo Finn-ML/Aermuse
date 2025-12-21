@@ -130,7 +130,7 @@ export function useTemplateForm(
     };
   }, [formData, isDirty, storageKey]);
 
-  // Save immediately when leaving page
+  // Save immediately when leaving page (browser close/refresh)
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (isDirty) {
@@ -141,6 +141,28 @@ export function useTemplateForm(
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [formData, isDirty, storageKey]);
+
+  // Save draft when component unmounts (e.g., navigating away within the app)
+  // This uses a ref to access current values in cleanup without re-running effect
+  const formDataRef = useRef(formData);
+  const isDirtyRef = useRef(isDirty);
+  const storageKeyRef = useRef(storageKey);
+
+  // Keep refs updated with latest values
+  useEffect(() => {
+    formDataRef.current = formData;
+    isDirtyRef.current = isDirty;
+    storageKeyRef.current = storageKey;
+  }, [formData, isDirty, storageKey]);
+
+  // Save on unmount
+  useEffect(() => {
+    return () => {
+      if (isDirtyRef.current) {
+        localStorage.setItem(storageKeyRef.current, JSON.stringify(formDataRef.current));
+      }
+    };
+  }, []);
 
   const updateField = useCallback((fieldId: string, value: string | number | Date | null) => {
     setFormData(prev => ({
