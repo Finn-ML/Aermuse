@@ -219,6 +219,14 @@ export function useTemplateForm(
         }
       }
 
+      // Validate time format (HH:MM)
+      if (field.type === 'time' && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(fieldValue as string)) {
+          newErrors[field.id] = `${field.label} must be a valid time (e.g., 14:30)`;
+        }
+      }
+
       // Cross-field date validation: afterField
       if (field.type === 'date' && field.validation?.afterField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
         const afterFieldValue = formData.fields[field.validation.afterField];
@@ -270,6 +278,14 @@ export function useTemplateForm(
             }
             if (field.validation.max !== undefined && value > field.validation.max) {
               newErrors[field.id] = `Must be at most ${field.validation.max}`;
+            }
+          }
+
+          // Validate time format for clause fields (HH:MM)
+          if (field.type === 'time' && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(clauseFieldValue as string)) {
+              newErrors[field.id] = `${field.label} must be a valid time (e.g., 14:30)`;
             }
           }
 

@@ -129,25 +129,22 @@ export const livePerformanceAgreementTemplate: TemplateDefinition = {
     {
       id: 'call_time',
       label: 'Call Time',
-      type: 'text',
+      type: 'time',
       required: true,
-      placeholder: 'e.g., "7:00 PM"',
       group: 'Performance Details'
     },
     {
       id: 'performance_start',
       label: 'Performance Start Time',
-      type: 'text',
+      type: 'time',
       required: true,
-      placeholder: 'e.g., "9:00 PM"',
       group: 'Performance Details'
     },
     {
       id: 'soundcheck_time',
       label: 'Soundcheck Time',
-      type: 'text',
+      type: 'time',
       required: false,
-      placeholder: 'e.g., "6:00 PM"',
       group: 'Performance Details'
     },
 
