@@ -197,7 +197,7 @@ export function useTemplateForm(
         }
       }
 
-      // Cross-field date validation
+      // Cross-field date validation: afterField
       if (field.type === 'date' && field.validation?.afterField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
         const afterFieldValue = formData.fields[field.validation.afterField];
         if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
@@ -207,6 +207,21 @@ export function useTemplateForm(
           if (!isNaN(currentDate.getTime()) && !isNaN(afterDate.getTime())) {
             if (currentDate <= afterDate) {
               newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the start date`;
+            }
+          }
+        }
+      }
+
+      // Cross-field date validation: beforeField
+      if (field.type === 'date' && field.validation?.beforeField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+        const beforeFieldValue = formData.fields[field.validation.beforeField];
+        if (beforeFieldValue !== undefined && beforeFieldValue !== null && beforeFieldValue !== '') {
+          const currentDate = fieldValue instanceof Date ? fieldValue : new Date(fieldValue as string);
+          const beforeDate = beforeFieldValue instanceof Date ? beforeFieldValue : new Date(beforeFieldValue as string);
+
+          if (!isNaN(currentDate.getTime()) && !isNaN(beforeDate.getTime())) {
+            if (currentDate >= beforeDate) {
+              newErrors[field.id] = field.validation.beforeFieldMessage || `${field.label} must be before the end date`;
             }
           }
         }
@@ -236,7 +251,7 @@ export function useTemplateForm(
             }
           }
 
-          // Cross-field date validation for clause fields
+          // Cross-field date validation for clause fields: afterField
           if (field.type === 'date' && field.validation?.afterField && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
             const afterFieldValue = formData.fields[field.validation.afterField];
             if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
@@ -246,6 +261,21 @@ export function useTemplateForm(
               if (!isNaN(currentDate.getTime()) && !isNaN(afterDate.getTime())) {
                 if (currentDate <= afterDate) {
                   newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the start date`;
+                }
+              }
+            }
+          }
+
+          // Cross-field date validation for clause fields: beforeField
+          if (field.type === 'date' && field.validation?.beforeField && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const beforeFieldValue = formData.fields[field.validation.beforeField];
+            if (beforeFieldValue !== undefined && beforeFieldValue !== null && beforeFieldValue !== '') {
+              const currentDate = clauseFieldValue instanceof Date ? clauseFieldValue : new Date(clauseFieldValue as string);
+              const beforeDate = beforeFieldValue instanceof Date ? beforeFieldValue : new Date(beforeFieldValue as string);
+
+              if (!isNaN(currentDate.getTime()) && !isNaN(beforeDate.getTime())) {
+                if (currentDate >= beforeDate) {
+                  newErrors[field.id] = field.validation.beforeFieldMessage || `${field.label} must be before the end date`;
                 }
               }
             }
