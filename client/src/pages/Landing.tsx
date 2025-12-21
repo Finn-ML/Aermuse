@@ -543,45 +543,53 @@ export default function Landing() {
           className="rounded-2xl sm:rounded-3xl lg:rounded-[40px] p-8 sm:p-12 lg:p-16"
           style={{ background: 'rgba(255, 255, 255, 0.5)' }}
         >
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div>
-              <p className="text-xs tracking-[0.3em] uppercase mb-4 font-light">
-                Simple Pricing
-              </p>
-              <h2
-                className="font-light mb-6"
-                style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
-              >
-                Start free,<br /><span className="font-bold">upgrade when ready</span>
-              </h2>
-              <p className="text-base mb-8" style={{ color: 'rgba(102, 0, 51, 0.8)' }}>
-                Get started with our free tier. When you need more AI analyses, e-signatures,
-                and premium features, upgrade to Premium for just £9/month.
-              </p>
-              <Link href="/pricing">
-                <button className="btn-primary">View Full Pricing</button>
-              </Link>
+          <div className="text-center mb-8 lg:mb-12">
+            <p className="text-xs tracking-[0.3em] uppercase mb-4 font-light">
+              Simple Pricing
+            </p>
+            <h2
+              className="font-light mb-6"
+              style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
+            >
+              Start free,<br /><span className="font-bold">upgrade when ready</span>
+            </h2>
+            <p className="text-base max-w-xl mx-auto" style={{ color: 'rgba(102, 0, 51, 0.8)' }}>
+              Get started with our free tier. Unlock more features as your needs grow.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
+            <div className="p-6 rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="text-3xl font-bold mb-2">£0</div>
+              <div className="text-sm font-semibold mb-4">Free</div>
+              <ul className="text-sm space-y-2" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+                <li>• Up to 10 contracts</li>
+                <li>• Contract storage</li>
+                <li>• Basic features</li>
+              </ul>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-                <div className="text-3xl font-bold mb-2">£0</div>
-                <div className="text-sm font-semibold mb-4">Free</div>
-                <ul className="text-sm space-y-2" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
-                  <li>• Landing page</li>
-                  <li>• Contract storage</li>
-                  <li>• Basic templates</li>
-                </ul>
-              </div>
-              <div className="p-6 rounded-2xl text-[#F7E6CA]" style={{ background: '#660033' }}>
-                <div className="text-3xl font-bold mb-2">£9</div>
-                <div className="text-sm font-semibold mb-4">Premium /mo</div>
-                <ul className="text-sm space-y-2 opacity-90">
-                  <li>• AI analysis</li>
-                  <li>• E-signatures</li>
-                  <li>• All templates</li>
-                </ul>
-              </div>
+            <div className="p-6 rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+              <div className="text-3xl font-bold mb-2">£9.99</div>
+              <div className="text-sm font-semibold mb-4">Beta /mo</div>
+              <ul className="text-sm space-y-2" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+                <li>• Unlimited contracts</li>
+                <li>• E-signatures</li>
+                <li>• AI Summary & Risk Score</li>
+              </ul>
             </div>
+            <div className="p-6 rounded-2xl text-[#F7E6CA]" style={{ background: '#660033' }}>
+              <div className="text-3xl font-bold mb-2">£19.99</div>
+              <div className="text-sm font-semibold mb-4">Alpha /mo</div>
+              <ul className="text-sm space-y-2 opacity-90">
+                <li>• Everything in Beta</li>
+                <li>• AI Red Flags Analysis</li>
+                <li>• AI Key Terms & Clauses</li>
+              </ul>
+            </div>
+          </div>
+          <div className="text-center">
+            <Link href="/pricing">
+              <button className="btn-primary">View Full Pricing</button>
+            </Link>
           </div>
         </div>
       </section>
