@@ -5,8 +5,10 @@
  * Dynamic form for filling in template fields.
  */
 
-import { useMemo } from 'react';
-import { ArrowLeft, Eye, Trash2, Save, Clock } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { useTemplateForm } from '@/hooks/useTemplateForm';
 import { DynamicField } from './DynamicField';
 import { ClauseToggle } from './ClauseToggle';
@@ -19,11 +21,14 @@ interface Props {
   onPreview: (formData: TemplateFormData) => void;
   initialData?: Record<string, string | number | Date | null>;
   proposalId?: string;
+  onContractSaved?: (contractId: string) => void;
 }
 
-export function TemplateForm({ template, onBack, onPreview, initialData, proposalId }: Props) {
+export function TemplateForm({ template, onBack, onPreview, initialData, proposalId, onContractSaved }: Props) {
   const templateFields = (template.fields || []) as TemplateField[];
   const templateClauses = (template.optionalClauses || []) as OptionalClause[];
+  const queryClient = useQueryClient();
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const {
     formData,
@@ -36,6 +41,40 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
     saveDraft,
     lastSaved,
   } = useTemplateForm(template, proposalId ? `${template.id}-proposal-${proposalId}` : template.id, initialData);
+
+  // Mutation to save contract as draft to the backend
+  const saveDraftContractMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/contracts/from-template', {
+        templateId: template.id,
+        formData,
+        title: template.name,
+        proposalId,
+        status: 'draft',
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Clear local draft
+      const draftKey = proposalId
+        ? `template-draft-${template.id}-proposal-${proposalId}`
+        : `template-draft-${template.id}`;
+      localStorage.removeItem(draftKey);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      if (proposalId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
+      if (onContractSaved) {
+        onContractSaved(data.contract.id);
+      }
+    },
+  });
 
   // Group fields by group property
   const fieldGroups = useMemo(() => {
@@ -135,9 +174,24 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
           </div>
         )}
 
+        {/* Success Message */}
+        {saveSuccess && (
+          <div className="rounded-xl p-4 bg-[rgba(40,167,69,0.1)] text-[#28a745] text-sm font-medium flex items-center gap-2">
+            <FileText size={18} />
+            Contract saved to Contract Manager!
+          </div>
+        )}
+
+        {/* Error Message */}
+        {saveDraftContractMutation.isError && (
+          <div className="rounded-xl p-4 bg-[rgba(220,53,69,0.1)] text-[#dc3545] text-sm">
+            Failed to save contract. Please try again.
+          </div>
+        )}
+
         {/* Actions */}
         <div
-          className="flex items-center justify-between pt-6"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6"
           style={{ borderTop: '1px solid rgba(102, 0, 51, 0.08)' }}
         >
           <button
@@ -150,18 +204,37 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
             Clear Draft
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {isDirty && (
               <button
                 type="button"
                 onClick={saveDraft}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 text-[rgba(102,0,51,0.6)] hover:text-[#660033] transition-colors text-sm"
                 data-testid="button-save-draft"
               >
                 <Save size={16} />
-                Save Draft
+                Save Locally
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => saveDraftContractMutation.mutate()}
+              disabled={saveDraftContractMutation.isPending}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all disabled:opacity-50"
+              data-testid="button-save-contract"
+            >
+              {saveDraftContractMutation.isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Save to Contracts
+                </>
+              )}
+            </button>
             <button
               type="submit"
               className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"

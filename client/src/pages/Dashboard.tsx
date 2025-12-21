@@ -1442,6 +1442,14 @@ export default function Dashboard() {
                   }}
                   initialData={proposalTemplateData.initialData}
                   proposalId={proposalTemplateData.proposalId}
+                  onContractSaved={(contractId) => {
+                    toast({
+                      title: 'Contract Saved',
+                      description: 'Your contract has been saved to the Contract Manager.',
+                    });
+                    setProposalTemplateData(null);
+                    setActiveNav('contracts');
+                  }}
                 />
               ) : selectedTemplate ? (
                 <TemplateForm
@@ -1449,6 +1457,14 @@ export default function Dashboard() {
                   onBack={() => setSelectedTemplate(null)}
                   onPreview={(formData) => {
                     setPreviewFormData(formData);
+                  }}
+                  onContractSaved={(contractId) => {
+                    toast({
+                      title: 'Contract Saved',
+                      description: 'Your contract has been saved to the Contract Manager.',
+                    });
+                    setSelectedTemplate(null);
+                    setActiveNav('contracts');
                   }}
                 />
               ) : (

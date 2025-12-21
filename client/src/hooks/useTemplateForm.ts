@@ -36,35 +36,7 @@ export function useTemplateForm(
 
   // Initialize from localStorage or defaults
   const getInitialData = useCallback((): TemplateFormData => {
-    // If initialData is provided (e.g., from a proposal), use it instead of localStorage
-    if (initialData && Object.keys(initialData).length > 0) {
-      // Start with defaults, then overlay initialData
-      const fields: Record<string, string | number | Date | null> = {};
-      for (const field of templateFields) {
-        if (field.defaultValue !== undefined) {
-          fields[field.id] = field.defaultValue as string | number | Date | null;
-        }
-      }
-      // Also add default values for clause fields
-      for (const clause of templateClauses) {
-        if (clause.fields) {
-          for (const field of clause.fields) {
-            if (field.defaultValue !== undefined) {
-              fields[field.id] = field.defaultValue as string | number | Date | null;
-            }
-          }
-        }
-      }
-      // Overlay initialData
-      Object.assign(fields, initialData);
-
-      const enabledClauses = templateClauses
-        .filter(c => c.defaultEnabled)
-        .map(c => c.id);
-
-      return { fields, enabledClauses };
-    }
-
+    // Always check localStorage first - this preserves user edits when going back from preview
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -75,14 +47,26 @@ export function useTemplateForm(
             parsed.fields[field.id] = new Date(parsed.fields[field.id]);
           }
         }
+        // Also restore Date objects for clause fields
+        for (const clause of templateClauses) {
+          if (clause.fields) {
+            for (const field of clause.fields) {
+              if (field.type === 'date' && parsed.fields[field.id]) {
+                parsed.fields[field.id] = new Date(parsed.fields[field.id]);
+              }
+            }
+          }
+        }
         return parsed;
       } catch {
-        // Ignore parse errors
+        // Ignore parse errors, fall through to defaults
       }
     }
 
-    // Build defaults
+    // No saved data - build from defaults and initialData (e.g., from a proposal)
     const fields: Record<string, string | number | Date | null> = {};
+
+    // Start with template field defaults
     for (const field of templateFields) {
       if (field.defaultValue !== undefined) {
         fields[field.id] = field.defaultValue as string | number | Date | null;
@@ -98,6 +82,11 @@ export function useTemplateForm(
           }
         }
       }
+    }
+
+    // Overlay initialData from proposal if provided
+    if (initialData && Object.keys(initialData).length > 0) {
+      Object.assign(fields, initialData);
     }
 
     const enabledClauses = templateClauses
