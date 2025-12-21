@@ -1216,10 +1216,14 @@ export default function Dashboard() {
                   {filteredContracts.map((contract) => (
                     <DraggableContractCard key={contract.id} id={contract.id}>
                     <div
-                      className="rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
+                      className="relative rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_15px_40px_rgba(102,0,51,0.08)]"
                       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
                       data-testid={`contract-${contract.id}`}
                     >
+                      {/* Status badge positioned at top right */}
+                      <span className={`absolute top-3 right-3 sm:top-4 sm:right-4 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
+                        {contract.status}
+                      </span>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                           <div
@@ -1252,9 +1256,6 @@ export default function Dashboard() {
                               <div className="text-xs text-[rgba(102,0,51,0.5)]">Value</div>
                             </div>
                           )}
-                          <span className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.05em] ${getStatusClass(contract.status)}`}>
-                            {contract.status}
-                          </span>
                           <div className="flex gap-1 sm:gap-2">
                             {(contract.filePath || contract.renderedContent) && (
                               <a
