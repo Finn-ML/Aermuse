@@ -80,24 +80,29 @@ interface ContractLimitPromptProps {
  */
 export function ContractLimitPrompt({ current, limit, className = '' }: ContractLimitPromptProps) {
   return (
-    <div className={`bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-6 ${className}`}>
+    <div className={`bg-gradient-to-br from-[#660033]/5 to-[#660033]/10 border-2 border-[#660033]/20 rounded-xl p-6 ${className}`}>
       <div className="flex items-start gap-4">
-        <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <Lock className="h-5 w-5 text-amber-600" />
+        <div className="w-12 h-12 bg-[#660033] rounded-full flex items-center justify-center flex-shrink-0">
+          <Lock className="h-6 w-6 text-[#F7E6CA]" />
         </div>
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-[#660033] mb-1">Contract Limit Reached</h3>
-          <p className="text-[#660033]/70 text-sm mb-3">
-            You've used {current} of {limit} contracts on the free plan.
-            Upgrade to Premium for unlimited contract storage.
+          <h3 className="text-lg font-bold text-[#660033] mb-1">You've Hit Your Free Limit</h3>
+          <p className="text-[#660033]/70 text-sm mb-1">
+            You've used all <span className="font-semibold">{limit} contracts</span> on the free plan.
           </p>
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors"
-          >
-            <Sparkles className="h-4 w-4" />
-            Upgrade to Premium - £9/month
-          </Link>
+          <p className="text-[#660033]/60 text-xs mb-4">
+            Upgrade to unlock unlimited contracts, AI analysis, and e-signatures.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors font-semibold"
+            >
+              <Sparkles className="h-4 w-4" />
+              Upgrade Now
+            </Link>
+            <span className="text-xs text-[#660033]/50">From £9.99/month</span>
+          </div>
         </div>
       </div>
     </div>

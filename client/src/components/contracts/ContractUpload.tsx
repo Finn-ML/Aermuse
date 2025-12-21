@@ -286,34 +286,57 @@ export function ContractUpload({
 
       {/* Contract Limit Reached */}
       {state === "limit_reached" && limitInfo && (
-        <div className="mt-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-5">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <Lock className="h-5 w-5 text-amber-600" />
+        <div className="mt-4 bg-gradient-to-br from-[#660033]/5 to-[#660033]/10 border-2 border-[#660033]/20 rounded-xl p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-[#660033] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="h-8 w-8 text-[#F7E6CA]" />
             </div>
-            <div className="flex-1">
-              <h4 className="text-lg font-semibold text-[#660033] mb-1">Contract Limit Reached</h4>
-              <p className="text-[#660033]/70 text-sm mb-3">
-                You've used {limitInfo.current} of {limitInfo.limit} contracts on the free plan.
-                Upgrade to Premium for unlimited contract storage.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Link
-                  href="/pricing"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors text-sm font-medium"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Upgrade to Premium
-                </Link>
-                {onCancel && (
-                  <button
-                    onClick={onCancel}
-                    className="px-4 py-2 text-sm text-[#660033] hover:bg-[#660033]/10 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                )}
+            <h4 className="text-xl font-bold text-[#660033] mb-2">You've Hit Your Free Limit</h4>
+            <p className="text-[#660033]/70 mb-2">
+              You've used all <span className="font-semibold">{limitInfo.limit} contracts</span> on the free plan.
+            </p>
+            <p className="text-[#660033]/60 text-sm mb-6">
+              Upgrade to unlock unlimited contracts, AI analysis, e-signatures, and more.
+            </p>
+
+            {/* Pricing options */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-white/60 rounded-lg p-3 text-left">
+                <div className="text-lg font-bold text-[#660033]">£9.99<span className="text-sm font-normal">/mo</span></div>
+                <div className="text-xs text-[#660033]/60 font-medium">Beta Plan</div>
+                <ul className="text-xs text-[#660033]/70 mt-2 space-y-1">
+                  <li>✓ Unlimited contracts</li>
+                  <li>✓ E-signatures</li>
+                  <li>✓ AI Summary</li>
+                </ul>
               </div>
+              <div className="bg-[#660033] rounded-lg p-3 text-left text-[#F7E6CA]">
+                <div className="text-lg font-bold">£19.99<span className="text-sm font-normal">/mo</span></div>
+                <div className="text-xs opacity-70 font-medium">Alpha Plan</div>
+                <ul className="text-xs opacity-90 mt-2 space-y-1">
+                  <li>✓ Everything in Beta</li>
+                  <li>✓ AI Red Flags</li>
+                  <li>✓ AI Key Terms</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-lg hover:bg-[#4a0024] transition-colors font-semibold"
+              >
+                <Sparkles className="h-5 w-5" />
+                Upgrade Now
+              </Link>
+              {onCancel && (
+                <button
+                  onClick={onCancel}
+                  className="px-4 py-2 text-sm text-[#660033]/60 hover:text-[#660033] transition-colors"
+                >
+                  Maybe later
+                </button>
+              )}
             </div>
           </div>
         </div>

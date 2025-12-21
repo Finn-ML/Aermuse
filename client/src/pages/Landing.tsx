@@ -443,90 +443,90 @@ export default function Landing() {
       </section>
 
       {/* How It Works */}
-      <section className="px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20">
-        <div className="text-center mb-12 lg:mb-16">
-          <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
+      <section className="px-4 sm:px-8 md:px-12 lg:px-20 py-16 sm:py-24 lg:py-32">
+        <div className="text-center mb-14 lg:mb-20">
+          <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
             How It Works
           </p>
           <h2
             className="font-light"
-            style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
+            style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
           >
             Get started in <span className="font-bold">minutes</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-16 max-w-5xl mx-auto">
           <div className="text-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              className="w-20 h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center mx-auto mb-6 lg:mb-8 text-2xl lg:text-3xl font-bold text-[#F7E6CA]"
               style={{ background: '#660033' }}
             >
               1
             </div>
-            <h3 className="text-xl font-semibold mb-3">Upload Your Contract</h3>
-            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Upload Your Contract</h3>
+            <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Drop in any music contract—PDF, Word, or use our templates.
             </p>
           </div>
           <div className="text-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              className="w-20 h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center mx-auto mb-6 lg:mb-8 text-2xl lg:text-3xl font-bold text-[#F7E6CA]"
               style={{ background: '#660033' }}
             >
               2
             </div>
-            <h3 className="text-xl font-semibold mb-3">AI Analysis</h3>
-            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">AI Analysis</h3>
+            <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Our AI scans for red flags, unfair terms, and missing protections.
             </p>
           </div>
           <div className="text-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F7E6CA]"
+              className="w-20 h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center mx-auto mb-6 lg:mb-8 text-2xl lg:text-3xl font-bold text-[#F7E6CA]"
               style={{ background: '#660033' }}
             >
               3
             </div>
-            <h3 className="text-xl font-semibold mb-3">Sign with Confidence</h3>
-            <p className="text-sm" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Sign with Confidence</h3>
+            <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Negotiate better terms and e-sign directly from the platform.
             </p>
           </div>
         </div>
       </section>
 
-      <section id="testimonials" className="px-4 sm:px-8 md:px-12 lg:px-20 py-12 sm:py-16 lg:py-20 xl:py-32">
-        <div className="text-center mb-10 sm:mb-12 lg:mb-16">
-          <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
+      <section id="testimonials" className="px-4 sm:px-8 md:px-12 lg:px-20 py-16 sm:py-24 lg:py-32 xl:py-40">
+        <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+          <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
             Testimonials
           </p>
           <h2
             className="font-light"
-            style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
+            style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
           >
             Trusted by <span className="font-bold">artists</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="p-6 sm:p-8 lg:p-10 rounded-2xl lg:rounded-3xl"
+              className="p-8 sm:p-10 lg:p-12 rounded-2xl lg:rounded-3xl"
               style={{ background: 'rgba(255, 255, 255, 0.4)' }}
               data-testid={`card-testimonial-${index}`}
             >
               <p
-                className="text-base sm:text-lg leading-[1.7] mb-6 sm:mb-8 italic"
+                className="text-lg sm:text-xl lg:text-xl leading-[1.7] mb-8 sm:mb-10 italic"
                 style={{ color: 'rgba(102, 0, 51, 0.85)' }}
               >
                 "{testimonial.quote}"
               </p>
               <div>
-                <div className="font-semibold">{testimonial.name}</div>
+                <div className="font-semibold text-lg">{testimonial.name}</div>
                 <div
-                  className="text-sm"
+                  className="text-sm sm:text-base"
                   style={{ color: 'rgba(102, 0, 51, 0.6)' }}
                 >
                   {testimonial.role}
