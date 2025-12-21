@@ -938,9 +938,9 @@ export default function Dashboard() {
                   ) : contracts.length === 0 ? (
                     <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No contracts yet. Add your first contract!</p>
                   ) : (
-                    <div className="space-y-4">
-                      {contracts.slice(0, 3).map((contract) => (
-                        <div 
+                    <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[rgba(102,0,51,0.2)] scrollbar-track-transparent">
+                      {contracts.slice(0, 10).map((contract) => (
+                        <div
                           key={contract.id}
                           className="flex items-center justify-between py-4 border-b border-[rgba(102,0,51,0.06)] last:border-0"
                         >
@@ -971,7 +971,7 @@ export default function Dashboard() {
                   ) : upcomingEvents.length === 0 ? (
                     <p className="text-sm text-[rgba(102,0,51,0.5)] text-center py-8">No upcoming events in the next 30 days.</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[rgba(102,0,51,0.2)] scrollbar-track-transparent">
                       {upcomingEvents.map((event) => (
                         <div
                           key={event.id}
