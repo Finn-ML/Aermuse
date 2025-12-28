@@ -155,6 +155,7 @@ export function ContractFilters({ filters, onChange }: ContractFiltersProps) {
                 <input
                   type="date"
                   value={filters.dateFrom}
+                  max={filters.dateTo || undefined}
                   onChange={(e) => handleChange('dateFrom', e.target.value)}
                   className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] focus:outline-none text-[#660033] font-medium transition-colors"
                   data-testid="filter-date-from"
@@ -172,6 +173,7 @@ export function ContractFilters({ filters, onChange }: ContractFiltersProps) {
                 <input
                   type="date"
                   value={filters.dateTo}
+                  min={filters.dateFrom || undefined}
                   onChange={(e) => handleChange('dateTo', e.target.value)}
                   className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] focus:outline-none text-[#660033] font-medium transition-colors"
                   data-testid="filter-date-to"
