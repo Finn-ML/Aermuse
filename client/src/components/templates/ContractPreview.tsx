@@ -105,25 +105,25 @@ export function ContractPreview({ template, formData, onBack, onContractCreated,
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-[rgba(255,255,255,0.6)] text-[#660033] hover:bg-[rgba(255,255,255,0.8)] transition-all"
+            className="p-2.5 rounded-xl bg-[rgba(255,255,255,0.6)] text-[#660033] hover:bg-[rgba(255,255,255,0.8)] transition-all shrink-0"
             data-testid="button-back"
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
-            <h2 className="text-xl font-bold text-[#660033]">{renderedTitle}</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-[#660033] truncate">{renderedTitle}</h2>
             <p className="text-sm text-[rgba(102,0,51,0.6)]">Review your contract before saving</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[rgba(255,255,255,0.6)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(255,255,255,0.8)] transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[rgba(255,255,255,0.6)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(255,255,255,0.8)] transition-all"
             data-testid="button-edit"
           >
             <Edit2 size={16} />
@@ -131,7 +131,7 @@ export function ContractPreview({ template, formData, onBack, onContractCreated,
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[rgba(255,255,255,0.6)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(255,255,255,0.8)] transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[rgba(255,255,255,0.6)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(255,255,255,0.8)] transition-all"
             data-testid="button-print"
           >
             <Printer size={16} />
@@ -140,18 +140,19 @@ export function ContractPreview({ template, formData, onBack, onContractCreated,
           <button
             onClick={() => createContractMutation.mutate()}
             disabled={createContractMutation.isPending}
-            className="flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50"
             data-testid="button-create"
           >
             {createContractMutation.isPending ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Creating...
+                <span className="hidden sm:inline">Creating...</span>
               </>
             ) : (
               <>
                 <Send size={18} />
-                Create Contract
+                <span className="hidden sm:inline">Create Contract</span>
+                <span className="sm:hidden">Create</span>
               </>
             )}
           </button>

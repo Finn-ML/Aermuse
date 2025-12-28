@@ -1745,6 +1745,60 @@ export default function Dashboard() {
 
           {activeNav === 'settings' && (
             <>
+              {/* Account Information */}
+              <div
+                className="rounded-[20px] p-5 sm:p-7 mb-4 sm:mb-6"
+                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                  >
+                    <User size={20} className="text-[#F7E6CA]" />
+                  </div>
+                  <h3 className="text-lg font-bold">Account Information</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Name</p>
+                    <p className="text-[#660033] font-medium">{user.name || 'Not set'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Email</p>
+                    <p className="text-[#660033] font-medium">{user.email}</p>
+                  </div>
+                  {user.artistName && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Artist Name</p>
+                      <p className="text-[#660033] font-medium">{user.artistName}</p>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Account Type</p>
+                    <p className="text-[#660033] font-medium capitalize">
+                      {isPremium ? (tier === 'alpha' ? 'Alpha (Premium)' : 'Beta (Premium)') : 'Free'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Member Since</p>
+                    <p className="text-[#660033] font-medium">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      }) : 'Unknown'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Email Status</p>
+                    <p className={`font-medium ${user.emailVerified ? 'text-[#28a745]' : 'text-[#B8860B]'}`}>
+                      {user.emailVerified ? 'Verified' : 'Pending Verification'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <ChangePasswordForm />
@@ -1758,7 +1812,7 @@ export default function Dashboard() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
                       style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                     >
-                      <User size={20} className="text-[#F7E6CA]" />
+                      <Shield size={20} className="text-[#F7E6CA]" />
                     </div>
                     <h3 className="text-lg font-bold">Email Verification</h3>
                   </div>
