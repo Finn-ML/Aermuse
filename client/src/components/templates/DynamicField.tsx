@@ -57,6 +57,12 @@ export function DynamicField({ field, value, onChange, error }: Props) {
             type="number"
             value={value !== undefined && value !== null ? String(value) : ''}
             onChange={(e) => onChange(e.target.value ? e.target.valueAsNumber : null)}
+            onKeyDown={(e) => {
+              // Block letters and invalid characters for number input
+              if (['e', 'E', '+', '-'].includes(e.key)) {
+                e.preventDefault();
+              }
+            }}
             min={field.validation?.min}
             max={field.validation?.max}
             className={baseInputClass}
@@ -74,6 +80,12 @@ export function DynamicField({ field, value, onChange, error }: Props) {
               type="number"
               value={value !== undefined && value !== null ? String(value) : ''}
               onChange={(e) => onChange(e.target.value ? e.target.valueAsNumber : null)}
+              onKeyDown={(e) => {
+                // Block letters and invalid characters for currency input
+                if (['e', 'E', '+', '-'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               min={0}
               step="0.01"
               className={`${baseInputClass} pl-8`}
@@ -99,6 +111,14 @@ export function DynamicField({ field, value, onChange, error }: Props) {
             type="time"
             value={(value as string) || ''}
             onChange={(e) => onChange(e.target.value || null)}
+            onKeyDown={(e) => {
+              // Allow: digits, colon, backspace, delete, tab, arrows, enter
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ':'];
+              if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            pattern="[0-9]{2}:[0-9]{2}"
             className={baseInputClass}
             data-testid={`field-${field.id}`}
           />

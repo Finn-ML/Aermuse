@@ -401,6 +401,37 @@ export function sanitizeFilename(name: string): string {
 }
 
 /**
+ * Signature position information for DocuSeal
+ */
+export interface SignatureAreaPosition {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Result from PDF generation with signature areas
+ */
+export interface PDFWithSignatureAreas {
+  buffer: Buffer;
+  signaturePositions: SignatureAreaPosition[];
+  pageCount: number;
+}
+
+// A4 dimensions in points (72 points per inch)
+const A4_WIDTH = 595.28;
+const A4_HEIGHT = 841.89;
+const PAGE_MARGIN = 50;
+
+// Signature area dimensions
+const SIGNATURE_WIDTH = 200;
+const SIGNATURE_HEIGHT = 50;
+const SIGNATURE_SPACING = 30;
+const SIGNATURE_LABEL_HEIGHT = 20;
+
+/**
  * Generate PDF from a Contract record
  * Used by signature request API to create signable documents
  */
@@ -411,18 +442,33 @@ export async function generateContractPDFFromRecord(
     extractedText?: string | null;
   }
 ): Promise<Buffer> {
+  const result = await generateContractPDFWithSignatureAreas(contract, 0);
+  return result.buffer;
+}
+
+/**
+ * Generate PDF from a Contract record with signature areas
+ * Returns PDF buffer along with signature position coordinates for DocuSeal
+ */
+export async function generateContractPDFWithSignatureAreas(
+  contract: {
+    name: string;
+    renderedContent?: string | null;
+    extractedText?: string | null;
+  },
+  signatoryCount: number
+): Promise<PDFWithSignatureAreas> {
   const content = contract.renderedContent || contract.extractedText || '';
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 50,
+      margin: PAGE_MARGIN,
       bufferPages: true,
     });
 
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
     // Header
@@ -464,6 +510,95 @@ export async function generateContractPDFFromRecord(
         .fillColor(GRAY_TEXT)
         .text('No contract content available.', { align: 'center' });
     }
+
+    // Calculate signature positions array
+    const signaturePositions: SignatureAreaPosition[] = [];
+
+    // Add signature areas if signatories are specified
+    if (signatoryCount > 0) {
+      // Calculate space needed for signatures
+      const totalSignatureHeight = signatoryCount * (SIGNATURE_HEIGHT + SIGNATURE_LABEL_HEIGHT + SIGNATURE_SPACING);
+
+      // Check if we need a new page for signatures
+      const availableSpace = A4_HEIGHT - PAGE_MARGIN - doc.y;
+      if (availableSpace < totalSignatureHeight + 60) {
+        doc.addPage();
+      }
+
+      doc.moveDown(2);
+
+      // Add signature section header
+      doc
+        .fillColor(BRAND_BURGUNDY)
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .text('Signatures', { align: 'left' });
+
+      doc.moveDown(1);
+
+      // Get current page number (1-indexed for DocuSeal)
+      const signaturePage = doc.bufferedPageRange().count;
+
+      // Calculate positions for each signatory
+      // Arrange side by side if 2 signatories, stacked if more
+      const signaturesPerRow = signatoryCount <= 2 ? signatoryCount : 2;
+      const horizontalSpacing = (A4_WIDTH - 2 * PAGE_MARGIN - signaturesPerRow * SIGNATURE_WIDTH) / (signaturesPerRow + 1);
+
+      for (let i = 0; i < signatoryCount; i++) {
+        const row = Math.floor(i / signaturesPerRow);
+        const col = i % signaturesPerRow;
+
+        const xPos = PAGE_MARGIN + horizontalSpacing + col * (SIGNATURE_WIDTH + horizontalSpacing);
+        const yPos = doc.y + row * (SIGNATURE_HEIGHT + SIGNATURE_LABEL_HEIGHT + SIGNATURE_SPACING);
+
+        // Draw signature label
+        doc
+          .fillColor(GRAY_TEXT)
+          .fontSize(10)
+          .font('Helvetica')
+          .text(`Signatory ${i + 1}:`, xPos, yPos);
+
+        // Draw signature line
+        const lineY = yPos + SIGNATURE_LABEL_HEIGHT + SIGNATURE_HEIGHT;
+        doc
+          .strokeColor(GRAY_LIGHT)
+          .lineWidth(1)
+          .moveTo(xPos, lineY)
+          .lineTo(xPos + SIGNATURE_WIDTH, lineY)
+          .stroke();
+
+        // Draw "Sign here" indicator
+        doc
+          .fillColor(GRAY_TEXT)
+          .fontSize(8)
+          .font('Helvetica')
+          .text('Sign above', xPos, lineY + 5);
+
+        // Store position for DocuSeal (y is from top of page)
+        signaturePositions.push({
+          page: signaturePage,
+          x: xPos,
+          y: yPos + SIGNATURE_LABEL_HEIGHT, // Position just below the label
+          width: SIGNATURE_WIDTH,
+          height: SIGNATURE_HEIGHT,
+        });
+      }
+
+      // Move doc.y past the signature area
+      const totalRows = Math.ceil(signatoryCount / signaturesPerRow);
+      doc.y = doc.y + totalRows * (SIGNATURE_HEIGHT + SIGNATURE_LABEL_HEIGHT + SIGNATURE_SPACING) + 20;
+    }
+
+    // Get final page count
+    const pageCount = doc.bufferedPageRange().count;
+
+    doc.on('end', () => {
+      resolve({
+        buffer: Buffer.concat(chunks),
+        signaturePositions,
+        pageCount,
+      });
+    });
 
     doc.end();
   });

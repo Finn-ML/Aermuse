@@ -19,7 +19,7 @@ import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, OpenAIError } from "./services/openai";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
 import { FREE_TIER_LIMITS } from "@shared/types/subscription";
-import { generateContractPdf, sanitizeFilename, generateContractPDFFromRecord } from "./services/pdfGenerator";
+import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
 import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts } from "@shared/schema";
 import { db } from "./db";
@@ -2851,9 +2851,10 @@ Sent at: ${new Date().toISOString()}
         });
       }
 
-      // Generate PDF from contract
-      console.log(`[SIGNATURES] Generating PDF for contract ${input.contractId}`);
-      const pdfBuffer = await generateContractPDFFromRecord(contract);
+      // Generate PDF from contract with signature areas
+      console.log(`[SIGNATURES] Generating PDF for contract ${input.contractId} with ${input.signatories.length} signature areas`);
+      const pdfResult = await generateContractPDFWithSignatureAreas(contract, input.signatories.length);
+      console.log(`[SIGNATURES] PDF generated: ${pdfResult.pageCount} pages, ${pdfResult.signaturePositions.length} signature positions`);
 
       // Upload to DocuSeal
       console.log(`[SIGNATURES] Uploading to DocuSeal`);
@@ -2868,21 +2869,29 @@ Sent at: ${new Date().toISOString()}
         });
       }
       const filename = `${contract.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
-      const docusealDoc = await docusealService.uploadDocument(pdfBuffer, filename);
+      const docusealDoc = await docusealService.uploadDocument(pdfResult.buffer, filename);
 
       // Calculate expiration
       const expiresAt = input.expiresAt
         ? new Date(input.expiresAt)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default
 
-      // Create batch signature requests in DocuSeal
-      console.log(`[SIGNATURES] Creating batch request for ${input.signatories.length} signers`);
+      // Create batch signature requests in DocuSeal with signature positions
+      console.log(`[SIGNATURES] Creating batch request for ${input.signatories.length} signers with positions`);
       const batchResponse = await docusealService.createBatchSignatureRequests({
         documentId: docusealDoc.id,
         signers: input.signatories.map((s, i) => ({
           signerName: s.name,
           signerEmail: s.email.toLowerCase(),
           signingOrder: i + 1,
+          // Pass signature position if available
+          signaturePosition: pdfResult.signaturePositions[i] ? {
+            page: pdfResult.signaturePositions[i].page,
+            x: pdfResult.signaturePositions[i].x,
+            y: pdfResult.signaturePositions[i].y,
+            width: pdfResult.signaturePositions[i].width,
+            height: pdfResult.signaturePositions[i].height,
+          } : undefined,
         })),
         expiresAt: expiresAt.toISOString(),
       });
