@@ -99,14 +99,19 @@ export const tourAgreementTemplate: TemplateDefinition = {
       label: 'Doors Open Time',
       type: 'time',
       required: true,
-      group: 'Performance Details'
+      group: 'Performance Details',
+      helpText: 'When venue doors open to the public'
     },
     {
       id: 'set_time',
       label: 'Set Start Time',
       type: 'time',
       required: true,
-      group: 'Performance Details'
+      group: 'Performance Details',
+      validation: {
+        afterField: 'doors_time',
+        afterFieldMessage: 'Set must start after doors open'
+      }
     },
     {
       id: 'set_length',

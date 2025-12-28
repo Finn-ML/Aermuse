@@ -131,21 +131,30 @@ export const livePerformanceAgreementTemplate: TemplateDefinition = {
       label: 'Call Time',
       type: 'time',
       required: true,
-      group: 'Performance Details'
+      group: 'Performance Details',
+      helpText: 'When the artist should arrive at the venue'
     },
     {
       id: 'performance_start',
       label: 'Performance Start Time',
       type: 'time',
       required: true,
-      group: 'Performance Details'
+      group: 'Performance Details',
+      validation: {
+        afterField: 'call_time',
+        afterFieldMessage: 'Performance must start after call time'
+      }
     },
     {
       id: 'soundcheck_time',
       label: 'Soundcheck Time',
       type: 'time',
       required: false,
-      group: 'Performance Details'
+      group: 'Performance Details',
+      validation: {
+        beforeField: 'performance_start',
+        beforeFieldMessage: 'Soundcheck must be before performance start'
+      }
     },
 
     // Fees

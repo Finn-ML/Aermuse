@@ -216,6 +216,32 @@ export function useTemplateForm(
         }
       }
 
+      // Cross-field time validation: afterField (this time must be after another time)
+      if (field.type === 'time' && field.validation?.afterField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+        const afterFieldValue = formData.fields[field.validation.afterField];
+        if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
+          const currentTime = fieldValue as string;
+          const afterTime = afterFieldValue as string;
+          // Compare times as strings (works for HH:MM format in 24h)
+          if (currentTime <= afterTime) {
+            newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the earlier time`;
+          }
+        }
+      }
+
+      // Cross-field time validation: beforeField (this time must be before another time)
+      if (field.type === 'time' && field.validation?.beforeField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+        const beforeFieldValue = formData.fields[field.validation.beforeField];
+        if (beforeFieldValue !== undefined && beforeFieldValue !== null && beforeFieldValue !== '') {
+          const currentTime = fieldValue as string;
+          const beforeTime = beforeFieldValue as string;
+          // Compare times as strings (works for HH:MM format in 24h)
+          if (currentTime >= beforeTime) {
+            newErrors[field.id] = field.validation.beforeFieldMessage || `${field.label} must be before the later time`;
+          }
+        }
+      }
+
       // Cross-field date validation: afterField
       if (field.type === 'date' && field.validation?.afterField && fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
         const afterFieldValue = formData.fields[field.validation.afterField];
@@ -275,6 +301,30 @@ export function useTemplateForm(
             const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!timeRegex.test(clauseFieldValue as string)) {
               newErrors[field.id] = `${field.label} must be a valid time (e.g., 14:30)`;
+            }
+          }
+
+          // Cross-field time validation for clause fields: afterField
+          if (field.type === 'time' && field.validation?.afterField && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const afterFieldValue = formData.fields[field.validation.afterField];
+            if (afterFieldValue !== undefined && afterFieldValue !== null && afterFieldValue !== '') {
+              const currentTime = clauseFieldValue as string;
+              const afterTime = afterFieldValue as string;
+              if (currentTime <= afterTime) {
+                newErrors[field.id] = field.validation.afterFieldMessage || `${field.label} must be after the earlier time`;
+              }
+            }
+          }
+
+          // Cross-field time validation for clause fields: beforeField
+          if (field.type === 'time' && field.validation?.beforeField && clauseFieldValue !== undefined && clauseFieldValue !== null && clauseFieldValue !== '') {
+            const beforeFieldValue = formData.fields[field.validation.beforeField];
+            if (beforeFieldValue !== undefined && beforeFieldValue !== null && beforeFieldValue !== '') {
+              const currentTime = clauseFieldValue as string;
+              const beforeTime = beforeFieldValue as string;
+              if (currentTime >= beforeTime) {
+                newErrors[field.id] = field.validation.beforeFieldMessage || `${field.label} must be before the later time`;
+              }
             }
           }
 
