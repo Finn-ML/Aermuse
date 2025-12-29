@@ -428,7 +428,7 @@ const PAGE_MARGIN = 50;
 // Signature area dimensions
 const SIGNATURE_WIDTH = 200;
 const SIGNATURE_HEIGHT = 50;
-const SIGNATURE_SPACING = 30;
+const SIGNATURE_SPACING = 45; // Increased spacing to accommodate "Sign above" and "Signed by" text
 const SIGNATURE_LABEL_HEIGHT = 20;
 
 /**
@@ -567,12 +567,8 @@ export async function generateContractPDFWithSignatureAreas(
           .lineTo(xPos + SIGNATURE_WIDTH, lineY)
           .stroke();
 
-        // Draw "Sign here" indicator
-        doc
-          .fillColor(GRAY_TEXT)
-          .fontSize(8)
-          .font('Helvetica')
-          .text('Sign above', xPos, lineY + 5);
+        // Note: "Sign above" text removed to avoid overlap with DocuSeal's "Signed by" text
+        // DocuSeal provides its own signing instructions in the signing UI
 
         // Store position for DocuSeal (y is from top of page)
         signaturePositions.push({
