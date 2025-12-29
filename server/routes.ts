@@ -21,6 +21,7 @@ import { getUserSubscription, canCreateContract } from "./services/subscription"
 import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
+import { logAdminActivity, getActivityLogs, getAvailableActions, getActiveAdmins } from "./services/adminActivity";
 import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
@@ -2260,6 +2261,16 @@ Sent at: ${new Date().toISOString()}
         return res.status(500).json({ error: "Failed to update user" });
       }
 
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "user_role_change",
+        entityType: "user",
+        entityId: id,
+        details: { oldRole: user.role, newRole: role, userEmail: user.email },
+        req,
+      });
+
       const { password, ...safeUser } = updated;
       console.log(`[ADMIN] User ${id} role changed to ${role} by ${(req.session as any).userId}`);
       res.json(safeUser);
@@ -2535,6 +2546,16 @@ Sent at: ${new Date().toISOString()}
         createdBy: (req.session as any).userId
       });
 
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "template_create",
+        entityType: "template",
+        entityId: template.id,
+        details: { templateName: name, category },
+        req,
+      });
+
       console.log(`[ADMIN] Template created: ${template.id} by ${(req.session as any).userId}`);
       res.json({ template });
     } catch (error) {
@@ -2573,6 +2594,16 @@ Sent at: ${new Date().toISOString()}
         version: (existing.version ?? 1) + 1
       });
 
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "template_update",
+        entityType: "template",
+        entityId: req.params.id,
+        details: { templateName: name, version: template?.version },
+        req,
+      });
+
       console.log(`[ADMIN] Template updated: ${template?.id} v${template?.version} by ${(req.session as any).userId}`);
       res.json({ template });
     } catch (error) {
@@ -2588,6 +2619,16 @@ Sent at: ${new Date().toISOString()}
         return res.status(404).json({ error: "Template not found" });
       }
 
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "template_deactivate",
+        entityType: "template",
+        entityId: req.params.id,
+        details: {},
+        req,
+      });
+
       console.log(`[ADMIN] Template deactivated: ${req.params.id} by ${(req.session as any).userId}`);
       res.json({ success: true });
     } catch (error) {
@@ -2602,6 +2643,16 @@ Sent at: ${new Date().toISOString()}
       if (!template) {
         return res.status(404).json({ error: "Template not found" });
       }
+
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "template_activate",
+        entityType: "template",
+        entityId: template.id,
+        details: { templateName: template.name },
+        req,
+      });
 
       console.log(`[ADMIN] Template activated: ${template.id} by ${(req.session as any).userId}`);
       res.json({ template });
@@ -2635,6 +2686,16 @@ Sent at: ${new Date().toISOString()}
         sortOrder: maxSortOrder + 1,
         version: 1,
         createdBy: (req.session as any).userId
+      });
+
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "template_clone",
+        entityType: "template",
+        entityId: cloned.id,
+        details: { originalId: original.id, originalName: original.name, clonedName: cloned.name },
+        req,
       });
 
       console.log(`[ADMIN] Template cloned: ${original.id} → ${cloned.id} by ${(req.session as any).userId}`);
@@ -2731,6 +2792,16 @@ Sent at: ${new Date().toISOString()}
         }
       }
 
+      // Log the activity
+      await logAdminActivity({
+        adminId: userId,
+        action: "settings_update",
+        entityType: "settings",
+        entityId: null,
+        details: { updatedKeys: Object.keys(updates), values: updates },
+        req,
+      });
+
       console.log(`[ADMIN] Settings updated by ${userId}:`, Object.keys(updates));
 
       // Return updated settings
@@ -2744,6 +2815,60 @@ Sent at: ${new Date().toISOString()}
     } catch (error) {
       console.error("Admin update settings error:", error);
       res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // ============================================
+  // ADMIN ACTIVITY LOG ROUTES
+  // ============================================
+
+  // GET /api/admin/activity - Get activity logs with pagination and filtering
+  app.get("/api/admin/activity", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const action = req.query.action as string | undefined;
+      const entityType = req.query.entityType as string | undefined;
+      const adminId = req.query.adminId as string | undefined;
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+
+      const result = await getActivityLogs({
+        page,
+        limit,
+        action,
+        entityType,
+        adminId,
+        dateFrom,
+        dateTo,
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Get activity logs error:", error);
+      res.status(500).json({ error: "Failed to get activity logs" });
+    }
+  });
+
+  // GET /api/admin/activity/actions - Get available action types for filtering
+  app.get("/api/admin/activity/actions", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const actions = await getAvailableActions();
+      res.json({ actions });
+    } catch (error) {
+      console.error("Get available actions error:", error);
+      res.status(500).json({ error: "Failed to get available actions" });
+    }
+  });
+
+  // GET /api/admin/activity/admins - Get list of admins with activity
+  app.get("/api/admin/activity/admins", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const admins = await getActiveAdmins();
+      res.json({ admins });
+    } catch (error) {
+      console.error("Get active admins error:", error);
+      res.status(500).json({ error: "Failed to get active admins" });
     }
   });
 
