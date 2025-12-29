@@ -13,9 +13,11 @@ interface Props {
   value: string | number | Date | null | undefined;
   onChange: (value: string | number | Date | null) => void;
   error?: string;
+  minDate?: Date | string | null;
+  maxDate?: Date | string | null;
 }
 
-export function DynamicField({ field, value, onChange, error }: Props) {
+export function DynamicField({ field, value, onChange, error, minDate, maxDate }: Props) {
   const baseInputClass = `
     w-full px-4 py-3 rounded-xl bg-white border-2 transition-all outline-none
     ${error
@@ -100,6 +102,8 @@ export function DynamicField({ field, value, onChange, error }: Props) {
             type="date"
             value={value ? formatDateForInput(value as Date | string) : ''}
             onChange={(e) => onChange(e.target.value ? new Date(e.target.value) : null)}
+            min={minDate ? formatDateForInput(minDate) : undefined}
+            max={maxDate ? formatDateForInput(maxDate) : undefined}
             className={baseInputClass}
             data-testid={`field-${field.id}`}
           />

@@ -72,16 +72,46 @@ export function ClauseToggle({
           style={{ background: 'rgba(255, 255, 255, 0.6)' }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            {clause.fields.map(field => (
-              <div key={field.id} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
-                <DynamicField
-                  field={field}
-                  value={fieldValues[field.id]}
-                  onChange={(value) => onFieldChange(field.id, value)}
-                  error={errors[field.id]}
-                />
-              </div>
-            ))}
+            {clause.fields.map(field => {
+              // Compute min/max date constraints from afterField/beforeField validation
+              let minDate: Date | string | null | undefined;
+              let maxDate: Date | string | null | undefined;
+
+              if (field.type === 'date' && field.validation?.afterField) {
+                const afterValue = fieldValues[field.validation.afterField];
+                if (afterValue) {
+                  // Set min to the day after the afterField date
+                  const afterDate = afterValue instanceof Date ? afterValue : new Date(afterValue as string);
+                  const minDateValue = new Date(afterDate);
+                  minDateValue.setDate(minDateValue.getDate() + 1);
+                  minDate = minDateValue;
+                }
+              }
+
+              if (field.type === 'date' && field.validation?.beforeField) {
+                const beforeValue = fieldValues[field.validation.beforeField];
+                if (beforeValue) {
+                  // Set max to the day before the beforeField date
+                  const beforeDate = beforeValue instanceof Date ? beforeValue : new Date(beforeValue as string);
+                  const maxDateValue = new Date(beforeDate);
+                  maxDateValue.setDate(maxDateValue.getDate() - 1);
+                  maxDate = maxDateValue;
+                }
+              }
+
+              return (
+                <div key={field.id} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                  <DynamicField
+                    field={field}
+                    value={fieldValues[field.id]}
+                    onChange={(value) => onFieldChange(field.id, value)}
+                    error={errors[field.id]}
+                    minDate={minDate}
+                    maxDate={maxDate}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
