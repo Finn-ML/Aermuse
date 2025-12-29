@@ -13,7 +13,7 @@ export const livePerformanceAgreementTemplate: TemplateDefinition = {
   category: 'touring',
   isActive: true,
   sortOrder: 20,
-  version: 1,
+  version: 2,
 
   fields: [
     // Agreement Details
