@@ -101,7 +101,35 @@ export function DynamicField({ field, value, onChange, error, minDate, maxDate }
           <input
             type="date"
             value={value ? formatDateForInput(value as Date | string) : ''}
-            onChange={(e) => onChange(e.target.value ? new Date(e.target.value) : null)}
+            onChange={(e) => {
+              if (!e.target.value) {
+                onChange(null);
+                return;
+              }
+              const selectedDate = new Date(e.target.value);
+
+              // Validate against min date
+              if (minDate) {
+                const minDateObj = typeof minDate === 'string' ? new Date(minDate) : minDate;
+                if (selectedDate < minDateObj) {
+                  // Reject the selection - don't update
+                  e.target.value = value ? formatDateForInput(value as Date | string) : '';
+                  return;
+                }
+              }
+
+              // Validate against max date
+              if (maxDate) {
+                const maxDateObj = typeof maxDate === 'string' ? new Date(maxDate) : maxDate;
+                if (selectedDate > maxDateObj) {
+                  // Reject the selection - don't update
+                  e.target.value = value ? formatDateForInput(value as Date | string) : '';
+                  return;
+                }
+              }
+
+              onChange(selectedDate);
+            }}
             min={minDate ? formatDateForInput(minDate) : undefined}
             max={maxDate ? formatDateForInput(maxDate) : undefined}
             className={baseInputClass}
