@@ -9,6 +9,7 @@ import { ColorPicker } from '@/components/landing/ColorPicker';
 import { FontSelector } from '@/components/landing/FontSelector';
 import { ButtonStylePicker } from '@/components/landing/ButtonStylePicker';
 import { BackgroundEditor } from '@/components/landing/BackgroundEditor';
+import { ImageCropModal } from '@/components/ImageCropModal';
 import type { ThemePreset, ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
 // Avatar position options
@@ -31,6 +32,9 @@ function AvatarUpload({ avatarUrl, onUpload, onRemove }: AvatarUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [originalFileName, setOriginalFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,16 +55,40 @@ function AvatarUpload({ avatarUrl, onUpload, onRemove }: AvatarUploadProps) {
     }
 
     setError(null);
+    setOriginalFileName(file.name);
+
+    // Read file and open crop modal
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setImageToCrop(dataUrl);
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setShowCropModal(false);
+    setImageToCrop(null);
 
     // Show preview immediately
-    const reader = new FileReader();
-    reader.onload = (e) => setPreviewUrl(e.target?.result as string);
-    reader.readAsDataURL(file);
+    const previewDataUrl = URL.createObjectURL(croppedBlob);
+    setPreviewUrl(previewDataUrl);
+
+    // Create a File from the Blob for upload
+    const croppedFile = new File([croppedBlob], originalFileName || 'avatar.jpg', {
+      type: 'image/jpeg',
+    });
 
     // Upload
     setIsUploading(true);
     try {
-      await onUpload(file);
+      await onUpload(croppedFile);
       setPreviewUrl(null); // Clear preview on success (URL now comes from avatarUrl prop)
     } catch (err) {
       console.error('Avatar upload failed:', err);
@@ -69,10 +97,13 @@ function AvatarUpload({ avatarUrl, onUpload, onRemove }: AvatarUploadProps) {
     }
     setIsUploading(false);
 
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    // Clean up the object URL
+    URL.revokeObjectURL(previewDataUrl);
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setImageToCrop(null);
   };
 
   const displayUrl = previewUrl || avatarUrl;
@@ -130,6 +161,19 @@ function AvatarUpload({ avatarUrl, onUpload, onRemove }: AvatarUploadProps) {
       <p className="text-xs text-[rgba(102,0,51,0.4)]">
         Accepted: JPG, PNG, WebP. Max 2MB.
       </p>
+
+      {/* Image Crop Modal */}
+      {imageToCrop && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          imageSrc={imageToCrop}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+          aspectRatio={1}
+          cropShape="round"
+          title="Crop Avatar"
+        />
+      )}
     </div>
   );
 }

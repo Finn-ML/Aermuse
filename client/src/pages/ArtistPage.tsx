@@ -299,7 +299,7 @@ export default function ArtistPage() {
 
             {/* Social Icons - right after bio */}
             {showSocialBar && socialIcons.length > 0 && (
-              <div className={`flex gap-4 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
+              <div className={`flex gap-4 mb-6 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
                 {socialIcons
                   .sort((a, b) => a.order - b.order)
                   .map((icon) => (
@@ -320,6 +320,16 @@ export default function ArtistPage() {
                   ))}
               </div>
             )}
+
+            {/* Send Proposal Button - under profile and bio */}
+            <div className={`mt-6 ${layout === 'centered' ? 'flex justify-center' : layout === 'right' ? 'flex justify-end' : ''}`}>
+              <SendProposalButton
+                landingPageId={page.id}
+                artistName={page.artistName}
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+              />
+            </div>
 
           </div>
         </div>
@@ -446,36 +456,6 @@ export default function ArtistPage() {
           </div>
         </section>
       )}
-
-      {/* Footer CTA */}
-      <section
-        className="py-10 px-4 relative z-10"
-        style={{ backgroundColor: `${textColor}10` }}
-      >
-        <div className="max-w-4xl mx-auto text-center">
-          <h2
-            className="text-2xl font-bold mb-4"
-            style={{
-              color: textColor,
-              fontFamily: `"${headingFont}", system-ui, sans-serif`,
-            }}
-          >
-            Interested in working together?
-          </h2>
-          <p
-            className="mb-6"
-            style={{ color: `${textColor}99` }}
-          >
-            Send a proposal to discuss collaboration, licensing, booking, and more.
-          </p>
-          <SendProposalButton
-            landingPageId={page.id}
-            artistName={page.artistName}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-          />
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="py-6 px-4 text-center relative z-10">

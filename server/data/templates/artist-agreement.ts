@@ -5,7 +5,7 @@
  * The most commonly used template for collaborations between artists, producers, and creatives.
  */
 
-import type { TemplateContent, TemplateField, OptionalClause } from "../../../shared/types/templates";
+import type { TemplateContent, TemplateField, OptionalClause, PersonaGroup } from "../../../shared/types/templates";
 
 export interface TemplateDefinition {
   name: string;
@@ -16,6 +16,7 @@ export interface TemplateDefinition {
   version: number;
   fields: TemplateField[];
   optionalClauses: OptionalClause[];
+  personaGroups?: PersonaGroup[];
   content: TemplateContent;
 }
 

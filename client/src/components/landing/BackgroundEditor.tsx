@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import type { BackgroundType, BackgroundOverlay, GradientConfig, GradientDirection } from "@shared/themes";
 import { GRADIENT_DIRECTIONS, generateGradientCSS, parseGradientCSS } from "@shared/themes";
 import { ColorPicker } from "./ColorPicker";
+import { ImageCropModal } from "@/components/ImageCropModal";
 
 interface BackgroundEditorProps {
   backgroundType: BackgroundType;
@@ -48,6 +49,9 @@ export function BackgroundEditor({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [originalFileName, setOriginalFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Parse gradient from backgroundValue if it's a gradient type
@@ -80,17 +84,41 @@ export function BackgroundEditor({
     }
 
     setUploadError(null);
+    setOriginalFileName(file.name);
 
-    // Show preview immediately using FileReader (Story 9.13)
+    // Read file and open crop modal
     const reader = new FileReader();
-    reader.onload = (e) => setPreviewUrl(e.target?.result as string);
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setImageToCrop(dataUrl);
+      setShowCropModal(true);
+    };
     reader.readAsDataURL(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setShowCropModal(false);
+    setImageToCrop(null);
+
+    // Show preview immediately
+    const previewDataUrl = URL.createObjectURL(croppedBlob);
+    setPreviewUrl(previewDataUrl);
+
+    // Create a File from the Blob for upload
+    const croppedFile = new File([croppedBlob], originalFileName || 'background.jpg', {
+      type: 'image/jpeg',
+    });
 
     setIsUploading(true);
 
     try {
       if (onImageUpload) {
-        const url = await onImageUpload(file);
+        const url = await onImageUpload(croppedFile);
         onBackgroundValueChange(url);
         setPreviewUrl(null); // Clear preview, use uploaded URL
       }
@@ -99,11 +127,14 @@ export function BackgroundEditor({
       setPreviewUrl(null);
     } finally {
       setIsUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      // Clean up the object URL
+      URL.revokeObjectURL(previewDataUrl);
     }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setImageToCrop(null);
   };
 
   return (
@@ -336,6 +367,19 @@ export function BackgroundEditor({
           ))}
         </div>
       </div>
+
+      {/* Image Crop Modal */}
+      {imageToCrop && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          imageSrc={imageToCrop}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+          aspectRatio={16 / 9}
+          cropShape="rect"
+          title="Crop Background Image"
+        />
+      )}
     </div>
   );
 }

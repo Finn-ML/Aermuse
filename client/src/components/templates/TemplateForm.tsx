@@ -10,10 +10,31 @@ import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2 } from 'lucide-r
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useTemplateForm } from '@/hooks/useTemplateForm';
-import { DynamicField } from './DynamicField';
+import { useAuth } from '@/lib/auth';
+import { DynamicField, type FieldSuggestion } from './DynamicField';
 import { ClauseToggle } from './ClauseToggle';
+import { PersonaSection } from './PersonaSection';
 import type { ContractTemplate } from '@shared/schema';
-import type { TemplateField, OptionalClause, TemplateFormData } from '@shared/types/templates';
+import type { TemplateField, OptionalClause, TemplateFormData, PersonaGroup } from '@shared/types/templates';
+
+// Keywords that indicate a field might benefit from artist name suggestion
+const ARTIST_NAME_FIELD_KEYWORDS = [
+  'artist',
+  'performer',
+  'talent',
+  'musician',
+  'band',
+  'act',
+  'your name',
+  'your_name',
+  'client name',
+  'client_name',
+  'party a',
+  'party_a',
+  'first party',
+  'licensee',
+  'licensor',
+];
 
 interface Props {
   template: ContractTemplate;
@@ -27,8 +48,41 @@ interface Props {
 export function TemplateForm({ template, onBack, onPreview, initialData, proposalId, onContractSaved }: Props) {
   const templateFields = (template.fields || []) as TemplateField[];
   const templateClauses = (template.optionalClauses || []) as OptionalClause[];
+  const personaGroups = (template.personaGroups || []) as PersonaGroup[];
   const queryClient = useQueryClient();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const { user } = useAuth();
+
+  // Get suggestions for a field based on its label/id
+  const getSuggestionsForField = (field: TemplateField): FieldSuggestion[] => {
+    const suggestions: FieldSuggestion[] = [];
+
+    // Only show suggestions for text fields
+    if (field.type !== 'text' && field.type !== 'textarea') {
+      return suggestions;
+    }
+
+    // Check if this field might benefit from artist name suggestion
+    const fieldLabel = (field.label || '').toLowerCase();
+    const fieldId = (field.id || '').toLowerCase();
+    const fieldPlaceholder = (field.placeholder || '').toLowerCase();
+
+    const matchesArtistKeyword = ARTIST_NAME_FIELD_KEYWORDS.some(keyword =>
+      fieldLabel.includes(keyword) ||
+      fieldId.includes(keyword) ||
+      fieldPlaceholder.includes(keyword)
+    );
+
+    if (matchesArtistKeyword && user?.artistName) {
+      suggestions.push({
+        label: 'Your Artist Name',
+        value: user.artistName,
+        icon: 'user',
+      });
+    }
+
+    return suggestions;
+  };
 
   const {
     formData,
@@ -36,6 +90,9 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
     isDirty,
     updateField,
     toggleClause,
+    addPersona,
+    removePersona,
+    updatePersonaField,
     validate,
     clearDraft,
     saveDraft,
@@ -174,11 +231,37 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
                       error={errors[field.id]}
                       minDate={minDate}
                       maxDate={maxDate}
+                      suggestions={getSuggestionsForField(field)}
                     />
                   </div>
                 );
               })}
             </div>
+          </div>
+        ))}
+
+        {/* Persona Groups (Dynamic Artists/Producers/Signatories) */}
+        {personaGroups.map(group => (
+          <div
+            key={group.id}
+            className="rounded-[20px] p-7"
+            style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+          >
+            <PersonaSection
+              group={group}
+              personas={formData.personas?.[group.id] || []}
+              onAddPersona={() => addPersona(group.id)}
+              onRemovePersona={(personaId) => removePersona(group.id, personaId)}
+              onUpdatePersonaField={(personaId, fieldId, value) =>
+                updatePersonaField(group.id, personaId, fieldId, value)
+              }
+              errors={errors}
+              getSuggestionsForField={(field) => getSuggestionsForField(field)}
+            />
+            {/* Show count error if exists */}
+            {errors[`${group.id}_count`] && (
+              <p className="mt-2 text-sm text-[#dc3545]">{errors[`${group.id}_count`]}</p>
+            )}
           </div>
         ))}
 

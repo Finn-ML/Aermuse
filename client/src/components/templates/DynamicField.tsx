@@ -5,8 +5,14 @@
  * Renders the appropriate input for each field type.
  */
 
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, User, Sparkles } from 'lucide-react';
 import type { TemplateField } from '@shared/types/templates';
+
+export interface FieldSuggestion {
+  label: string;
+  value: string;
+  icon?: 'user' | 'sparkles';
+}
 
 interface Props {
   field: TemplateField;
@@ -15,9 +21,10 @@ interface Props {
   error?: string;
   minDate?: Date | string | null;
   maxDate?: Date | string | null;
+  suggestions?: FieldSuggestion[];
 }
 
-export function DynamicField({ field, value, onChange, error, minDate, maxDate }: Props) {
+export function DynamicField({ field, value, onChange, error, minDate, maxDate, suggestions }: Props) {
   const baseInputClass = `
     w-full px-4 py-3 rounded-xl bg-white border-2 transition-all outline-none
     ${error
@@ -178,6 +185,24 @@ export function DynamicField({ field, value, onChange, error, minDate, maxDate }
     }
   };
 
+  // Filter suggestions to only show ones not already used as the current value
+  const availableSuggestions = suggestions?.filter(s => s.value !== value) || [];
+
+  const handleSuggestionClick = (suggestion: FieldSuggestion) => {
+    onChange(suggestion.value);
+  };
+
+  const getSuggestionIcon = (icon?: 'user' | 'sparkles') => {
+    switch (icon) {
+      case 'user':
+        return <User size={12} />;
+      case 'sparkles':
+        return <Sparkles size={12} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-1.5">
       <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)]">
@@ -186,6 +211,27 @@ export function DynamicField({ field, value, onChange, error, minDate, maxDate }
       </label>
 
       {renderInput()}
+
+      {/* Suggestions */}
+      {availableSuggestions.length > 0 && (field.type === 'text' || field.type === 'textarea') && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          <span className="text-[10px] text-[rgba(102,0,51,0.4)] uppercase tracking-wide self-center mr-1">
+            Insert:
+          </span>
+          {availableSuggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => handleSuggestionClick(suggestion)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)] rounded-full transition-all hover:scale-105"
+              title={`Insert "${suggestion.value}"`}
+            >
+              {getSuggestionIcon(suggestion.icon)}
+              {suggestion.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {field.helpText && !error && (
         <p className="text-xs text-[rgba(102,0,51,0.5)]">{field.helpText}</p>

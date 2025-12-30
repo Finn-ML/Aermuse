@@ -41,6 +41,7 @@ export async function seedTemplates(): Promise<void> {
         content: template.content,
         fields: template.fields,
         optionalClauses: template.optionalClauses,
+        personaGroups: template.personaGroups || [],
         isActive: template.isActive,
         sortOrder: template.sortOrder,
         version: template.version,
@@ -93,6 +94,7 @@ export async function updateTemplates(): Promise<void> {
           content: template.content,
           fields: template.fields,
           optionalClauses: template.optionalClauses,
+          personaGroups: template.personaGroups || [],
           version: template.version,
           updatedAt: new Date(),
         })

@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ContractTemplate } from '@shared/schema';
-import type { TemplateField, OptionalClause, TemplateFormData } from '@shared/types/templates';
+import type { TemplateField, OptionalClause, TemplateFormData, PersonaGroup, PersonaInstance } from '@shared/types/templates';
 
 const AUTOSAVE_INTERVAL = 30000; // 30 seconds
 
@@ -17,10 +17,33 @@ interface UseTemplateFormReturn {
   isDirty: boolean;
   updateField: (fieldId: string, value: string | number | Date | null) => void;
   toggleClause: (clauseId: string) => void;
+  // Persona management
+  addPersona: (groupId: string) => void;
+  removePersona: (groupId: string, personaId: string) => void;
+  updatePersonaField: (groupId: string, personaId: string, fieldId: string, value: string | number | Date | null) => void;
   validate: () => boolean;
   clearDraft: () => void;
   saveDraft: () => void;
   lastSaved: Date | null;
+}
+
+// Generate a unique ID for persona instances
+function generatePersonaId(): string {
+  return `persona_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+// Create a new persona instance with default values
+function createPersonaInstance(group: PersonaGroup): PersonaInstance {
+  const values: Record<string, string | number | Date | null> = {};
+  for (const field of group.fields) {
+    if (field.defaultValue !== undefined) {
+      values[field.id] = field.defaultValue as string | number | Date | null;
+    }
+  }
+  return {
+    id: generatePersonaId(),
+    values,
+  };
 }
 
 export function useTemplateForm(
@@ -33,6 +56,7 @@ export function useTemplateForm(
   // Get fields from template
   const templateFields = (template.fields || []) as TemplateField[];
   const templateClauses = (template.optionalClauses || []) as OptionalClause[];
+  const personaGroups = (template.personaGroups || []) as PersonaGroup[];
 
   // Initialize from localStorage or defaults
   const getInitialData = useCallback((): TemplateFormData => {
@@ -53,6 +77,19 @@ export function useTemplateForm(
             for (const field of clause.fields) {
               if (field.type === 'date' && parsed.fields[field.id]) {
                 parsed.fields[field.id] = new Date(parsed.fields[field.id]);
+              }
+            }
+          }
+        }
+        // Restore Date objects for persona fields
+        if (parsed.personas) {
+          for (const group of personaGroups) {
+            const groupPersonas = parsed.personas[group.id] || [];
+            for (const persona of groupPersonas) {
+              for (const field of group.fields) {
+                if (field.type === 'date' && persona.values[field.id]) {
+                  persona.values[field.id] = new Date(persona.values[field.id]);
+                }
               }
             }
           }
@@ -93,8 +130,17 @@ export function useTemplateForm(
       .filter(c => c.defaultEnabled)
       .map(c => c.id);
 
-    return { fields, enabledClauses };
-  }, [storageKey, templateFields, templateClauses, initialData]);
+    // Initialize personas with minCount instances for each group
+    const personas: Record<string, PersonaInstance[]> = {};
+    for (const group of personaGroups) {
+      personas[group.id] = [];
+      for (let i = 0; i < group.minCount; i++) {
+        personas[group.id].push(createPersonaInstance(group));
+      }
+    }
+
+    return { fields, enabledClauses, personas };
+  }, [storageKey, templateFields, templateClauses, personaGroups, initialData]);
 
   const [formData, setFormData] = useState<TemplateFormData>(getInitialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -182,6 +228,97 @@ export function useTemplateForm(
       };
     });
     setIsDirty(true);
+  }, []);
+
+  // Persona management
+  const addPersona = useCallback((groupId: string) => {
+    const group = personaGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    setFormData(prev => {
+      const currentPersonas = prev.personas?.[groupId] || [];
+      if (currentPersonas.length >= group.maxCount) return prev;
+
+      return {
+        ...prev,
+        personas: {
+          ...prev.personas,
+          [groupId]: [...currentPersonas, createPersonaInstance(group)],
+        },
+      };
+    });
+    setIsDirty(true);
+  }, [personaGroups]);
+
+  const removePersona = useCallback((groupId: string, personaId: string) => {
+    const group = personaGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    setFormData(prev => {
+      const currentPersonas = prev.personas?.[groupId] || [];
+      if (currentPersonas.length <= group.minCount) return prev;
+
+      return {
+        ...prev,
+        personas: {
+          ...prev.personas,
+          [groupId]: currentPersonas.filter(p => p.id !== personaId),
+        },
+      };
+    });
+    setIsDirty(true);
+
+    // Clear errors for removed persona
+    setErrors(prev => {
+      const next = { ...prev };
+      const keysToRemove = Object.keys(next).filter(key => key.includes(personaId));
+      for (const key of keysToRemove) {
+        delete next[key];
+      }
+      return next;
+    });
+  }, [personaGroups]);
+
+  const updatePersonaField = useCallback((
+    groupId: string,
+    personaId: string,
+    fieldId: string,
+    value: string | number | Date | null
+  ) => {
+    setFormData(prev => {
+      const currentPersonas = prev.personas?.[groupId] || [];
+      const personaIndex = currentPersonas.findIndex(p => p.id === personaId);
+      if (personaIndex === -1) return prev;
+
+      const updatedPersonas = [...currentPersonas];
+      updatedPersonas[personaIndex] = {
+        ...updatedPersonas[personaIndex],
+        values: {
+          ...updatedPersonas[personaIndex].values,
+          [fieldId]: value,
+        },
+      };
+
+      return {
+        ...prev,
+        personas: {
+          ...prev.personas,
+          [groupId]: updatedPersonas,
+        },
+      };
+    });
+    setIsDirty(true);
+
+    // Clear error on change
+    const errorKey = `${groupId}_${personaId}_${fieldId}`;
+    setErrors(prev => {
+      if (prev[errorKey]) {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      }
+      return prev;
+    });
   }, []);
 
   const validate = useCallback((): boolean => {
@@ -361,9 +498,54 @@ export function useTemplateForm(
       }
     }
 
+    // Validate persona fields
+    for (const group of personaGroups) {
+      const groupPersonas = formData.personas?.[group.id] || [];
+
+      // Check minimum count
+      if (groupPersonas.length < group.minCount) {
+        newErrors[`${group.id}_count`] = `At least ${group.minCount} ${group.minCount === 1 ? group.singularName.toLowerCase() : group.pluralName.toLowerCase()} required`;
+      }
+
+      // Validate each persona's fields
+      for (let i = 0; i < groupPersonas.length; i++) {
+        const persona = groupPersonas[i];
+        for (const field of group.fields) {
+          const errorKey = `${group.id}_${i}_${field.id}`;
+          const value = persona.values[field.id];
+
+          // Required validation
+          if (field.required) {
+            if (value === undefined || value === null || value === '') {
+              newErrors[errorKey] = `${field.label} is required`;
+            }
+          }
+
+          // Number range validation
+          if (field.type === 'number' && field.validation && value !== undefined && value !== null) {
+            const numValue = value as number;
+            if (field.validation.min !== undefined && numValue < field.validation.min) {
+              newErrors[errorKey] = `Must be at least ${field.validation.min}`;
+            }
+            if (field.validation.max !== undefined && numValue > field.validation.max) {
+              newErrors[errorKey] = `Must be at most ${field.validation.max}`;
+            }
+          }
+
+          // Time format validation
+          if (field.type === 'time' && value !== undefined && value !== null && value !== '') {
+            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(value as string)) {
+              newErrors[errorKey] = `${field.label} must be a valid time (e.g., 14:30)`;
+            }
+          }
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [templateFields, templateClauses, formData]);
+  }, [templateFields, templateClauses, personaGroups, formData]);
 
   const saveDraft = useCallback(() => {
     localStorage.setItem(storageKey, JSON.stringify(formData));
@@ -385,6 +567,9 @@ export function useTemplateForm(
     isDirty,
     updateField,
     toggleClause,
+    addPersona,
+    removePersona,
+    updatePersonaField,
     validate,
     clearDraft,
     saveDraft,

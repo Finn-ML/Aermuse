@@ -2516,7 +2516,7 @@ Sent at: ${new Date().toISOString()}
 
   app.post("/api/admin/templates", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const { name, description, category, content, fields, optionalClauses } = req.body;
+      const { name, description, category, content, fields, optionalClauses, personaGroups } = req.body;
 
       // Validate template structure
       const validation = validateTemplateStructure({
@@ -2540,6 +2540,7 @@ Sent at: ${new Date().toISOString()}
         content,
         fields: fields || [],
         optionalClauses: optionalClauses || [],
+        personaGroups: personaGroups || [],
         isActive: true,
         sortOrder: maxSortOrder + 1,
         version: 1,
@@ -2682,6 +2683,7 @@ Sent at: ${new Date().toISOString()}
         content: original.content,
         fields: original.fields,
         optionalClauses: original.optionalClauses,
+        personaGroups: original.personaGroups || [],
         isActive: true,
         sortOrder: maxSortOrder + 1,
         version: 1,

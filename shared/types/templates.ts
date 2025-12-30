@@ -85,6 +85,43 @@ export interface OptionalClause {
 }
 
 /**
+ * Persona group definition for repeatable field sections
+ * (e.g., artists, producers, signatories that can be added/removed)
+ */
+export interface PersonaGroup {
+  id: string; // e.g., 'artists', 'producers', 'signatories'
+  singularName: string; // e.g., 'Artist', 'Producer', 'Signatory'
+  pluralName: string; // e.g., 'Artists', 'Producers', 'Signatories'
+  description?: string;
+  minCount: number; // Minimum required (usually 1 or 2)
+  maxCount: number; // Maximum allowed (up to 10)
+  fields: PersonaField[]; // Fields for each persona instance
+}
+
+/**
+ * Field within a persona group (similar to TemplateField but for personas)
+ */
+export interface PersonaField {
+  id: string; // Base field id (will be suffixed with persona index)
+  label: string; // Base label (persona name will be prefixed)
+  type: FieldType;
+  placeholder?: string;
+  required: boolean;
+  defaultValue?: string | number;
+  options?: SelectOption[];
+  validation?: FieldValidation;
+  helpText?: string;
+}
+
+/**
+ * Instance of a persona with filled-in values
+ */
+export interface PersonaInstance {
+  id: string; // Unique ID for this persona instance
+  values: Record<string, string | number | Date | null>;
+}
+
+/**
  * Template categories
  */
 export type TemplateCategory =
@@ -100,6 +137,7 @@ export type TemplateCategory =
 export interface TemplateFormData {
   fields: Record<string, string | number | Date | null>;
   enabledClauses: string[];
+  personas?: Record<string, PersonaInstance[]>; // Grouped by persona group id
 }
 
 /**
@@ -113,6 +151,7 @@ export interface ContractTemplate {
   content: TemplateContent;
   fields: TemplateField[];
   optionalClauses: OptionalClause[];
+  personaGroups?: PersonaGroup[]; // Dynamic persona sections
   isActive: boolean;
   sortOrder: number;
   version: number;
@@ -131,6 +170,7 @@ export interface InsertContractTemplate {
   content: TemplateContent;
   fields: TemplateField[];
   optionalClauses?: OptionalClause[];
+  personaGroups?: PersonaGroup[]; // Dynamic persona sections
   isActive?: boolean;
   sortOrder?: number;
   version?: number;

@@ -2,7 +2,7 @@ import { sql, relations } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, inet, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData } from "./types/templates";
+import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData, PersonaGroup } from "./types/templates";
 
 // Session table for connect-pg-simple (persistent auth sessions)
 export const sessions = pgTable("session", {
@@ -68,6 +68,7 @@ export const contractTemplates = pgTable("contract_templates", {
   content: jsonb("content").notNull().$type<TemplateContent>(),
   fields: jsonb("fields").notNull().$type<TemplateField[]>().default([]),
   optionalClauses: jsonb("optional_clauses").$type<OptionalClause[]>().default([]),
+  personaGroups: jsonb("persona_groups").$type<PersonaGroup[]>().default([]),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
   version: integer("version").default(1),
