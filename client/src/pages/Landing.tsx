@@ -161,8 +161,8 @@ export default function Landing() {
       <nav
         className={`flex justify-between items-center relative z-10 transition-opacity duration-1000 px-4 sm:px-8 md:px-12 lg:px-20 py-6 sm:py-8 lg:py-10 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="text-xl sm:text-2xl lg:text-[28px] font-light tracking-[0.3em] lowercase">
-          aermuse
+        <div className="text-xl sm:text-2xl lg:text-[28px] font-light tracking-[0.3em]">
+          AERMUSE
         </div>
         {/* Desktop nav */}
         <div className="hidden md:flex gap-6 lg:gap-12 items-center">
@@ -199,8 +199,8 @@ export default function Landing() {
             style={{ boxShadow: '-10px 0 40px rgba(102, 0, 51, 0.2)' }}
           >
             <div className="flex justify-between items-center mb-8">
-              <div className="text-xl font-light tracking-[0.25em] lowercase text-[#660033]">
-                aermuse
+              <div className="text-xl font-light tracking-[0.25em] text-[#660033]">
+                AERMUSE
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -638,12 +638,12 @@ export default function Landing() {
       </section>
 
       <footer className="flex flex-col sm:flex-row justify-between items-center gap-6 sm:gap-4 px-4 sm:px-8 md:px-12 lg:px-20 py-8 sm:py-12 lg:py-16">
-        <div className="text-lg sm:text-xl font-light tracking-[0.25em] lowercase">
-          aermuse
+        <div className="text-lg sm:text-xl font-light tracking-[0.25em]">
+          AERMUSE
         </div>
         <div className="flex gap-6 sm:gap-10">
           <Link href="/privacy" className="nav-link text-sm">Privacy</Link>
-          <a href="#" className="nav-link text-sm">Terms</a>
+          <Link href="/terms" className="nav-link text-sm">Terms</Link>
           <a href="mailto:hello@aermuse.com" className="nav-link text-sm">Contact</a>
         </div>
         <div

@@ -41,6 +41,8 @@ export const users = pgTable("users", {
   subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false),
   // Epic 12: Subscription Tier
   subscriptionTier: text("subscription_tier").default("free").$type<SubscriptionTier>(),
+  // AI Disclaimer acceptance
+  aiDisclaimerAcceptedAt: timestamp("ai_disclaimer_accepted_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

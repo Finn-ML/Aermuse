@@ -150,8 +150,8 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   {
     id: 'aermuse-classic',
-    name: 'Aermuse Classic',
-    description: 'The signature Aermuse look',
+    name: 'AERMUSE Classic',
+    description: 'The signature AERMUSE look',
     primaryColor: '#660033',
     secondaryColor: '#F7E6CA',
     accentColor: '#8B0045',

@@ -13,8 +13,11 @@ import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { UpgradePrompt } from '../components/UpgradePrompt';
 import { BlurredUpgradeOverlay } from '../components/BlurredUpgradeOverlay';
+import { AIDisclaimerModal } from '../components/contracts/AIDisclaimerModal';
 import { useContractAnalysis } from '../hooks/useContractAnalysis';
 import { usePremium } from '../hooks/usePremium';
+import { useAuth } from '../lib/auth';
+import { queryClient } from '../lib/queryClient';
 import { Contract, ContractAnalysis, ContractVersion } from '../types';
 import GrainOverlay from '../components/GrainOverlay';
 import { useToast } from '../hooks/use-toast';
@@ -35,7 +38,39 @@ export default function ContractView() {
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
   const { toast } = useToast();
   const { isPremium, canAccess } = usePremium();
+  const { user } = useAuth();
   const isMountedRef = useRef(true);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [disclaimerLoading, setDisclaimerLoading] = useState(false);
+
+  // Check if user has accepted AI disclaimer
+  const hasAcceptedDisclaimer = !!user?.aiDisclaimerAcceptedAt;
+
+  const handleAcceptDisclaimer = async () => {
+    setDisclaimerLoading(true);
+    try {
+      const response = await fetch('/api/user/accept-ai-disclaimer', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to accept disclaimer');
+      }
+
+      // Refresh user data to update the accepted timestamp
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      setShowDisclaimerModal(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save your acknowledgment. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDisclaimerLoading(false);
+    }
+  };
 
   const fetchContract = useCallback(async () => {
     if (!id) return;
@@ -465,6 +500,7 @@ export default function ContractView() {
             </button>
           </div>
         ) : displayAnalysis ? (
+          hasAcceptedDisclaimer ? (
           <>
             {/* Dashboard Grid Layout - responsive */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -555,6 +591,37 @@ export default function ContractView() {
               <LegalDisclaimer variant="footer" />
             </div>
           </>
+          ) : (
+            /* Disclaimer not yet accepted - show prompt */
+            <div
+              className={`rounded-[20px] p-8 sm:p-12 text-center transition-all duration-500 ${
+                isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}
+              style={{ background: 'rgba(255, 255, 255, 0.6)', transitionDelay: '400ms' }}
+            >
+              <div
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+              >
+                <Shield size={32} className="sm:w-9 sm:h-9 text-[#F7E6CA]" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-[#660033] mb-3">
+                AI Analysis Ready
+              </h3>
+              <p className="text-[rgba(102,0,51,0.7)] text-sm sm:text-base mb-6 max-w-md mx-auto">
+                Before viewing the AI-powered analysis, please read and acknowledge our
+                disclaimer about the limitations of AI contract analysis.
+              </p>
+              <button
+                onClick={() => setShowDisclaimerModal(true)}
+                className="px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold text-[#F7E6CA] transition-all hover:scale-105 flex items-center gap-2 mx-auto"
+                style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+              >
+                <Sparkles className="h-5 w-5" />
+                View AI Disclaimer
+              </button>
+            </div>
+          )
         ) : !contract.extractedText ? (
           <div
             className={`rounded-[20px] p-12 text-center transition-all duration-500 ${
@@ -675,6 +742,13 @@ export default function ContractView() {
           </button>
         </div>
       )}
+
+      {/* AI Disclaimer Modal */}
+      <AIDisclaimerModal
+        isOpen={showDisclaimerModal}
+        onAccept={handleAcceptDisclaimer}
+        isLoading={disclaimerLoading}
+      />
     </div>
   );
 }

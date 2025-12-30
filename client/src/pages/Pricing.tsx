@@ -286,8 +286,12 @@ export default function Pricing() {
 
       {/* Footer */}
       <footer className="bg-white py-8 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-gray-600">
           <p>&copy; {new Date().getFullYear()} AERMUSE. All rights reserved.</p>
+          <div className="flex gap-6 text-sm">
+            <Link href="/terms" className="hover:text-[#660033] transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-[#660033] transition-colors">Privacy</Link>
+          </div>
         </div>
       </footer>
     </div>

@@ -63,10 +63,10 @@ export default function VerifyEmail() {
         >
           <Link href="/">
             <div
-              className="text-5xl font-light tracking-[0.3em] lowercase text-[#F7E6CA] mb-6 cursor-pointer"
+              className="text-5xl font-light tracking-[0.3em] text-[#F7E6CA] mb-6 cursor-pointer"
               style={{ textShadow: '0 4px 30px rgba(102, 0, 51, 0.3)' }}
             >
-              aermuse
+              AERMUSE
             </div>
           </Link>
           <p className="text-lg font-normal text-[rgba(247,230,202,0.8)] max-w-[300px] leading-[1.6]">

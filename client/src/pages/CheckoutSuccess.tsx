@@ -114,7 +114,7 @@ export default function CheckoutSuccess() {
         </h1>
 
         <p className="text-[#660033]/70 mb-8">
-          Welcome to Aermuse Premium. Your full access is now active.
+          Welcome to AERMUSE Premium. Your full access is now active.
         </p>
 
         <div className="bg-[#F7E6CA]/50 rounded-xl p-5 mb-8">

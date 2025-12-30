@@ -1,8 +1,13 @@
+import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function Privacy() {
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -20,7 +25,7 @@ export default function Privacy() {
         <div className="prose prose-sm max-w-none bg-white rounded-lg border p-8">
           <h2>Overview</h2>
           <p>
-            Aermuse is committed to protecting your privacy. This policy explains
+            AERMUSE is committed to protecting your privacy. This policy explains
             how we collect, use, and safeguard your information when you use our
             platform.
           </p>

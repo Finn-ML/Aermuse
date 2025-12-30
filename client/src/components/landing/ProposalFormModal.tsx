@@ -296,7 +296,7 @@ export function ProposalFormModal({
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            By submitting, you agree to our Terms of Service and Privacy Policy.
+            By submitting, you agree to our <a href="/terms" target="_blank" className="underline hover:text-gray-700">Terms of Service</a> and <a href="/privacy" target="_blank" className="underline hover:text-gray-700">Privacy Policy</a>.
           </p>
         </form>
       </div>

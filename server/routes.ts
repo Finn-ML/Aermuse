@@ -22,7 +22,7 @@ import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
 import { logAdminActivity, getActivityLogs, getAvailableActions, getActiveAdmins } from "./services/adminActivity";
-import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts } from "@shared/schema";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts, users } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
@@ -2907,6 +2907,22 @@ Sent at: ${new Date().toISOString()}
     } catch (error) {
       console.error("Get AI usage error:", error);
       res.status(500).json({ error: "Failed to get AI usage" });
+    }
+  });
+
+  // POST /api/user/accept-ai-disclaimer - Accept the AI analysis disclaimer
+  app.post("/api/user/accept-ai-disclaimer", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+
+      await db.update(users)
+        .set({ aiDisclaimerAcceptedAt: new Date() })
+        .where(eq(users.id, userId));
+
+      res.json({ success: true, acceptedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error("Accept AI disclaimer error:", error);
+      res.status(500).json({ error: "Failed to accept AI disclaimer" });
     }
   });
 

@@ -197,7 +197,7 @@ export default function Auth() {
         });
         toast({
           title: "Account created!",
-          description: "Welcome to Aermuse.",
+          description: "Welcome to AERMUSE.",
         });
       }
       setLocation('/dashboard');
@@ -326,10 +326,10 @@ export default function Auth() {
         >
           <Link href="/">
             <div
-              className="text-5xl font-light tracking-[0.3em] lowercase text-[#F7E6CA] mb-6 cursor-pointer"
+              className="text-5xl font-light tracking-[0.3em] text-[#F7E6CA] mb-6 cursor-pointer"
               style={{ textShadow: '0 4px 30px rgba(102, 0, 51, 0.3)' }}
             >
-              aermuse
+              AERMUSE
             </div>
           </Link>
           <p className="text-lg font-normal text-[rgba(247,230,202,0.8)] max-w-[300px] leading-[1.6]">
@@ -344,8 +344,8 @@ export default function Auth() {
         >
           {/* Mobile logo - shown only on mobile */}
           <Link href="/" className="md:hidden block text-center mb-8">
-            <div className="text-3xl font-light tracking-[0.3em] lowercase text-[#660033]">
-              aermuse
+            <div className="text-3xl font-light tracking-[0.3em] text-[#660033]">
+              AERMUSE
             </div>
           </Link>
 
@@ -488,7 +488,7 @@ export default function Auth() {
                     htmlFor="terms" 
                     className="text-sm text-[rgba(102,0,51,0.7)] leading-[1.5]"
                   >
-                    I agree to the <a href="#" className="link">Terms of Service</a> and <a href="#" className="link">Privacy Policy</a>
+                    I agree to the <a href="/terms" target="_blank" className="link">Terms of Service</a> and <a href="/privacy" target="_blank" className="link">Privacy Policy</a>
                   </label>
                 </div>
               )}

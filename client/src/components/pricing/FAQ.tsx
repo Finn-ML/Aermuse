@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     question: 'Is there a free trial?',
-    answer: 'We offer a free tier that lets you try Aermuse with up to 3 contracts. This lets you experience the platform before committing to Premium.',
+    answer: 'We offer a free tier that lets you try AERMUSE with up to 3 contracts. This lets you experience the platform before committing to Premium.',
   },
   {
     question: 'What happens to my contracts if I cancel?',
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: 'Is the AI analysis legally binding advice?',
-    answer: "No, Aermuse provides AI-powered analysis to help you understand your contracts, but it's not a substitute for professional legal advice. We always recommend consulting with a qualified attorney for important legal decisions.",
+    answer: "No, AERMUSE provides AI-powered analysis to help you understand your contracts, but it's not a substitute for professional legal advice. We always recommend consulting with a qualified attorney for important legal decisions.",
   },
   {
     question: 'How secure is my contract data?',

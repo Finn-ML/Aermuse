@@ -718,8 +718,8 @@ export default function Dashboard() {
       >
         <div className="flex items-center justify-between mb-12">
           <Link href="/">
-            <div className="text-2xl font-light tracking-[0.25em] lowercase pl-5 cursor-pointer">
-              aermuse
+            <div className="text-2xl font-light tracking-[0.25em] pl-5 cursor-pointer">
+              AERMUSE
             </div>
           </Link>
           <button
