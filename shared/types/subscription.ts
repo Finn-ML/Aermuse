@@ -68,10 +68,10 @@ export interface ContractLimitResult {
  * Subscription price info
  */
 export const SUBSCRIPTION_PRICE = {
-  amount: 900, // pence
+  amount: 1000, // pence
   currency: 'gbp',
   interval: 'month',
-  displayPrice: '£9',
+  displayPrice: '£10',
 } as const;
 
 /**

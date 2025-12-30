@@ -568,7 +568,7 @@ export default function Landing() {
               </ul>
             </div>
             <div className="p-6 rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-              <div className="text-3xl font-bold mb-2">£9.99</div>
+              <div className="text-3xl font-bold mb-2">£10</div>
               <div className="text-sm font-semibold mb-4">Beta /mo</div>
               <ul className="text-sm space-y-2" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
                 <li>• Unlimited contracts</li>
@@ -650,7 +650,7 @@ export default function Landing() {
           className="text-xs sm:text-sm text-center sm:text-right"
           style={{ color: 'rgba(102, 0, 51, 0.5)' }}
         >
-          © 2025 Aermuse. All rights reserved.
+          © 2025 AERMUSE. All rights reserved.
         </div>
       </footer>
     </div>

@@ -302,7 +302,7 @@ export function ContractUpload({
             {/* Pricing options */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-white/60 rounded-lg p-3 text-left">
-                <div className="text-lg font-bold text-[#660033]">£9.99<span className="text-sm font-normal">/mo</span></div>
+                <div className="text-lg font-bold text-[#660033]">£10<span className="text-sm font-normal">/mo</span></div>
                 <div className="text-xs text-[#660033]/60 font-medium">Beta Plan</div>
                 <ul className="text-xs text-[#660033]/70 mt-2 space-y-1">
                   <li>✓ Unlimited contracts</li>

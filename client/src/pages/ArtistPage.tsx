@@ -483,7 +483,7 @@ export default function ArtistPage() {
           className="text-sm"
           style={{ color: `${textColor}60` }}
         >
-          Powered by <a href="/" className="hover:underline">Aermuse</a>
+          Powered by <a href="/" className="hover:underline">AERMUSE</a>
           <span className="mx-2">·</span>
           <a href="/privacy" className="hover:underline">Privacy</a>
         </p>

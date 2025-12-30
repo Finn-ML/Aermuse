@@ -782,7 +782,7 @@ export default function Dashboard() {
               <div className="font-semibold text-sm">{user.name}</div>
               <div className="text-xs text-[rgba(102,0,51,0.5)]">
                 {user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing'
-                  ? user.subscriptionTier === 'alpha' ? 'Aermuse Alpha' : 'Aermuse Beta'
+                  ? user.subscriptionTier === 'alpha' ? 'AERMUSE Alpha' : 'AERMUSE Beta'
                   : 'Free Plan'}
               </div>
             </div>

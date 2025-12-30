@@ -44,8 +44,8 @@ const PRICING_TIERS: PricingTier[] = [
   },
   {
     id: 'beta',
-    name: 'Aermuse Beta',
-    price: '£9.99',
+    name: 'AERMUSE Beta',
+    price: '£10',
     period: '/month',
     description: 'Essential tools for artists',
     features: [
@@ -61,7 +61,7 @@ const PRICING_TIERS: PricingTier[] = [
   },
   {
     id: 'alpha',
-    name: 'Aermuse Alpha',
+    name: 'AERMUSE Alpha',
     price: '£19.99',
     period: '/month',
     description: 'Complete contract intelligence',
@@ -200,7 +200,7 @@ export default function Pricing() {
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold text-[#660033]">
-          Aermuse
+          AERMUSE
         </Link>
         <div className="flex items-center gap-6">
           {user ? (
@@ -253,7 +253,7 @@ export default function Pricing() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <Sparkles className="h-12 w-12 mx-auto mb-6 opacity-80" />
           <h2 className="text-3xl font-bold mb-4">
-            Why Musicians Choose Aermuse
+            Why Musicians Choose AERMUSE
           </h2>
           <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
             Stop signing contracts you don't fully understand. Our AI-powered analysis
@@ -287,7 +287,7 @@ export default function Pricing() {
       {/* Footer */}
       <footer className="bg-white py-8 border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
-          <p>&copy; {new Date().getFullYear()} Aermuse. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} AERMUSE. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -112,7 +112,7 @@ export function PremiumFeatureGate({ feature, children }: PremiumFeatureGateProp
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-lg hover:bg-[#4a0024] transition-all hover:scale-105"
           >
             <Sparkles className="h-5 w-5" />
-            Upgrade to Premium - £9/month
+            Upgrade to Premium - £10/month
           </Link>
 
           <p className="mt-4 text-sm text-[rgba(102,0,51,0.5)]">

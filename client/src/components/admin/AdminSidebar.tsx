@@ -44,7 +44,7 @@ export function AdminSidebar() {
           <span className="text-white font-bold text-lg">A</span>
         </div>
         <div>
-          <span className="font-semibold text-white">Aermuse</span>
+          <span className="font-semibold text-white">AERMUSE</span>
           <span className="ml-2 text-xs bg-[#660033]/30 text-[#ffb3cc] px-2 py-0.5 rounded">
             Admin
           </span>

@@ -101,7 +101,7 @@ export function ContractLimitPrompt({ current, limit, className = '' }: Contract
               <Sparkles className="h-4 w-4" />
               Upgrade Now
             </Link>
-            <span className="text-xs text-[#660033]/50">From £9.99/month</span>
+            <span className="text-xs text-[#660033]/50">From £10/month</span>
           </div>
         </div>
       </div>
