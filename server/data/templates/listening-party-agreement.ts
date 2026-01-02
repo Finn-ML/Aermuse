@@ -13,7 +13,7 @@ export const listeningPartyAgreementTemplate: TemplateDefinition = {
   category: 'touring',
   isActive: true,
   sortOrder: 16,
-  version: 2,
+  version: 3,
 
   fields: [
     // Event Details
@@ -55,30 +55,6 @@ export const listeningPartyAgreementTemplate: TemplateDefinition = {
       required: false,
       placeholder: 'e.g., "7:00 PM - 10:00 PM"',
       group: 'Event Details'
-    },
-
-    // Attendee Details
-    {
-      id: 'attendee_name',
-      label: 'Attendee Name',
-      type: 'text',
-      required: true,
-      group: 'Attendee Details'
-    },
-    {
-      id: 'attendee_email',
-      label: 'Attendee Email',
-      type: 'email',
-      required: true,
-      group: 'Attendee Details'
-    },
-    {
-      id: 'attendee_social',
-      label: 'Attendee Social Handle (Optional)',
-      type: 'text',
-      required: false,
-      placeholder: '@username',
-      group: 'Attendee Details'
     },
 
     // Phone Policy

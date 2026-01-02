@@ -13,59 +13,9 @@ export const artistProducerNdaTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 12,
-  version: 2,
+  version: 3,
 
   fields: [
-    // Artist Details
-    {
-      id: 'artist_name',
-      label: 'Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_email',
-      label: 'Artist Email',
-      type: 'email',
-      required: false,
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_handle',
-      label: 'Artist Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@jmelody',
-      group: 'Artist Details'
-    },
-
-    // Producer Details
-    {
-      id: 'producer_name',
-      label: 'Producer Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., John Doe p/k/a "Beat Master"',
-      group: 'Producer Details'
-    },
-    {
-      id: 'producer_email',
-      label: 'Producer Email',
-      type: 'email',
-      required: false,
-      group: 'Producer Details'
-    },
-    {
-      id: 'producer_handle',
-      label: 'Producer Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@beatmaster',
-      group: 'Producer Details'
-    },
-
     // Agreement Details
     {
       id: 'effective_date',

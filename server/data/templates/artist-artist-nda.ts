@@ -13,59 +13,9 @@ export const artistArtistNdaTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 13,
-  version: 2,
+  version: 3,
 
   fields: [
-    // Artist 1 Details
-    {
-      id: 'artist_1_name',
-      label: 'Artist 1 Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Artist 1 Details'
-    },
-    {
-      id: 'artist_1_email',
-      label: 'Artist 1 Email',
-      type: 'email',
-      required: false,
-      group: 'Artist 1 Details'
-    },
-    {
-      id: 'artist_1_handle',
-      label: 'Artist 1 Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@jmelody',
-      group: 'Artist 1 Details'
-    },
-
-    // Artist 2 Details
-    {
-      id: 'artist_2_name',
-      label: 'Artist 2 Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., John Doe p/k/a "J. Thunder"',
-      group: 'Artist 2 Details'
-    },
-    {
-      id: 'artist_2_email',
-      label: 'Artist 2 Email',
-      type: 'email',
-      required: false,
-      group: 'Artist 2 Details'
-    },
-    {
-      id: 'artist_2_handle',
-      label: 'Artist 2 Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@jthunder',
-      group: 'Artist 2 Details'
-    },
-
     // Agreement Details
     {
       id: 'effective_date',

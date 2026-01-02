@@ -13,66 +13,9 @@ export const artistBrandNdaTemplate: TemplateDefinition = {
   category: 'business',
   isActive: true,
   sortOrder: 11,
-  version: 2,
+  version: 3,
 
   fields: [
-    // Artist Details
-    {
-      id: 'artist_name',
-      label: 'Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_email',
-      label: 'Artist Email',
-      type: 'email',
-      required: false,
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_handle',
-      label: 'Artist Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@jmelody',
-      group: 'Artist Details'
-    },
-
-    // Brand Details
-    {
-      id: 'brand_name',
-      label: 'Brand Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., "Acme Fashion Co."',
-      group: 'Brand Details'
-    },
-    {
-      id: 'brand_representative',
-      label: 'Brand Representative Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., "John Smith, Marketing Director"',
-      group: 'Brand Details'
-    },
-    {
-      id: 'brand_email',
-      label: 'Brand Contact Email',
-      type: 'email',
-      required: false,
-      group: 'Brand Details'
-    },
-    {
-      id: 'brand_contact',
-      label: 'Brand Contact Number',
-      type: 'text',
-      required: false,
-      group: 'Brand Details'
-    },
-
     // Agreement Details
     {
       id: 'effective_date',

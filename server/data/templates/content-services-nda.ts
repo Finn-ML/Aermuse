@@ -13,76 +13,9 @@ export const contentServicesNdaTemplate: TemplateDefinition = {
   category: 'business',
   isActive: true,
   sortOrder: 14,
-  version: 2,
+  version: 3,
 
   fields: [
-    // Host Details
-    {
-      id: 'host_name',
-      label: 'Host (Artist/Producer) Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Host Details'
-    },
-    {
-      id: 'host_email',
-      label: 'Host Email',
-      type: 'email',
-      required: false,
-      group: 'Host Details'
-    },
-    {
-      id: 'host_handle',
-      label: 'Host Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@jmelody',
-      group: 'Host Details'
-    },
-
-    // Service Provider Details
-    {
-      id: 'provider_name',
-      label: 'Service Provider Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., "John Smith - Visuals Co."',
-      group: 'Service Provider Details'
-    },
-    {
-      id: 'provider_email',
-      label: 'Service Provider Email',
-      type: 'email',
-      required: false,
-      group: 'Service Provider Details'
-    },
-    {
-      id: 'provider_handle',
-      label: 'Service Provider Social Handle',
-      type: 'text',
-      required: false,
-      placeholder: '@visualsco',
-      group: 'Service Provider Details'
-    },
-    {
-      id: 'service_type',
-      label: 'Type of Service',
-      type: 'select',
-      required: true,
-      options: [
-        { value: 'videographer', label: 'Videographer' },
-        { value: 'photographer', label: 'Photographer' },
-        { value: 'engineer', label: 'Audio Engineer' },
-        { value: 'editor', label: 'Video/Photo Editor' },
-        { value: 'designer', label: 'Graphic Designer' },
-        { value: 'stylist', label: 'Stylist' },
-        { value: 'bts_crew', label: 'BTS Crew' },
-        { value: 'other', label: 'Other Service Provider' }
-      ],
-      group: 'Service Provider Details'
-    },
-
     // Agreement Details
     {
       id: 'effective_date',
