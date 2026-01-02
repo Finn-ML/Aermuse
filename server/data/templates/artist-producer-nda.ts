@@ -13,7 +13,7 @@ export const artistProducerNdaTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 12,
-  version: 1,
+  version: 2,
 
   fields: [
     // Artist Details
@@ -108,6 +108,51 @@ export const artistProducerNdaTemplate: TemplateDefinition = {
       description: 'Prohibits use of stems, vocals, beats for AI training or cloning',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this NDA.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'artist', label: 'Artist' },
+            { value: 'producer', label: 'Producer' },
+            { value: 'engineer', label: 'Engineer' },
+            { value: 'manager', label: 'Manager' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith p/k/a "J. Melody"'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: false
+        },
+        {
+          id: 'social_handle',
+          label: 'Social Handle',
+          type: 'text',
+          required: false,
+          placeholder: '@handle'
+        }
+      ]
     }
   ],
 

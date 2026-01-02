@@ -13,7 +13,7 @@ export const artistBrandNdaTemplate: TemplateDefinition = {
   category: 'business',
   isActive: true,
   sortOrder: 11,
-  version: 1,
+  version: 2,
 
   fields: [
     // Artist Details
@@ -115,6 +115,50 @@ export const artistBrandNdaTemplate: TemplateDefinition = {
       description: 'Prevents both parties from making negative public statements',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this NDA.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'artist', label: 'Artist' },
+            { value: 'brand', label: 'Brand' },
+            { value: 'representative', label: 'Representative/Manager' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith or Acme Fashion Co.'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: false
+        },
+        {
+          id: 'social_handle',
+          label: 'Social Handle',
+          type: 'text',
+          required: false,
+          placeholder: '@handle'
+        }
+      ]
     }
   ],
 

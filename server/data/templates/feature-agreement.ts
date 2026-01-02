@@ -3,6 +3,8 @@
  *
  * Agreement for featured artist performances on tracks, covering paid features,
  * royalty-based features, and feature swaps.
+ *
+ * Updated to use PersonaGroups for dynamic artists (1-10).
  */
 
 import type { TemplateDefinition } from './artist-agreement';
@@ -13,7 +15,7 @@ export const featureAgreementTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 19,
-  version: 1,
+  version: 2,
 
   fields: [
     // Agreement Details
@@ -23,68 +25,6 @@ export const featureAgreementTemplate: TemplateDefinition = {
       type: 'date',
       required: true,
       group: 'Agreement Details'
-    },
-
-    // Main Artist
-    {
-      id: 'main_artist_name',
-      label: 'Main Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Main Artist Details'
-    },
-    {
-      id: 'main_artist_email',
-      label: 'Main Artist Email',
-      type: 'email',
-      required: true,
-      group: 'Main Artist Details'
-    },
-    {
-      id: 'main_artist_phone',
-      label: 'Main Artist Phone',
-      type: 'text',
-      required: false,
-      group: 'Main Artist Details'
-    },
-    {
-      id: 'main_artist_social',
-      label: 'Main Artist Social Media',
-      type: 'text',
-      required: false,
-      group: 'Main Artist Details'
-    },
-
-    // Featured Artist
-    {
-      id: 'featured_artist_name',
-      label: 'Featured Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., John Doe p/k/a "J. Thunder"',
-      group: 'Featured Artist Details'
-    },
-    {
-      id: 'featured_artist_email',
-      label: 'Featured Artist Email',
-      type: 'email',
-      required: true,
-      group: 'Featured Artist Details'
-    },
-    {
-      id: 'featured_artist_phone',
-      label: 'Featured Artist Phone',
-      type: 'text',
-      required: false,
-      group: 'Featured Artist Details'
-    },
-    {
-      id: 'featured_artist_social',
-      label: 'Featured Artist Social Media',
-      type: 'text',
-      required: false,
-      group: 'Featured Artist Details'
     },
 
     // Track Details
@@ -276,6 +216,62 @@ export const featureAgreementTemplate: TemplateDefinition = {
             { value: 'feed', label: '1 Feed Post' },
             { value: 'repost', label: '1 Repost' }
           ]
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'artists',
+      singularName: 'Artist',
+      pluralName: 'Artists',
+      description: 'Add all artists involved in this feature agreement. Include the main artist and all featured artists.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'main_artist', label: 'Main Artist' },
+            { value: 'featured_artist', label: 'Featured Artist' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith p/k/a "J. Melody"'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'social',
+          label: 'Social Media',
+          type: 'text',
+          required: false,
+          placeholder: '@handle'
+        },
+        {
+          id: 'credit',
+          label: 'Credit (how to be credited)',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., "feat. J. Thunder"'
         }
       ]
     }

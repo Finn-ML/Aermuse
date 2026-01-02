@@ -13,7 +13,7 @@ export const campaignUsageLicenseTemplate: TemplateDefinition = {
   category: 'licensing',
   isActive: true,
   sortOrder: 15,
-  version: 1,
+  version: 2,
 
   fields: [
     // Artist Details
@@ -264,6 +264,57 @@ export const campaignUsageLicenseTemplate: TemplateDefinition = {
       description: 'Prohibits use of artist likeness for AI training or synthetic generation',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this campaign usage license.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'artist', label: 'Artist' },
+            { value: 'brand', label: 'Brand' },
+            { value: 'agency', label: 'Agency' },
+            { value: 'manager', label: 'Manager' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith or Acme Brand Co.'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'social',
+          label: 'Social Handle',
+          type: 'text',
+          required: false,
+          placeholder: '@handle'
+        }
+      ]
     }
   ],
 

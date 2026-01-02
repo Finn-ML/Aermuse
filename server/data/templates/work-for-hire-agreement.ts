@@ -7,63 +7,18 @@
 
 import type { TemplateDefinition } from "./artist-agreement";
 
+/**
+ * Updated to use PersonaGroups for dynamic parties (2-10).
+ */
 export const workForHireAgreementTemplate: TemplateDefinition = {
   name: 'Work-for-Hire Agreement',
   description: 'For commissioned creative work. Covers project scope, deliverables, payment, IP assignment, and revision terms.',
   category: 'production',
   isActive: true,
   sortOrder: 5,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Client
-    {
-      id: 'client_name',
-      label: 'Client Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Music Production Ltd',
-      group: 'Client Details'
-    },
-    {
-      id: 'client_address',
-      label: 'Client Address',
-      type: 'textarea',
-      required: true,
-      group: 'Client Details'
-    },
-    {
-      id: 'client_email',
-      label: 'Client Email',
-      type: 'email',
-      required: true,
-      group: 'Client Details'
-    },
-
-    // Contractor
-    {
-      id: 'contractor_name',
-      label: 'Contractor Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith (Producer)',
-      group: 'Contractor Details'
-    },
-    {
-      id: 'contractor_address',
-      label: 'Contractor Address',
-      type: 'textarea',
-      required: true,
-      group: 'Contractor Details'
-    },
-    {
-      id: 'contractor_email',
-      label: 'Contractor Email',
-      type: 'email',
-      required: true,
-      group: 'Contractor Details'
-    },
-
     // Project Details
     {
       id: 'project_title',
@@ -229,6 +184,55 @@ export const workForHireAgreementTemplate: TemplateDefinition = {
           required: true,
           defaultValue: 24,
           validation: { min: 6, max: 60 }
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this work-for-hire agreement.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'client', label: 'Client' },
+            { value: 'contractor', label: 'Contractor' },
+            { value: 'co_contractor', label: 'Co-Contractor' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Music Production Ltd'
+        },
+        {
+          id: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
         }
       ]
     }

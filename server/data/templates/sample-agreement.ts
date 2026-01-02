@@ -7,63 +7,18 @@
 
 import type { TemplateDefinition } from "./artist-agreement";
 
+/**
+ * Updated to use PersonaGroups for dynamic parties (2-10).
+ */
 export const sampleAgreementTemplate: TemplateDefinition = {
   name: 'Sample Clearance Agreement',
   description: 'For clearing samples. Covers sample usage rights, royalty arrangements, and credit requirements for masters and publishing.',
   category: 'production',
   isActive: true,
   sortOrder: 4,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Sample Owner
-    {
-      id: 'owner_name',
-      label: 'Sample Owner Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Original Artist LLC',
-      group: 'Sample Owner'
-    },
-    {
-      id: 'owner_address',
-      label: 'Owner Address',
-      type: 'textarea',
-      required: true,
-      group: 'Sample Owner'
-    },
-    {
-      id: 'owner_email',
-      label: 'Owner Email',
-      type: 'email',
-      required: true,
-      group: 'Sample Owner'
-    },
-
-    // Sampling Party
-    {
-      id: 'sampler_name',
-      label: 'Sampling Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., New Artist',
-      group: 'Sampling Artist'
-    },
-    {
-      id: 'sampler_address',
-      label: 'Sampling Artist Address',
-      type: 'textarea',
-      required: true,
-      group: 'Sampling Artist'
-    },
-    {
-      id: 'sampler_email',
-      label: 'Sampling Artist Email',
-      type: 'email',
-      required: true,
-      group: 'Sampling Artist'
-    },
-
     // Original Work
     {
       id: 'original_title',
@@ -223,6 +178,57 @@ export const sampleAgreementTemplate: TemplateDefinition = {
           type: 'textarea',
           required: true,
           placeholder: 'e.g., Not for use in advertising, political campaigns...'
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this sample clearance agreement.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'owner', label: 'Sample Owner (Rights Holder)' },
+            { value: 'sampler', label: 'Sampling Artist' },
+            { value: 'co_owner', label: 'Co-Owner' },
+            { value: 'publisher', label: 'Publisher' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Original Artist LLC'
+        },
+        {
+          id: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'ownership_percentage',
+          label: 'Ownership (%)',
+          type: 'number',
+          required: false,
+          validation: { min: 0, max: 100 }
         }
       ]
     }

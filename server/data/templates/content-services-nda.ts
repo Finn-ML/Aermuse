@@ -13,7 +13,7 @@ export const contentServicesNdaTemplate: TemplateDefinition = {
   category: 'business',
   isActive: true,
   sortOrder: 14,
-  version: 1,
+  version: 2,
 
   fields: [
     // Host Details
@@ -157,6 +157,52 @@ export const contentServicesNdaTemplate: TemplateDefinition = {
       description: 'Prohibits use of footage, content, or files for AI training',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this NDA.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'host', label: 'Host (Artist/Label/Company)' },
+            { value: 'videographer', label: 'Videographer' },
+            { value: 'photographer', label: 'Photographer' },
+            { value: 'engineer', label: 'Engineer' },
+            { value: 'designer', label: 'Designer' },
+            { value: 'other_creative', label: 'Other Creative' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith or Creative Studios Ltd'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: false
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        }
+      ]
     }
   ],
 

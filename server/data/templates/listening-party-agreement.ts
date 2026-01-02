@@ -13,7 +13,7 @@ export const listeningPartyAgreementTemplate: TemplateDefinition = {
   category: 'touring',
   isActive: true,
   sortOrder: 16,
-  version: 1,
+  version: 2,
 
   fields: [
     // Event Details
@@ -131,6 +131,50 @@ export const listeningPartyAgreementTemplate: TemplateDefinition = {
       description: 'Prohibits AI training or cloning using event content',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'attendees',
+      singularName: 'Attendee',
+      pluralName: 'Attendees',
+      description: 'Add all attendees agreeing to these terms.',
+      minCount: 1,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'attendee', label: 'Attendee' },
+            { value: 'press', label: 'Press/Media' },
+            { value: 'industry', label: 'Industry Professional' },
+            { value: 'vip', label: 'VIP Guest' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'Full legal name'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        }
+      ]
     }
   ],
 

@@ -13,7 +13,7 @@ export const artistArtistNdaTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 13,
-  version: 1,
+  version: 2,
 
   fields: [
     // Artist 1 Details
@@ -95,6 +95,46 @@ export const artistArtistNdaTemplate: TemplateDefinition = {
   ],
 
   optionalClauses: [],
+
+  personaGroups: [
+    {
+      id: 'artists',
+      singularName: 'Artist',
+      pluralName: 'Artists',
+      description: 'Add all artists involved in this NDA.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'name',
+          label: 'Artist Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith p/k/a "J. Melody"'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: false
+        },
+        {
+          id: 'social_handle',
+          label: 'Social Handle',
+          type: 'text',
+          required: false,
+          placeholder: '@handle'
+        },
+        {
+          id: 'genre',
+          label: 'Genre / Style',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., R&B / Pop'
+        }
+      ]
+    }
+  ],
 
   content: {
     title: 'ARTIST TO ARTIST — CREATIVE COLLABORATION NDA',

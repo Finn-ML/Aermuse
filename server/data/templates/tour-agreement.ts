@@ -7,70 +7,18 @@
 
 import type { TemplateDefinition } from "./artist-agreement";
 
+/**
+ * Updated to use PersonaGroups for dynamic parties (2-10).
+ */
 export const tourAgreementTemplate: TemplateDefinition = {
   name: 'Tour/Performance Agreement',
   description: 'For live performances and touring. Covers dates, venues, fees, technical requirements, and travel provisions.',
   category: 'touring',
   isActive: true,
   sortOrder: 3,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Artist
-    {
-      id: 'artist_name',
-      label: 'Artist/Performer Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., The Night Owls',
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_address',
-      label: 'Artist Address',
-      type: 'textarea',
-      required: true,
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_email',
-      label: 'Artist Contact Email',
-      type: 'email',
-      required: true,
-      group: 'Artist Details'
-    },
-    {
-      id: 'artist_manager',
-      label: 'Manager/Representative Name',
-      type: 'text',
-      required: false,
-      group: 'Artist Details'
-    },
-
-    // Promoter/Venue
-    {
-      id: 'promoter_name',
-      label: 'Promoter/Venue Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Live Nation UK',
-      group: 'Promoter/Venue Details'
-    },
-    {
-      id: 'promoter_address',
-      label: 'Promoter Address',
-      type: 'textarea',
-      required: true,
-      group: 'Promoter/Venue Details'
-    },
-    {
-      id: 'promoter_email',
-      label: 'Promoter Contact Email',
-      type: 'email',
-      required: true,
-      group: 'Promoter/Venue Details'
-    },
-
     // Performance Details
     {
       id: 'venue_name',
@@ -250,6 +198,56 @@ export const tourAgreementTemplate: TemplateDefinition = {
           required: true,
           defaultValue: 14,
           validation: { min: 7, max: 90 }
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this performance agreement.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'artist', label: 'Artist/Performer' },
+            { value: 'band_member', label: 'Band Member' },
+            { value: 'promoter', label: 'Promoter/Venue' },
+            { value: 'manager', label: 'Manager/Representative' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., The Night Owls'
+        },
+        {
+          id: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
         }
       ]
     }

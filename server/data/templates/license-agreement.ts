@@ -7,63 +7,18 @@
 
 import type { TemplateDefinition } from "./artist-agreement";
 
+/**
+ * Updated to use PersonaGroups for dynamic parties (2-10).
+ */
 export const licenseAgreementTemplate: TemplateDefinition = {
   name: 'Music License Agreement',
   description: 'For licensing music or content. Covers exclusive/non-exclusive rights, sync, mechanical, and usage restrictions.',
   category: 'licensing',
   isActive: true,
   sortOrder: 2,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Licensor (Rights Holder)
-    {
-      id: 'licensor_name',
-      label: 'Licensor Name (Rights Holder)',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith Music Ltd',
-      group: 'Licensor Details'
-    },
-    {
-      id: 'licensor_address',
-      label: 'Licensor Address',
-      type: 'textarea',
-      required: true,
-      group: 'Licensor Details'
-    },
-    {
-      id: 'licensor_email',
-      label: 'Licensor Email',
-      type: 'email',
-      required: true,
-      group: 'Licensor Details'
-    },
-
-    // Licensee
-    {
-      id: 'licensee_name',
-      label: 'Licensee Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Production Company Inc',
-      group: 'Licensee Details'
-    },
-    {
-      id: 'licensee_address',
-      label: 'Licensee Address',
-      type: 'textarea',
-      required: true,
-      group: 'Licensee Details'
-    },
-    {
-      id: 'licensee_email',
-      label: 'Licensee Email',
-      type: 'email',
-      required: true,
-      group: 'Licensee Details'
-    },
-
     // Work Details
     {
       id: 'work_title',
@@ -223,6 +178,49 @@ export const licenseAgreementTemplate: TemplateDefinition = {
           type: 'textarea',
           required: true,
           placeholder: 'e.g., Political advertising, adult content...'
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this license agreement.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'licensor', label: 'Licensor (Rights Holder)' },
+            { value: 'licensee', label: 'Licensee' },
+            { value: 'co_licensor', label: 'Co-Licensor' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith Music Ltd'
+        },
+        {
+          id: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
         }
       ]
     }

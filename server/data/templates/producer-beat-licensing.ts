@@ -3,6 +3,8 @@
  *
  * Comprehensive agreement covering producer services, studio terms,
  * ownership, royalties, and beat licensing options.
+ *
+ * Updated to use PersonaGroups for dynamic parties (2-10).
  */
 
 import type { TemplateDefinition } from './artist-agreement';
@@ -13,29 +15,9 @@ export const producerBeatLicensingTemplate: TemplateDefinition = {
   category: 'production',
   isActive: true,
   sortOrder: 17,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Producer Details
-    {
-      id: 'producer_name',
-      label: 'Producer Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., John Doe p/k/a "Beat Master"',
-      group: 'Producer Details'
-    },
-
-    // Artist Details
-    {
-      id: 'artist_name',
-      label: 'Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Artist Details'
-    },
-
     // Agreement Details
     {
       id: 'effective_date',
@@ -173,6 +155,71 @@ export const producerBeatLicensingTemplate: TemplateDefinition = {
       description: 'Prohibits use of stems or vocals for AI training or replication',
       defaultEnabled: true,
       fields: []
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all parties involved in this agreement. Include producers and artists.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'role',
+          label: 'Role',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'producer', label: 'Producer' },
+            { value: 'artist', label: 'Artist' },
+            { value: 'co_producer', label: 'Co-Producer' }
+          ]
+        },
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., John Doe p/k/a "Beat Master"'
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'master_ownership',
+          label: 'Master Ownership (%)',
+          type: 'number',
+          required: false,
+          defaultValue: 50,
+          validation: { min: 0, max: 100 }
+        },
+        {
+          id: 'royalty_percentage',
+          label: 'Royalty (%)',
+          type: 'number',
+          required: false,
+          validation: { min: 0, max: 50 }
+        },
+        {
+          id: 'credit',
+          label: 'Credit Format',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., "Prod. by Beat Master"'
+        }
+      ]
     }
   ],
 
