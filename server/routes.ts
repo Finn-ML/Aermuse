@@ -16,7 +16,7 @@ import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage } from "./services/fileStorage";
 import { extractText, truncateForAI } from "./services/extraction";
-import { analyzeContract, OpenAIError } from "./services/openai";
+import { analyzeContract, generateSpeech, OpenAIError } from "./services/openai";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
 import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
@@ -895,6 +895,115 @@ export async function registerRoutes(
       res.status(500).json({
         error: 'AI analysis failed. Please try again.',
         code: 'ANALYSIS_FAILED'
+      });
+    }
+  });
+
+  // Contract Text-to-Speech - Read contract analysis aloud
+  app.post("/api/contracts/:id/speech", aiLimiter, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const contractId = req.params.id;
+      const contract = await storage.getContract(contractId);
+
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      if (contract.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if contract has been analyzed
+      if (!contract.aiAnalysis) {
+        return res.status(400).json({
+          error: "Contract must be analyzed before generating speech",
+          code: "NOT_ANALYZED"
+        });
+      }
+
+      // Build readable text from the analysis
+      const analysis = contract.aiAnalysis as any;
+      let textToSpeak = '';
+
+      // Summary section
+      if (analysis.summary?.overview) {
+        textToSpeak += `Contract Summary. ${analysis.summary.overview} `;
+      }
+
+      if (analysis.summary?.contractType) {
+        textToSpeak += `This is a ${analysis.summary.contractType}. `;
+      }
+
+      if (analysis.summary?.duration) {
+        textToSpeak += `The contract duration is ${analysis.summary.duration}. `;
+      }
+
+      // Risk assessment
+      if (analysis.riskAssessment) {
+        const riskLevel = analysis.riskAssessment.overallRisk || 'unknown';
+        textToSpeak += `Risk Assessment. The overall risk level is ${riskLevel}. `;
+        if (analysis.riskAssessment.summary) {
+          textToSpeak += `${analysis.riskAssessment.summary} `;
+        }
+      }
+
+      // Red flags
+      if (analysis.redFlags && analysis.redFlags.length > 0) {
+        textToSpeak += `Red Flags. There are ${analysis.redFlags.length} potential issues to be aware of. `;
+        analysis.redFlags.slice(0, 3).forEach((flag: any, index: number) => {
+          textToSpeak += `Issue ${index + 1}: ${flag.issue}. ${flag.explanation} `;
+        });
+        if (analysis.redFlags.length > 3) {
+          textToSpeak += `Plus ${analysis.redFlags.length - 3} more issues. Please review the full analysis for details. `;
+        }
+      }
+
+      // Key terms (top 3)
+      if (analysis.keyTerms && analysis.keyTerms.length > 0) {
+        textToSpeak += `Key Terms. `;
+        analysis.keyTerms.slice(0, 3).forEach((term: any) => {
+          textToSpeak += `${term.term}: ${term.value}. `;
+        });
+      }
+
+      if (!textToSpeak.trim()) {
+        return res.status(400).json({
+          error: "No analysis content available to read",
+          code: "NO_CONTENT"
+        });
+      }
+
+      console.log(`[TTS] Generating speech for contract ${contractId}, ${textToSpeak.length} chars`);
+
+      // Generate speech audio
+      const audioBuffer = await generateSpeech(textToSpeak);
+
+      // Set appropriate headers for audio
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': audioBuffer.length,
+        'Cache-Control': 'private, max-age=3600' // Cache for 1 hour
+      });
+
+      res.send(audioBuffer);
+    } catch (error: any) {
+      console.error("[TTS] Speech generation error:", error);
+
+      if (error instanceof OpenAIError) {
+        return res.status(503).json({
+          error: error.message,
+          code: error.code
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to generate speech. Please try again.',
+        code: 'TTS_FAILED'
       });
     }
   });

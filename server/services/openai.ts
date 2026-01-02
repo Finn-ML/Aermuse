@@ -264,6 +264,72 @@ export async function analyzeContract(contractText: string): Promise<AnalysisRes
 }
 
 /**
+ * Text-to-Speech configuration
+ */
+const TTS_CONFIG = {
+  model: 'tts-1' as const,        // or 'tts-1-hd' for higher quality
+  voice: 'alloy' as const,        // alloy, echo, fable, onyx, nova, shimmer
+  speed: 1.0,                     // 0.25 to 4.0
+  responseFormat: 'mp3' as const  // mp3, opus, aac, flac
+};
+
+/**
+ * Generate speech audio from text using OpenAI TTS
+ * Returns a Buffer containing the audio data
+ */
+export async function generateSpeech(text: string): Promise<Buffer> {
+  const startTime = Date.now();
+
+  // Limit text length to avoid excessive API costs (TTS has a 4096 char limit per request)
+  const maxLength = 4096;
+  const truncatedText = text.length > maxLength
+    ? text.substring(0, maxLength - 3) + '...'
+    : text;
+
+  console.log(`[TTS] Generating speech for ${truncatedText.length} characters`);
+
+  try {
+    const response = await getOpenAIClient().audio.speech.create({
+      model: TTS_CONFIG.model,
+      voice: TTS_CONFIG.voice,
+      input: truncatedText,
+      speed: TTS_CONFIG.speed,
+      response_format: TTS_CONFIG.responseFormat
+    });
+
+    // Convert the response to a Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const processingTime = Date.now() - startTime;
+    console.log(`[TTS] Speech generated: ${buffer.length} bytes in ${processingTime}ms`);
+
+    return buffer;
+  } catch (error: any) {
+    console.error('[TTS] Speech generation failed:', error.message);
+
+    if (error.status === 429) {
+      throw new OpenAIError(
+        'Text-to-speech service is currently busy. Please try again in a few minutes.',
+        'RATE_LIMITED'
+      );
+    }
+
+    if (error.status === 401) {
+      throw new OpenAIError(
+        'Text-to-speech service configuration error. Please contact support.',
+        'AUTH_ERROR'
+      );
+    }
+
+    throw new OpenAIError(
+      'Failed to generate speech. Please try again later.',
+      'TTS_ERROR'
+    );
+  }
+}
+
+/**
  * Estimate token count for a text string
  * Rough estimate: ~4 chars per token for English text
  */

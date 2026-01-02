@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
 import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
@@ -42,6 +42,9 @@ export default function ContractView() {
   const isMountedRef = useRef(true);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [disclaimerLoading, setDisclaimerLoading] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Check if user has accepted AI disclaimer
   const hasAcceptedDisclaimer = !!user?.aiDisclaimerAcceptedAt;
@@ -229,6 +232,80 @@ export default function ContractView() {
     }
   }, [contract?.filePath, contract?.fileName, id]);
 
+  const handlePlayAudio = useCallback(async () => {
+    if (!contract?.aiAnalysis || !id) return;
+
+    // If already playing, stop
+    if (isPlayingAudio && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    setIsLoadingAudio(true);
+
+    try {
+      const response = await fetch(`/api/contracts/${id}/speech`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate speech');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Clean up previous audio if any
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPlayingAudio(false);
+        toast({
+          title: 'Playback Error',
+          description: 'Failed to play audio. Please try again.',
+          variant: 'destructive',
+        });
+      };
+
+      await audio.play();
+      setIsPlayingAudio(true);
+    } catch (err: any) {
+      console.error('Speech generation failed:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate speech. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }, [contract?.aiAnalysis, id, isPlayingAudio, toast]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7E6CA] flex items-center justify-center">
@@ -327,6 +404,29 @@ export default function ContractView() {
                 >
                   <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Download</span>
+                </button>
+              )}
+              {contract.aiAnalysis && isPremium && (
+                <button
+                  onClick={handlePlayAudio}
+                  disabled={isLoadingAudio}
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${
+                    isPlayingAudio
+                      ? 'text-[#F7E6CA] bg-[#660033]'
+                      : 'text-[#660033] bg-[rgba(102,0,51,0.08)] hover:bg-[rgba(102,0,51,0.15)]'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isPlayingAudio ? 'Stop reading' : 'Read analysis aloud'}
+                >
+                  {isLoadingAudio ? (
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                  ) : isPlayingAudio ? (
+                    <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {isLoadingAudio ? 'Loading...' : isPlayingAudio ? 'Stop' : 'Listen'}
+                  </span>
                 </button>
               )}
               {contract.status === 'pending_signature' || contract.status === 'signed' ? (
