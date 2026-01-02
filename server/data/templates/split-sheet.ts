@@ -3,6 +3,8 @@
  *
  * Official document for recording songwriter ownership splits, ISRC details,
  * and contact information for music tracks.
+ *
+ * Updated to use PersonaGroups for dynamic writers (1-10).
  */
 
 import type { TemplateDefinition } from './artist-agreement';
@@ -13,7 +15,7 @@ export const splitSheetTemplate: TemplateDefinition = {
   category: 'production',
   isActive: true,
   sortOrder: 10,
-  version: 1,
+  version: 2,
 
   fields: [
     // Song Information
@@ -75,110 +77,64 @@ export const splitSheetTemplate: TemplateDefinition = {
       placeholder: 'Clean version: GBXXX...\nExplicit version: GBXXX...',
       helpText: 'ISRC codes for clean, explicit, remix, or other versions',
       group: 'ISRC Details'
-    },
-
-    // Writer 1
-    {
-      id: 'writer_1_name',
-      label: 'Writer 1 Name',
-      type: 'text',
-      required: true,
-      group: 'Writer 1'
-    },
-    {
-      id: 'writer_1_split',
-      label: 'Writer 1 Split (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Writer 1'
-    },
-    {
-      id: 'writer_1_email',
-      label: 'Writer 1 Email',
-      type: 'email',
-      required: true,
-      group: 'Writer 1'
-    },
-
-    // Writer 2
-    {
-      id: 'writer_2_name',
-      label: 'Writer 2 Name',
-      type: 'text',
-      required: false,
-      group: 'Writer 2'
-    },
-    {
-      id: 'writer_2_split',
-      label: 'Writer 2 Split (%)',
-      type: 'number',
-      required: false,
-      defaultValue: 0,
-      validation: { min: 0, max: 100 },
-      group: 'Writer 2'
-    },
-    {
-      id: 'writer_2_email',
-      label: 'Writer 2 Email',
-      type: 'email',
-      required: false,
-      group: 'Writer 2'
-    },
-
-    // Writer 3
-    {
-      id: 'writer_3_name',
-      label: 'Writer 3 Name',
-      type: 'text',
-      required: false,
-      group: 'Writer 3'
-    },
-    {
-      id: 'writer_3_split',
-      label: 'Writer 3 Split (%)',
-      type: 'number',
-      required: false,
-      defaultValue: 0,
-      validation: { min: 0, max: 100 },
-      group: 'Writer 3'
-    },
-    {
-      id: 'writer_3_email',
-      label: 'Writer 3 Email',
-      type: 'email',
-      required: false,
-      group: 'Writer 3'
-    },
-
-    // Writer 4
-    {
-      id: 'writer_4_name',
-      label: 'Writer 4 Name',
-      type: 'text',
-      required: false,
-      group: 'Writer 4'
-    },
-    {
-      id: 'writer_4_split',
-      label: 'Writer 4 Split (%)',
-      type: 'number',
-      required: false,
-      defaultValue: 0,
-      validation: { min: 0, max: 100 },
-      group: 'Writer 4'
-    },
-    {
-      id: 'writer_4_email',
-      label: 'Writer 4 Email',
-      type: 'email',
-      required: false,
-      group: 'Writer 4'
     }
   ],
 
   optionalClauses: [],
+
+  personaGroups: [
+    {
+      id: 'writers',
+      singularName: 'Writer',
+      pluralName: 'Writers',
+      description: 'Add all songwriters and their ownership splits. Splits must total 100%.',
+      minCount: 1,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'Full legal name'
+        },
+        {
+          id: 'split',
+          label: 'Split (%)',
+          type: 'number',
+          required: true,
+          defaultValue: 50,
+          validation: { min: 0, max: 100 }
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'pro',
+          label: 'PRO (e.g., PRS, ASCAP)',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., PRS, ASCAP, BMI'
+        },
+        {
+          id: 'ipi',
+          label: 'IPI/CAE Number',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., 123456789'
+        }
+      ]
+    }
+  ],
 
   content: {
     title: 'OFFICIAL 1-PAGE SPLIT SHEET',
@@ -207,51 +163,28 @@ Alternate Versions (Clean / Explicit / Remix / Other):
       {
         id: 'songwriter_splits',
         heading: 'SONGWRITER SPLITS (MUST TOTAL 100%)',
-        content: `Writer 1: {{writer_1_name}} - {{writer_1_split}}%
+        content: `[Writers and their splits are listed in the form above]
 
-Writer 2: {{writer_2_name}} - {{writer_2_split}}%
+All splits must total 100%. Each writer confirms their percentage ownership of the songwriting and composition.
 
-Writer 3: {{writer_3_name}} - {{writer_3_split}}%
-
-Writer 4: {{writer_4_name}} - {{writer_4_split}}%
-
-All splits must total 100%. Each writer confirms their percentage ownership of the songwriting and composition.`
+Note: Writer details, splits, PRO affiliations, and IPI numbers are captured in the Writers section of this form.`
       },
       {
-        id: 'contact_info',
-        heading: 'CONTACT INFORMATION',
-        content: `Writer 1 Email: {{writer_1_email}}
-
-Writer 2 Email: {{writer_2_email}}
-
-Writer 3 Email: {{writer_3_email}}
-
-Writer 4 Email: {{writer_4_email}}`
+        id: 'agreement',
+        heading: 'AGREEMENT',
+        content: `By signing below, each writer confirms:
+1. Their agreement to the splits stated above
+2. That all information provided is accurate
+3. That they have the authority to enter into this agreement`
       },
       {
         id: 'signatures',
         heading: 'SIGNATURES',
-        content: `By signing below, each writer confirms their agreement to the splits and information stated above.
+        content: `[Signature lines for each writer listed above]
 
+Each writer should sign and date below their printed name.
 
-Writer 1: _____________________________
-{{writer_1_name}}
-Date: _______________
-
-
-Writer 2: _____________________________
-{{writer_2_name}}
-Date: _______________
-
-
-Writer 3: _____________________________
-{{writer_3_name}}
-Date: _______________
-
-
-Writer 4: _____________________________
-{{writer_4_name}}
-Date: _______________`
+Writer signatures confirm agreement to the splits and information stated in this document.`
       }
     ]
   }

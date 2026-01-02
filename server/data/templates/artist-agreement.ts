@@ -3,6 +3,8 @@
  * Epic 3: Contract Templates System
  *
  * The most commonly used template for collaborations between artists, producers, and creatives.
+ *
+ * Updated to use PersonaGroups for dynamic collaborators (2-10).
  */
 
 import type { TemplateContent, TemplateField, OptionalClause, PersonaGroup } from "../../../shared/types/templates";
@@ -26,57 +28,9 @@ export const artistAgreementTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 1,
-  version: 1,
+  version: 2,
 
   fields: [
-    // Party A (Primary Artist)
-    {
-      id: 'party_a_name',
-      label: 'Your Name / Artist Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., Jane Smith p/k/a "J. Melody"',
-      group: 'Your Details'
-    },
-    {
-      id: 'party_a_address',
-      label: 'Your Address',
-      type: 'textarea',
-      required: true,
-      group: 'Your Details'
-    },
-    {
-      id: 'party_a_email',
-      label: 'Your Email',
-      type: 'email',
-      required: true,
-      group: 'Your Details'
-    },
-
-    // Party B (Collaborator)
-    {
-      id: 'party_b_name',
-      label: 'Collaborator Name',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., John Doe p/k/a "DJ Thunder"',
-      group: 'Collaborator Details'
-    },
-    {
-      id: 'party_b_address',
-      label: 'Collaborator Address',
-      type: 'textarea',
-      required: true,
-      group: 'Collaborator Details'
-    },
-    {
-      id: 'party_b_email',
-      label: 'Collaborator Email',
-      type: 'email',
-      required: true,
-      group: 'Collaborator Details'
-    },
-
     // Project Details
     {
       id: 'project_title',
@@ -94,35 +48,6 @@ export const artistAgreementTemplate: TemplateDefinition = {
       placeholder: 'Describe the collaboration scope...',
       helpText: 'Describe what each party will contribute to the project',
       group: 'Project Details'
-    },
-
-    // Financial Terms
-    {
-      id: 'party_a_split',
-      label: 'Your Revenue Share (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Financial Terms'
-    },
-    {
-      id: 'party_b_split',
-      label: 'Collaborator Revenue Share (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Financial Terms'
-    },
-    {
-      id: 'advance_amount',
-      label: 'Advance Payment (if any)',
-      type: 'currency',
-      required: false,
-      defaultValue: 0,
-      helpText: 'Leave as 0 if no advance',
-      group: 'Financial Terms'
     },
 
     // Dates
@@ -167,7 +92,7 @@ export const artistAgreementTemplate: TemplateDefinition = {
     {
       id: 'exclusivity',
       name: 'Exclusivity Clause',
-      description: 'Prevents either party from releasing similar work during the collaboration period',
+      description: 'Prevents parties from releasing similar work during the collaboration period',
       defaultEnabled: false,
       fields: [
         {
@@ -181,31 +106,31 @@ export const artistAgreementTemplate: TemplateDefinition = {
       ]
     },
     {
-      id: 'credit_requirements',
-      name: 'Credit Requirements',
-      description: 'Specifies how each party must be credited',
-      defaultEnabled: true,
+      id: 'advance_payment',
+      name: 'Advance Payment',
+      description: 'Include an advance payment to be recouped from revenues',
+      defaultEnabled: false,
       fields: [
         {
-          id: 'party_a_credit',
-          label: 'Your Credit Name',
-          type: 'text',
+          id: 'advance_amount',
+          label: 'Advance Amount',
+          type: 'currency',
           required: true,
-          placeholder: 'e.g., "Produced by J. Melody"'
+          defaultValue: 0
         },
         {
-          id: 'party_b_credit',
-          label: 'Collaborator Credit Name',
+          id: 'advance_recipient',
+          label: 'Advance Recipient',
           type: 'text',
           required: true,
-          placeholder: 'e.g., "Featuring DJ Thunder"'
+          placeholder: 'Name of party receiving advance'
         }
       ]
     },
     {
       id: 'termination',
       name: 'Early Termination Rights',
-      description: 'Allows either party to terminate with written notice',
+      description: 'Allows parties to terminate with written notice',
       defaultEnabled: true,
       fields: [
         {
@@ -220,25 +145,77 @@ export const artistAgreementTemplate: TemplateDefinition = {
     }
   ],
 
+  personaGroups: [
+    {
+      id: 'parties',
+      singularName: 'Party',
+      pluralName: 'Parties',
+      description: 'Add all collaborators to this agreement. Revenue splits should total 100%.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'name',
+          label: 'Name / Artist Name',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., Jane Smith p/k/a "J. Melody"'
+        },
+        {
+          id: 'address',
+          label: 'Address',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'revenue_split',
+          label: 'Revenue Share (%)',
+          type: 'number',
+          required: true,
+          defaultValue: 50,
+          validation: { min: 0, max: 100 }
+        },
+        {
+          id: 'credit',
+          label: 'Credit Name',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., "Produced by J. Melody"'
+        },
+        {
+          id: 'contribution',
+          label: 'Contribution',
+          type: 'text',
+          required: false,
+          placeholder: 'e.g., vocals, production, writing'
+        }
+      ]
+    }
+  ],
+
   content: {
     title: 'ARTIST COLLABORATION AGREEMENT',
     sections: [
       {
         id: 'parties',
         heading: '1. PARTIES',
-        content: `This Artist Collaboration Agreement ("Agreement") is entered into as of {{effective_date}} by and between:
+        content: `This Artist Collaboration Agreement ("Agreement") is entered into as of {{effective_date}} by and between the Parties listed in this agreement.
 
-{{party_a_name}} ("Party A")
-Address: {{party_a_address}}
-Email: {{party_a_email}}
+[Party details are captured in the Parties section of this form]
 
-AND
-
-{{party_b_name}} ("Party B")
-Address: {{party_b_address}}
-Email: {{party_b_email}}
-
-Collectively referred to as the "Parties."`
+All parties are collectively referred to as the "Parties."`
       },
       {
         id: 'project',
@@ -254,19 +231,25 @@ The collaboration shall commence on {{effective_date}} with deliverables expecte
       {
         id: 'revenue',
         heading: '3. REVENUE SHARING',
-        content: `All revenues derived from the Project, including but not limited to streaming royalties, synchronization fees, performance royalties, and mechanical royalties, shall be divided as follows:
+        content: `All revenues derived from the Project, including but not limited to streaming royalties, synchronization fees, performance royalties, and mechanical royalties, shall be divided according to each Party's revenue share percentage as specified in this agreement.
 
-Party A: {{party_a_split}}%
-Party B: {{party_b_split}}%
-
-Any advance payment of {{advance_amount}} shall be recoupable from the receiving Party's share of revenues.
+[Revenue splits are captured in the Parties section - splits must total 100%]
 
 Each Party shall be responsible for their own taxes on income received under this Agreement.`
       },
       {
+        id: 'advance',
+        heading: '4. ADVANCE PAYMENT',
+        content: `An advance payment of {{advance_amount}} shall be paid to {{advance_recipient}}.
+
+This advance is recoupable from the receiving Party's share of revenues.`,
+        isOptional: true,
+        clauseId: 'advance_payment'
+      },
+      {
         id: 'rights',
-        heading: '4. INTELLECTUAL PROPERTY RIGHTS',
-        content: `The Parties shall jointly own all intellectual property created as part of this Project. Neither Party may license, sell, or transfer their rights in the Project without the written consent of the other Party.
+        heading: '5. INTELLECTUAL PROPERTY RIGHTS',
+        content: `The Parties shall jointly own all intellectual property created as part of this Project. No Party may license, sell, or transfer their rights in the Project without the written consent of all other Parties.
 
 Territory: This Agreement covers the exploitation of the Project in {{territory}}.
 
@@ -274,33 +257,30 @@ Each Party retains ownership of any pre-existing materials they contribute to th
       },
       {
         id: 'exclusivity_section',
-        heading: '5. EXCLUSIVITY',
-        content: `During the exclusivity period of {{exclusivity_period}} months from the Effective Date, neither Party shall engage in any collaboration that would directly compete with or diminish the value of the Project.
+        heading: '6. EXCLUSIVITY',
+        content: `During the exclusivity period of {{exclusivity_period}} months from the Effective Date, no Party shall engage in any collaboration that would directly compete with or diminish the value of the Project.
 
-This exclusivity applies only to projects of a substantially similar nature and does not restrict either Party's other creative endeavors.`,
+This exclusivity applies only to projects of a substantially similar nature and does not restrict any Party's other creative endeavors.`,
         isOptional: true,
         clauseId: 'exclusivity'
       },
       {
         id: 'credits_section',
-        heading: '6. CREDITS AND ATTRIBUTION',
-        content: `The Parties agree to the following credit requirements for all releases and promotional materials:
+        heading: '7. CREDITS AND ATTRIBUTION',
+        content: `The Parties agree to proper credit requirements for all releases and promotional materials.
 
-Party A Credit: {{party_a_credit}}
-Party B Credit: {{party_b_credit}}
+[Credit names are specified for each Party in the form above]
 
-Both Parties shall ensure that proper credits are included on all platforms and in all metadata where technically feasible.`,
-        isOptional: true,
-        clauseId: 'credit_requirements'
+All Parties shall ensure that proper credits are included on all platforms and in all metadata where technically feasible.`
       },
       {
         id: 'termination_section',
-        heading: '7. TERMINATION',
-        content: `Either Party may terminate this Agreement by providing {{notice_period}} days written notice to the other Party.
+        heading: '8. TERMINATION',
+        content: `Any Party may terminate this Agreement by providing {{notice_period}} days written notice to all other Parties.
 
 Upon termination:
 a) All revenues earned prior to termination shall be divided according to Section 3
-b) Neither Party may use the other's name or likeness for new promotions
+b) No Party may use another Party's name or likeness for new promotions
 c) Existing licenses and agreements shall remain in effect
 
 If a Party terminates without cause before the Project is complete, that Party forfeits their right to any advance payments not yet recouped.`,
@@ -309,10 +289,10 @@ If a Party terminates without cause before the Project is complete, that Party f
       },
       {
         id: 'general',
-        heading: '8. GENERAL PROVISIONS',
+        heading: '9. GENERAL PROVISIONS',
         content: `Entire Agreement: This Agreement constitutes the entire understanding between the Parties and supersedes all prior negotiations and agreements.
 
-Amendments: This Agreement may only be amended in writing signed by both Parties.
+Amendments: This Agreement may only be amended in writing signed by all Parties.
 
 Governing Law: This Agreement shall be governed by the laws of England and Wales.
 
@@ -320,18 +300,12 @@ Disputes: Any disputes arising from this Agreement shall first be addressed thro
       },
       {
         id: 'signatures',
-        heading: '9. SIGNATURES',
+        heading: '10. SIGNATURES',
         content: `IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date first written above.
 
+[Signature lines for each Party listed above]
 
-_____________________________
-{{party_a_name}}
-Date: _______________
-
-
-_____________________________
-{{party_b_name}}
-Date: _______________`
+Each Party should sign and date below their printed name to confirm their agreement to the terms stated herein.`
       }
     ]
   }
@@ -342,24 +316,43 @@ Date: _______________`
  */
 export const artistAgreementSampleData = {
   fields: {
-    party_a_name: 'Jane Smith p/k/a "J. Melody"',
-    party_a_address: '123 Music Lane, London, UK',
-    party_a_email: 'jane@example.com',
-    party_b_name: 'John Doe p/k/a "DJ Thunder"',
-    party_b_address: '456 Beat Street, Manchester, UK',
-    party_b_email: 'john@example.com',
     project_title: 'Summer Nights',
-    project_description: 'A collaborative single featuring vocals by J. Melody and production by DJ Thunder.',
-    party_a_split: 50,
-    party_b_split: 50,
-    advance_amount: 500,
+    project_description: 'A collaborative single featuring multiple artists.',
     effective_date: new Date('2025-01-15'),
     delivery_date: new Date('2025-03-01'),
     territory: 'worldwide',
     exclusivity_period: 6,
-    party_a_credit: 'Vocals by J. Melody',
-    party_b_credit: 'Produced by DJ Thunder',
+    advance_amount: 500,
+    advance_recipient: 'J. Melody',
     notice_period: 30
   },
-  enabledClauses: ['credit_requirements', 'termination']
+  enabledClauses: ['termination'],
+  personas: {
+    parties: [
+      {
+        id: 'party_1',
+        values: {
+          name: 'Jane Smith p/k/a "J. Melody"',
+          address: '123 Music Lane, London, UK',
+          email: 'jane@example.com',
+          phone: '+44 123 456 7890',
+          revenue_split: 50,
+          credit: 'Vocals by J. Melody',
+          contribution: 'vocals, writing'
+        }
+      },
+      {
+        id: 'party_2',
+        values: {
+          name: 'John Doe p/k/a "DJ Thunder"',
+          address: '456 Beat Street, Manchester, UK',
+          email: 'john@example.com',
+          phone: '+44 098 765 4321',
+          revenue_split: 50,
+          credit: 'Produced by DJ Thunder',
+          contribution: 'production, mixing'
+        }
+      }
+    ]
+  }
 };

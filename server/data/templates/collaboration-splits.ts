@@ -3,6 +3,8 @@
  *
  * Documents ownership splits between contributors for master and publishing,
  * with sections for established creatives and first-time collaborators.
+ *
+ * Updated to use PersonaGroups for dynamic contributors (2-10).
  */
 
 import type { TemplateDefinition } from './artist-agreement';
@@ -13,7 +15,7 @@ export const collaborationSplitsTemplate: TemplateDefinition = {
   category: 'artist',
   isActive: true,
   sortOrder: 18,
-  version: 1,
+  version: 2,
 
   fields: [
     // Agreement Details
@@ -32,163 +34,16 @@ export const collaborationSplitsTemplate: TemplateDefinition = {
       placeholder: 'e.g., "Midnight Dreams"',
       group: 'Song Details'
     },
-
-    // Contributor 1
     {
-      id: 'contributor_1_name',
-      label: 'Contributor 1 Name',
-      type: 'text',
-      required: true,
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_role',
-      label: 'Contributor 1 Role',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., writing, production, vocals',
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_master_split',
-      label: 'Contributor 1 Master Split (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_publishing_split',
-      label: 'Contributor 1 Publishing Split (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_email',
-      label: 'Contributor 1 Email',
-      type: 'email',
-      required: true,
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_social',
-      label: 'Contributor 1 Social Media',
+      id: 'working_title',
+      label: 'Working Title (if different)',
       type: 'text',
       required: false,
-      group: 'Contributor 1'
-    },
-    {
-      id: 'contributor_1_phone',
-      label: 'Contributor 1 Phone',
-      type: 'text',
-      required: false,
-      group: 'Contributor 1'
-    },
-
-    // Contributor 2
-    {
-      id: 'contributor_2_name',
-      label: 'Contributor 2 Name',
-      type: 'text',
-      required: true,
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_role',
-      label: 'Contributor 2 Role',
-      type: 'text',
-      required: true,
-      placeholder: 'e.g., writing, production, vocals',
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_master_split',
-      label: 'Contributor 2 Master Split (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_publishing_split',
-      label: 'Contributor 2 Publishing Split (%)',
-      type: 'number',
-      required: true,
-      defaultValue: 50,
-      validation: { min: 0, max: 100 },
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_email',
-      label: 'Contributor 2 Email',
-      type: 'email',
-      required: true,
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_social',
-      label: 'Contributor 2 Social Media',
-      type: 'text',
-      required: false,
-      group: 'Contributor 2'
-    },
-    {
-      id: 'contributor_2_phone',
-      label: 'Contributor 2 Phone',
-      type: 'text',
-      required: false,
-      group: 'Contributor 2'
+      group: 'Song Details'
     }
   ],
 
   optionalClauses: [
-    {
-      id: 'contributor_3',
-      name: 'Additional Contributor 3',
-      description: 'Add a third contributor to the agreement',
-      defaultEnabled: false,
-      fields: [
-        {
-          id: 'contributor_3_name',
-          label: 'Contributor 3 Name',
-          type: 'text',
-          required: true
-        },
-        {
-          id: 'contributor_3_role',
-          label: 'Contributor 3 Role',
-          type: 'text',
-          required: true
-        },
-        {
-          id: 'contributor_3_master_split',
-          label: 'Contributor 3 Master Split (%)',
-          type: 'number',
-          required: true,
-          defaultValue: 0,
-          validation: { min: 0, max: 100 }
-        },
-        {
-          id: 'contributor_3_publishing_split',
-          label: 'Contributor 3 Publishing Split (%)',
-          type: 'number',
-          required: true,
-          defaultValue: 0,
-          validation: { min: 0, max: 100 }
-        },
-        {
-          id: 'contributor_3_email',
-          label: 'Contributor 3 Email',
-          type: 'email',
-          required: true
-        }
-      ]
-    },
     {
       id: 'payment_clause',
       name: 'Payment for Services',
@@ -212,6 +67,94 @@ export const collaborationSplitsTemplate: TemplateDefinition = {
           ]
         }
       ]
+    },
+    {
+      id: 'delivery_clause',
+      name: 'File Delivery Requirements',
+      description: 'Specify what files each contributor must provide',
+      defaultEnabled: true,
+      fields: [
+        {
+          id: 'delivery_deadline',
+          label: 'Delivery Deadline',
+          type: 'date',
+          required: true
+        },
+        {
+          id: 'delivery_format',
+          label: 'Required Format',
+          type: 'select',
+          required: true,
+          options: [
+            { value: 'stems', label: 'Stems (individual tracks)' },
+            { value: 'project', label: 'Full project file' },
+            { value: 'wav', label: 'WAV mixdown only' },
+            { value: 'both', label: 'Stems + project file' }
+          ]
+        }
+      ]
+    }
+  ],
+
+  personaGroups: [
+    {
+      id: 'contributors',
+      singularName: 'Contributor',
+      pluralName: 'Contributors',
+      description: 'Add all contributors to this song. Master and publishing splits should each total 100%.',
+      minCount: 2,
+      maxCount: 10,
+      fields: [
+        {
+          id: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+          placeholder: 'Full legal name or stage name'
+        },
+        {
+          id: 'role',
+          label: 'Role/Contribution',
+          type: 'text',
+          required: true,
+          placeholder: 'e.g., writing, production, vocals, mixing'
+        },
+        {
+          id: 'master_split',
+          label: 'Master Split (%)',
+          type: 'number',
+          required: true,
+          defaultValue: 50,
+          validation: { min: 0, max: 100 }
+        },
+        {
+          id: 'publishing_split',
+          label: 'Publishing Split (%)',
+          type: 'number',
+          required: true,
+          defaultValue: 50,
+          validation: { min: 0, max: 100 }
+        },
+        {
+          id: 'email',
+          label: 'Email',
+          type: 'email',
+          required: true
+        },
+        {
+          id: 'phone',
+          label: 'Phone',
+          type: 'text',
+          required: false
+        },
+        {
+          id: 'social',
+          label: 'Social Media Handle',
+          type: 'text',
+          required: false,
+          placeholder: '@username'
+        }
+      ]
     }
   ],
 
@@ -228,40 +171,24 @@ This agreement confirms each contributor's percentage ownership of the final son
       {
         id: 'song_info',
         heading: 'SONG INFORMATION',
-        content: `Song Title: {{song_title}}`
+        content: `Song Title: {{song_title}}
+Working Title: {{working_title}}`
       },
       {
         id: 'ownership_splits',
         heading: '1. OWNERSHIP SPLITS',
-        content: `Master Ownership:
-- {{contributor_1_name}}: {{contributor_1_master_split}}%
-- {{contributor_2_name}}: {{contributor_2_master_split}}%
+        content: `[Contributors and their splits are listed in the form above]
 
-Publishing Ownership:
-- {{contributor_1_name}}: {{contributor_1_publishing_split}}%
-- {{contributor_2_name}}: {{contributor_2_publishing_split}}%
+Master Ownership and Publishing Ownership percentages for each contributor are captured in the Contributors section.
 
-All splits must total 100%.`
+IMPORTANT: Both master and publishing splits must each total 100%.`
       },
       {
         id: 'contributions',
         heading: '2. CONTRIBUTIONS',
-        content: `Each contributor's role:
+        content: `Each contributor's role and contribution type is documented in the Contributors section above.
 
-{{contributor_1_name}}: {{contributor_1_role}}
-
-{{contributor_2_name}}: {{contributor_2_role}}`
-      },
-      {
-        id: 'contributor_3_section',
-        heading: 'ADDITIONAL CONTRIBUTOR',
-        content: `{{contributor_3_name}}
-Role: {{contributor_3_role}}
-Master Split: {{contributor_3_master_split}}%
-Publishing Split: {{contributor_3_publishing_split}}%
-Email: {{contributor_3_email}}`,
-        isOptional: true,
-        clauseId: 'contributor_3'
+All parties confirm that their stated contributions are accurate and complete.`
       },
       {
         id: 'payment',
@@ -274,44 +201,43 @@ VAT Status: {{vat_registered}}`,
       {
         id: 'delivery',
         heading: '4. DELIVERY OF FILES',
-        content: `Each contributor agrees to provide agreed files (e.g., stems, projects, etc.) by the agreed date.`
+        content: `Delivery Deadline: {{delivery_deadline}}
+Required Format: {{delivery_format}}
+
+Each contributor agrees to provide their agreed files (e.g., stems, projects, etc.) by the deadline specified above.`,
+        isOptional: true,
+        clauseId: 'delivery_clause'
       },
       {
         id: 'credits',
         heading: '5. CREDITS',
-        content: `All parties agree to give proper credit in all releases and posts.`
+        content: `All parties agree to give proper credit in all releases and posts. Credits should reflect each contributor's role as documented in this agreement.`
       },
       {
         id: 'permission',
         heading: '6. PERMISSION & RELEASES',
-        content: `No one may upload, release, or distribute the song without all parties' written approval.`
+        content: `No one may upload, release, or distribute the song without all parties' written approval.
+
+Any release must include proper credits for all contributors.`
       },
       {
         id: 'disputes',
         heading: '7. DISPUTES',
-        content: `Disagreements will be resolved fairly and respectfully before release.`
+        content: `Disagreements will be resolved fairly and respectfully before release.
+
+If a resolution cannot be reached, parties agree to seek mediation before legal action.`
       },
       {
         id: 'signatures',
         heading: 'SIGNATURES',
-        content: `Contributor 1
+        content: `[Signature lines for each contributor listed above]
 
-Name: {{contributor_1_name}}
-Signature: _________________________
-Date: _______________
-Social Media: {{contributor_1_social}}
-Email: {{contributor_1_email}}
-Phone: {{contributor_1_phone}}
+By signing, each contributor confirms:
+1. Agreement to the splits stated above
+2. Accuracy of their contribution description
+3. Authority to enter into this agreement
 
-
-Contributor 2
-
-Name: {{contributor_2_name}}
-Signature: _________________________
-Date: _______________
-Social Media: {{contributor_2_social}}
-Email: {{contributor_2_email}}
-Phone: {{contributor_2_phone}}`
+Each contributor should sign and date below their printed name.`
       }
     ]
   }
