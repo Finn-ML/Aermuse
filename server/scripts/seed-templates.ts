@@ -110,10 +110,11 @@ export async function updateTemplates(): Promise<void> {
   console.log("[SEED] Template update complete");
 }
 
-// Run seeding if this script is executed directly
+// Run seeding and updates if this script is executed directly
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   seedTemplates()
+    .then(() => updateTemplates())
     .then(() => {
       console.log("[SEED] Done!");
       process.exit(0);
