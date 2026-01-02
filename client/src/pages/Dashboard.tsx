@@ -102,9 +102,7 @@ export default function Dashboard() {
     dateFrom: '',
     dateTo: '',
   });
-  const [showAddContract, setShowAddContract] = useState(false);
   const [showUploadContract, setShowUploadContract] = useState(false);
-  const [newContract, setNewContract] = useState({ name: '', type: 'publishing', partnerName: '', value: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
@@ -312,22 +310,6 @@ export default function Dashboard() {
       return res.json();
     },
     enabled: !!user && !!selectedProposalId,
-  });
-
-  const createContractMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; partnerName: string; value: string }) => {
-      const res = await apiRequest('POST', '/api/contracts', data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
-      setShowAddContract(false);
-      setNewContract({ name: '', type: 'publishing', partnerName: '', value: '' });
-      toast({ title: "Contract added", description: "Your contract has been created." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create contract.", variant: "destructive" });
-    },
   });
 
   const deleteContractMutation = useMutation({
@@ -1034,16 +1016,6 @@ export default function Dashboard() {
                     <span className="hidden sm:inline">Upload Contract</span>
                     <span className="sm:hidden">Upload</span>
                   </button>
-                  <button
-                    onClick={() => setShowAddContract(true)}
-                    disabled={!isPremium && contractLimitData && !contractLimitData.allowed}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-xs sm:text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all flex-1 sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    data-testid="button-add-contract"
-                  >
-                    <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
-                    <span className="hidden sm:inline">Add Contract</span>
-                    <span className="sm:hidden">Add</span>
-                  </button>
                 </div>
               </div>
 
@@ -1120,66 +1092,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {showAddContract && (
-                <div
-                  className="rounded-[20px] p-7 mb-6"
-                  style={{ background: 'rgba(255, 255, 255, 0.8)', border: '2px solid rgba(102, 0, 51, 0.1)' }}
-                >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">New Contract</h3>
-                    <button onClick={() => setShowAddContract(false)} className="text-[rgba(102,0,51,0.5)] hover:text-[#660033]">
-                      <X size={20} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                    <input
-                      type="text"
-                      placeholder="Contract Name"
-                      value={newContract.name}
-                      onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
-                      data-testid="input-contract-name"
-                    />
-                    <select
-                      value={newContract.type}
-                      onChange={(e) => setNewContract({ ...newContract, type: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
-                      data-testid="select-contract-type"
-                    >
-                      <option value="publishing">Publishing</option>
-                      <option value="distribution">Distribution</option>
-                      <option value="sync_license">Sync License</option>
-                      <option value="management">Management</option>
-                      <option value="record_deal">Record Deal</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Partner Name"
-                      value={newContract.partnerName}
-                      onChange={(e) => setNewContract({ ...newContract, partnerName: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
-                      data-testid="input-partner-name"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Contract Value"
-                      value={newContract.value}
-                      onChange={(e) => setNewContract({ ...newContract, value: e.target.value })}
-                      className="px-4 py-3 rounded-xl bg-white border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm sm:text-base"
-                      data-testid="input-contract-value"
-                    />
-                  </div>
-                  <button
-                    onClick={() => createContractMutation.mutate(newContract)}
-                    disabled={createContractMutation.isPending || !newContract.name}
-                    className="px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50 flex items-center gap-2"
-                    data-testid="button-save-contract"
-                  >
-                    {createContractMutation.isPending && <Loader2 className="animate-spin" size={16} />}
-                    Save Contract
-                  </button>
-                </div>
-              )}
 
               {contractsLoading ? (
                 <div className="flex items-center justify-center py-20">
