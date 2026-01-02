@@ -301,7 +301,7 @@ export default function Landing() {
             className={`mt-6 text-sm transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{ color: 'rgba(102, 0, 51, 0.6)', transitionDelay: '900ms' }}
           >
-            Free forever for basic features. Premium from £9/month.
+            Free forever for basic features. Premium from £10/month.
           </p>
         </div>
 
