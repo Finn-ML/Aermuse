@@ -8,6 +8,7 @@ export default function Landing() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showContactPopup, setShowContactPopup] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -644,7 +645,7 @@ export default function Landing() {
         <div className="flex gap-6 sm:gap-10">
           <Link href="/privacy" className="nav-link text-sm">Privacy</Link>
           <Link href="/terms" className="nav-link text-sm">Terms</Link>
-          <a href="mailto:hello@aermuse.com" className="nav-link text-sm">Contact</a>
+          <button onClick={() => setShowContactPopup(true)} className="nav-link text-sm">Contact</button>
         </div>
         <div
           className="text-xs sm:text-sm text-center sm:text-right"
@@ -653,6 +654,38 @@ export default function Landing() {
           © 2025 AERMUSE. All rights reserved.
         </div>
       </footer>
+
+      {/* Contact Popup */}
+      {showContactPopup && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowContactPopup(false)}
+        >
+          <div
+            className="bg-[#F7E6CA] rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-[#660033]">Contact Us</h3>
+              <button
+                onClick={() => setShowContactPopup(false)}
+                className="text-[#660033]/50 hover:text-[#660033] transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-[#660033]/70 mb-4">
+              Have questions or feedback? Reach out to us at:
+            </p>
+            <a
+              href="mailto:hello@aermuse.com"
+              className="block text-center py-3 px-4 bg-[#660033] text-[#F7E6CA] rounded-xl font-medium hover:shadow-lg transition-all"
+            >
+              hello@aermuse.com
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
