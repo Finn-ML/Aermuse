@@ -264,7 +264,7 @@ export default function Landing() {
           </div>
 
           <h1
-            className={`font-light leading-[1.05] mb-10 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+            className={`font-playfair font-light leading-[1.05] mb-10 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{
               fontSize: 'clamp(48px, 7vw, 96px)',
               transitionDelay: '400ms'
