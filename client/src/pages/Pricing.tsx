@@ -72,6 +72,7 @@ const PRICING_TIERS: PricingTier[] = [
       { text: 'AI Summary & Risk Score', included: true },
       { text: 'AI Red Flags Analysis', included: true },
       { text: 'AI Key Terms & Missing Clauses', included: true },
+      { text: 'Aerival: Artist launcher', included: true },
     ],
     cta: 'Go Alpha',
     highlighted: true,
