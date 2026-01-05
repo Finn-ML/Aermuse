@@ -559,7 +559,7 @@ export default function Dashboard() {
     { id: 'contracts' as NavId, label: 'Contract Manager', icon: FileText },
     { id: 'templates' as NavId, label: 'Templates', icon: Layout, premium: true },
     { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined, premium: true },
-    { id: 'landing' as NavId, label: 'Landing Page', icon: ExternalLink, premium: true },
+    { id: 'landing' as NavId, label: 'Aerival: Artist Launcher', icon: ExternalLink, premium: true },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
@@ -796,7 +796,7 @@ export default function Dashboard() {
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'templates' && 'Contract Templates'}
               {activeNav === 'proposals' && 'Proposals'}
-              {activeNav === 'landing' && 'Landing Page'}
+              {activeNav === 'landing' && 'Aerival: Artist Launcher'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
             <p className="text-xs sm:text-sm text-[rgba(102,0,51,0.6)] font-medium hidden sm:block">
