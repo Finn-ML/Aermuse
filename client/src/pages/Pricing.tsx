@@ -130,7 +130,7 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
         </span>
       )}
 
-      <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+      <h3 className="text-xl font-bold mb-2 font-playfair">{plan.name}</h3>
       <div className="flex items-baseline gap-1 mb-4">
         <span className="text-4xl font-bold">{price}</span>
         <span className={`text-sm ${plan.highlighted ? 'opacity-70' : 'text-[#660033]/60'}`}>
@@ -235,7 +235,7 @@ export default function Pricing() {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto px-4 py-12 sm:py-16 text-center">
-        <h1 className="text-3xl sm:text-5xl font-bold text-[#660033] mb-4">
+        <h1 className="text-3xl sm:text-5xl font-bold text-[#660033] mb-4 font-playfair">
           Choose Your Plan
         </h1>
         <p className="text-lg sm:text-xl text-[#660033]/80 max-w-2xl mx-auto">
@@ -316,7 +316,7 @@ export default function Pricing() {
 
       {/* FAQ Section */}
       <div className="max-w-3xl mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12 text-[#660033]">
+        <h2 className="text-3xl font-bold text-center mb-12 text-[#660033] font-playfair">
           Frequently Asked Questions
         </h2>
         <FAQ />

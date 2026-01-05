@@ -46,6 +46,7 @@
   --font-sans: Nunito, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
+  --font-playfair: 'Playfair Display', Georgia, serif;
   --radius: .5rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(330 100% 28% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(330 100% 28% / 0.00);
