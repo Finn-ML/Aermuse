@@ -884,7 +884,7 @@ export default function Dashboard() {
                     <div className="text-2xl sm:text-[28px] lg:text-[32px] font-bold mb-1 sm:mb-2">
                       {stat.value}
                     </div>
-                    <div className="text-[11px] sm:text-[13px] font-semibold text-[#28a745] flex items-center gap-1">
+                    <div className="text-[11px] sm:text-[13px] font-semibold text-[#660033] flex items-center gap-1">
                       <TrendingUp size={12} className="sm:w-[14px] sm:h-[14px]" />
                       {stat.change}
                     </div>
