@@ -23,8 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Plus, Trash2, GripVertical, HelpCircle, X } from 'lucide-react';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Loader2, Plus, Trash2, GripVertical, HelpCircle, X, AlertCircle } from 'lucide-react';
+import { apiRequest, queryClient, ApiError } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { ContractTemplate } from '@shared/schema';
 import type {
@@ -82,6 +82,161 @@ const emptyClause = (): OptionalClause => ({
   defaultEnabled: false,
   fields: [],
 });
+
+/**
+ * Extract all {{variable}} placeholders from template content
+ */
+function extractVariables(content: TemplateContent): string[] {
+  const variables = new Set<string>();
+  const regex = /\{\{(\w+)\}\}/g;
+
+  // Extract from title
+  let match;
+  while ((match = regex.exec(content.title || '')) !== null) {
+    variables.add(match[1]);
+  }
+
+  // Extract from sections
+  for (const section of content.sections || []) {
+    regex.lastIndex = 0;
+    while ((match = regex.exec(section.heading || '')) !== null) {
+      variables.add(match[1]);
+    }
+    regex.lastIndex = 0;
+    while ((match = regex.exec(section.content || '')) !== null) {
+      variables.add(match[1]);
+    }
+  }
+
+  return Array.from(variables);
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+/**
+ * Client-side validation of template structure (mirrors server-side validation)
+ */
+function validateTemplateStructure(template: {
+  name: string;
+  content: TemplateContent;
+  fields: TemplateField[];
+  optionalClauses?: OptionalClause[];
+}): ValidationResult {
+  const errors: string[] = [];
+
+  // Validate name
+  if (!template.name.trim()) {
+    errors.push('Template name is required');
+  }
+
+  // Validate content
+  if (!template.content) {
+    errors.push('Template must have content');
+    return { valid: false, errors };
+  }
+
+  if (!template.content.title?.trim()) {
+    errors.push('Template must have a document title');
+  }
+
+  const validSections = (template.content.sections || []).filter(s => s.heading?.trim() || s.content?.trim());
+  if (validSections.length === 0) {
+    errors.push('Template must have at least one section with content');
+  }
+
+  // Validate sections
+  for (const section of validSections) {
+    if (!section.id) {
+      errors.push('Section missing id');
+    }
+    if (!section.heading?.trim()) {
+      errors.push(`Section "${section.id || '?'}" is missing a heading`);
+    }
+    if (!section.content?.trim()) {
+      errors.push(`Section "${section.heading || section.id || '?'}" is missing content`);
+    }
+
+    // If optional, must have clauseId
+    if (section.isOptional && !section.clauseId?.trim()) {
+      errors.push(`Optional section "${section.heading || section.id || '?'}" must have a Clause ID`);
+    }
+  }
+
+  // Validate fields
+  const fieldIds = new Set<string>();
+  const validFields = (template.fields || []).filter(f => f.id?.trim() && f.label?.trim());
+
+  for (const field of validFields) {
+    if (!field.id?.trim()) {
+      errors.push('Field is missing an ID');
+      continue;
+    }
+    if (!field.label?.trim()) {
+      errors.push(`Field "${field.id}" is missing a label`);
+    }
+    if (!field.type) {
+      errors.push(`Field "${field.id}" is missing a type`);
+    }
+
+    if (fieldIds.has(field.id)) {
+      errors.push(`Duplicate field ID: "${field.id}"`);
+    }
+    fieldIds.add(field.id);
+  }
+
+  // Validate optional clauses
+  const clauseIds = new Set<string>();
+  const validClauses = (template.optionalClauses || []).filter(c => c.id?.trim() && c.name?.trim());
+
+  for (const clause of validClauses) {
+    if (!clause.id?.trim()) {
+      errors.push('Clause is missing an ID');
+      continue;
+    }
+    if (!clause.name?.trim()) {
+      errors.push(`Clause "${clause.id}" is missing a name`);
+    }
+
+    if (clauseIds.has(clause.id)) {
+      errors.push(`Duplicate clause ID: "${clause.id}"`);
+    }
+    clauseIds.add(clause.id);
+
+    // Validate clause fields
+    for (const field of clause.fields || []) {
+      if (!field.id?.trim()) {
+        errors.push(`Clause "${clause.name || clause.id}" has a field missing an ID`);
+      }
+      if (field.id && fieldIds.has(field.id)) {
+        errors.push(`Clause field "${field.id}" conflicts with a main field ID`);
+      }
+    }
+  }
+
+  // Collect all field IDs including clause fields
+  const allFieldIds = new Set(fieldIds);
+  for (const clause of validClauses) {
+    for (const field of clause.fields || []) {
+      if (field.id) allFieldIds.add(field.id);
+    }
+  }
+
+  // Validate variables in content match fields
+  const variables = extractVariables(template.content);
+  for (const variable of variables) {
+    if (!allFieldIds.has(variable)) {
+      errors.push(`Variable "{{${variable}}}" in content has no matching field definition`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
 
 function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -241,8 +396,14 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [optionalClauses, setOptionalClauses] = useState<OptionalClause[]>([]);
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
   // Reset form when template changes
   useEffect(() => {
+    // Clear validation errors when dialog opens or template changes
+    setValidationErrors([]);
+
     if (template) {
       setName(template.name);
       setDescription(template.description || '');
@@ -263,19 +424,40 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
     }
   }, [template, open]);
 
+  /**
+   * Handles API errors and shows appropriate toast notifications
+   */
+  const handleApiError = (error: Error, action: 'create' | 'update') => {
+    if (error instanceof ApiError && error.details && error.details.length > 0) {
+      // Store validation errors to display in UI
+      setValidationErrors(error.details);
+      toast({
+        title: `Failed to ${action} template`,
+        description: `${error.details.length} validation ${error.details.length === 1 ? 'error' : 'errors'} found. See details below.`,
+        variant: 'destructive',
+      });
+    } else {
+      // Generic error
+      toast({
+        title: `Failed to ${action} template`,
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest('POST', '/api/admin/templates', data);
       return res.json();
     },
     onSuccess: () => {
+      setValidationErrors([]);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/templates'] });
       toast({ title: 'Template created successfully' });
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      toast({ title: 'Failed to create template', description: error.message, variant: 'destructive' });
-    },
+    onError: (error: Error) => handleApiError(error, 'create'),
   });
 
   const updateMutation = useMutation({
@@ -284,13 +466,12 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
       return res.json();
     },
     onSuccess: () => {
+      setValidationErrors([]);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/templates'] });
       toast({ title: 'Template updated successfully' });
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      toast({ title: 'Failed to update template', description: error.message, variant: 'destructive' });
-    },
+    onError: (error: Error) => handleApiError(error, 'update'),
   });
 
   const handleSubmit = () => {
@@ -299,13 +480,37 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
       sections: sections.filter(s => s.heading || s.content),
     };
 
+    const filteredFields = fields.filter(f => f.id && f.label);
+    const filteredClauses = optionalClauses.filter(c => c.id && c.name);
+
+    // Run client-side validation first
+    const validation = validateTemplateStructure({
+      name,
+      content,
+      fields: filteredFields,
+      optionalClauses: filteredClauses,
+    });
+
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
+      toast({
+        title: 'Template validation failed',
+        description: `${validation.errors.length} ${validation.errors.length === 1 ? 'issue' : 'issues'} found. Please fix the errors below.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Clear any previous validation errors
+    setValidationErrors([]);
+
     const data = {
       name,
       description: description || null,
       category,
       content,
-      fields: fields.filter(f => f.id && f.label),
-      optionalClauses: optionalClauses.filter(c => c.id && c.name),
+      fields: filteredFields,
+      optionalClauses: filteredClauses,
     };
 
     if (isEditing) {
@@ -652,6 +857,36 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Validation Errors Display */}
+        {validationErrors.length > 0 && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-destructive mb-2">
+                  Please fix the following {validationErrors.length === 1 ? 'issue' : 'issues'}:
+                </h4>
+                <ul className="text-sm text-destructive space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="shrink-0">•</span>
+                      <span>{error}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                onClick={() => setValidationErrors([])}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
