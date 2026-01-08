@@ -1,9 +1,47 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+/**
+ * Custom error class for API errors with structured data
+ */
+export class ApiError extends Error {
+  status: number;
+  details?: string[];
+
+  constructor(status: number, message: string, details?: string[]) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+
+  /**
+   * Returns a user-friendly error message, including details if available
+   */
+  getUserMessage(): string {
+    if (this.details && this.details.length > 0) {
+      return this.details.join('\n• ');
+    }
+    return this.message;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = await res.text();
+
+    // Try to parse as JSON to extract structured error info
+    try {
+      const json = JSON.parse(text);
+      const errorMessage = json.error || json.message || res.statusText;
+      const details = json.details as string[] | undefined;
+      throw new ApiError(res.status, errorMessage, details);
+    } catch (e) {
+      // If JSON parsing failed, throw with original text
+      if (e instanceof ApiError) {
+        throw e;
+      }
+      throw new ApiError(res.status, text || res.statusText);
+    }
   }
 }
 
