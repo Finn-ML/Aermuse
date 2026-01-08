@@ -678,10 +678,10 @@ export default function Landing() {
               Have questions or feedback? Reach out to us at:
             </p>
             <a
-              href="mailto:hello@aermuse.com"
+              href="mailto:served@aermuse.com"
               className="block text-center py-3 px-4 bg-[#660033] text-[#F7E6CA] rounded-xl font-medium hover:shadow-lg transition-all"
             >
-              hello@aermuse.com
+              served@aermuse.com
             </a>
           </div>
         </div>
