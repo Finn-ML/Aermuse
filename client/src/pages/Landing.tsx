@@ -42,9 +42,9 @@ export default function Landing() {
   ];
 
   const testimonials = [
-    { name: 'Mira Voss', role: 'Electronic Producer', quote: 'Finally, a platform that treats artists like professionals, not products.' },
-    { name: 'The Fernwood Collective', role: 'Indie Folk Band', quote: 'The contract analysis alone has saved us from multiple bad deals.' },
-    { name: 'D. Monarch', role: 'R&B Artist', quote: 'The contract AI saved me from a terrible publishing deal. Invaluable.' }
+    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'Finally, a platform that treats artists like professionals, not products.' },
+    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'The contract analysis alone has saved me from multiple bad deals.' },
+    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'The contract AI saved me from a terrible publishing deal. Invaluable.' }
   ];
 
   return (
