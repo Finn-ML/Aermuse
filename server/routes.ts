@@ -2835,6 +2835,148 @@ Sent at: ${new Date().toISOString()}
   });
 
   // ============================================
+  // USER TEMPLATES ROUTES (Alpha feature)
+  // ============================================
+
+  // Get user's custom templates
+  app.get("/api/user/templates", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Verify user has Alpha subscription
+      const user = await storage.getUser(userId);
+      if (!user || user.subscriptionTier !== 'alpha') {
+        return res.status(403).json({ error: "This feature requires an Alpha subscription" });
+      }
+
+      const templates = await storage.getUserTemplates(userId);
+      res.json({ templates });
+    } catch (error) {
+      console.error("Get user templates error:", error);
+      res.status(500).json({ error: "Failed to get user templates" });
+    }
+  });
+
+  // Create a custom template (clone from existing template)
+  app.post("/api/user/templates", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Verify user has Alpha subscription
+      const user = await storage.getUser(userId);
+      if (!user || user.subscriptionTier !== 'alpha') {
+        return res.status(403).json({ error: "This feature requires an Alpha subscription" });
+      }
+
+      const { sourceTemplateId, name, description } = req.body as {
+        sourceTemplateId: string;
+        name: string;
+        description?: string;
+      };
+
+      if (!name?.trim()) {
+        return res.status(400).json({ error: "Template name is required" });
+      }
+
+      // Get the source template
+      const sourceTemplate = await storage.getTemplate(sourceTemplateId);
+      if (!sourceTemplate) {
+        return res.status(404).json({ error: "Source template not found" });
+      }
+
+      // Create a copy with user's customizations
+      const template = await storage.createUserTemplate(userId, {
+        name: name.trim(),
+        description: description?.trim() || sourceTemplate.description,
+        category: sourceTemplate.category,
+        content: sourceTemplate.content,
+        fields: sourceTemplate.fields,
+        optionalClauses: sourceTemplate.optionalClauses,
+        personaGroups: sourceTemplate.personaGroups,
+        isActive: true,
+        sortOrder: 0,
+        version: 1,
+      });
+
+      console.log(`[USER TEMPLATE] Created by user ${userId}: ${template.id}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Create user template error:", error);
+      res.status(500).json({ error: "Failed to create template" });
+    }
+  });
+
+  // Update user's custom template (name and description only)
+  app.put("/api/user/templates/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Verify user has Alpha subscription
+      const user = await storage.getUser(userId);
+      if (!user || user.subscriptionTier !== 'alpha') {
+        return res.status(403).json({ error: "This feature requires an Alpha subscription" });
+      }
+
+      const { name, description } = req.body as { name?: string; description?: string };
+
+      const updateData: { name?: string; description?: string } = {};
+      if (name?.trim()) updateData.name = name.trim();
+      if (description !== undefined) updateData.description = description?.trim() || '';
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+
+      const template = await storage.updateUserTemplate(userId, req.params.id, updateData);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found or not owned by you" });
+      }
+
+      console.log(`[USER TEMPLATE] Updated by user ${userId}: ${template.id}`);
+      res.json({ template });
+    } catch (error) {
+      console.error("Update user template error:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  });
+
+  // Delete user's custom template
+  app.delete("/api/user/templates/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Verify user has Alpha subscription
+      const user = await storage.getUser(userId);
+      if (!user || user.subscriptionTier !== 'alpha') {
+        return res.status(403).json({ error: "This feature requires an Alpha subscription" });
+      }
+
+      const success = await storage.deleteUserTemplate(userId, req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Template not found or not owned by you" });
+      }
+
+      console.log(`[USER TEMPLATE] Deleted by user ${userId}: ${req.params.id}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete user template error:", error);
+      res.status(500).json({ error: "Failed to delete template" });
+    }
+  });
+
+  // ============================================
   // ADMIN SETTINGS ROUTES (Epic 6)
   // ============================================
 

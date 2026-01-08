@@ -84,6 +84,12 @@ export interface IStorage {
   updateTemplate(id: string, data: Partial<ContractTemplate>): Promise<ContractTemplate | undefined>;
   deactivateTemplate(id: string): Promise<boolean>;
   activateTemplate(id: string): Promise<ContractTemplate | undefined>;
+
+  // User Templates (Alpha feature)
+  getUserTemplates(userId: string): Promise<ContractTemplate[]>;
+  createUserTemplate(userId: string, data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<ContractTemplate>;
+  updateUserTemplate(userId: string, templateId: string, data: { name?: string; description?: string }): Promise<ContractTemplate | undefined>;
+  deleteUserTemplate(userId: string, templateId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -463,6 +469,51 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contractTemplates.id, id))
       .returning();
     return template;
+  }
+
+  // User Templates (Alpha feature)
+  async getUserTemplates(userId: string): Promise<ContractTemplate[]> {
+    return db.select()
+      .from(contractTemplates)
+      .where(and(
+        eq(contractTemplates.createdBy, userId),
+        eq(contractTemplates.isActive, true)
+      ))
+      .orderBy(desc(contractTemplates.updatedAt));
+  }
+
+  async createUserTemplate(userId: string, data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<ContractTemplate> {
+    const [template] = await db.insert(contractTemplates)
+      .values({
+        ...data,
+        createdBy: userId,
+      })
+      .returning();
+    return template;
+  }
+
+  async updateUserTemplate(userId: string, templateId: string, data: { name?: string; description?: string }): Promise<ContractTemplate | undefined> {
+    // Only allow updating templates owned by this user
+    const [template] = await db.update(contractTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(contractTemplates.id, templateId),
+        eq(contractTemplates.createdBy, userId)
+      ))
+      .returning();
+    return template;
+  }
+
+  async deleteUserTemplate(userId: string, templateId: string): Promise<boolean> {
+    // Soft delete - only for templates owned by this user
+    const [template] = await db.update(contractTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(
+        eq(contractTemplates.id, templateId),
+        eq(contractTemplates.createdBy, userId)
+      ))
+      .returning();
+    return !!template;
   }
 }
 
