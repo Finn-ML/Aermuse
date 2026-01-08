@@ -3,12 +3,19 @@
  * Epic 3: Contract Templates System - Story 3.7
  *
  * Gallery view combining filter, search, and template grid.
+ * Enhanced with user template support for Alpha users.
  */
 
-import { Search, FileText, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Search, FileText, Loader2, Bookmark } from 'lucide-react';
 import { useTemplates } from '@/hooks/useTemplates';
+import { useUserTemplates } from '@/hooks/useUserTemplates';
+import { usePremium } from '@/hooks/usePremium';
+import { useAuth } from '@/lib/auth';
 import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard } from './TemplateCard';
+import { SaveAsTemplateModal } from './SaveAsTemplateModal';
+import { EditTemplateModal } from './EditTemplateModal';
 import type { ContractTemplate } from '@shared/schema';
 
 interface Props {
@@ -16,6 +23,8 @@ interface Props {
 }
 
 export function TemplateGallery({ onSelectTemplate }: Props) {
+  const { user } = useAuth();
+  const { isAlpha } = usePremium();
   const {
     templates,
     loading,
@@ -26,11 +35,24 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
     setSearchQuery,
   } = useTemplates();
 
+  // Fetch user templates count for the category badge (Alpha only)
+  const { templates: userTemplates } = useUserTemplates();
+
+  // Modal state
+  const [saveModalTemplate, setSaveModalTemplate] = useState<ContractTemplate | null>(null);
+  const [editModalTemplate, setEditModalTemplate] = useState<ContractTemplate | null>(null);
+
+  const isMyTemplatesCategory = category === 'my-templates';
+
   return (
     <div className="space-y-4 sm:space-y-6 overflow-hidden">
       {/* Filters Row */}
       <div className="flex flex-col gap-3 sm:gap-4">
-        <CategoryFilter selected={category} onChange={setCategory} />
+        <CategoryFilter
+          selected={category}
+          onChange={setCategory}
+          userTemplateCount={isAlpha ? userTemplates.length : 0}
+        />
 
         <div className="relative w-full sm:max-w-xs">
           <Search
@@ -56,7 +78,7 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
       )}
 
       {/* Error State */}
-      {error && !loading && (
+      {error && !loading && !isMyTemplatesCategory && (
         <div
           className="rounded-[20px] p-6 sm:p-12 text-center"
           style={{ background: 'rgba(220, 53, 69, 0.05)' }}
@@ -65,8 +87,30 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && !error && templates.length === 0 && (
+      {/* Empty State - My Templates */}
+      {!loading && isMyTemplatesCategory && templates.length === 0 && (
+        <div
+          className="rounded-[20px] p-6 sm:p-12 text-center"
+          style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+        >
+          <Bookmark size={40} className="sm:w-12 sm:h-12 mx-auto mb-4 text-[rgba(102,0,51,0.3)]" />
+          <h3 className="text-base sm:text-lg font-bold text-[#660033] mb-2">No saved templates yet</h3>
+          <p className="text-sm sm:text-base text-[rgba(102,0,51,0.6)] mb-4">
+            {searchQuery
+              ? 'No templates match your search'
+              : 'Save any template to customize its title and description'}
+          </p>
+          <button
+            onClick={() => setCategory('all')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-lg transition-all"
+          >
+            Browse All Templates
+          </button>
+        </div>
+      )}
+
+      {/* Empty State - Regular Templates */}
+      {!loading && !error && !isMyTemplatesCategory && templates.length === 0 && (
         <div
           className="rounded-[20px] p-6 sm:p-12 text-center"
           style={{ background: 'rgba(255, 255, 255, 0.6)' }}
@@ -82,16 +126,45 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
       )}
 
       {/* Template Grid */}
-      {!loading && !error && templates.length > 0 && (
+      {!loading && templates.length > 0 && (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
               onSelect={onSelectTemplate}
+              onSaveAsTemplate={setSaveModalTemplate}
+              onEditTemplate={setEditModalTemplate}
+              isUserTemplate={isMyTemplatesCategory}
+              currentUserId={user?.id}
             />
           ))}
         </div>
+      )}
+
+      {/* Save As Template Modal */}
+      {saveModalTemplate && (
+        <SaveAsTemplateModal
+          template={saveModalTemplate}
+          isOpen={!!saveModalTemplate}
+          onClose={() => setSaveModalTemplate(null)}
+          onSuccess={() => {
+            setSaveModalTemplate(null);
+            // If user is not already viewing their templates, switch to that view
+            if (category !== 'my-templates') {
+              setCategory('my-templates');
+            }
+          }}
+        />
+      )}
+
+      {/* Edit Template Modal */}
+      {editModalTemplate && (
+        <EditTemplateModal
+          template={editModalTemplate}
+          isOpen={!!editModalTemplate}
+          onClose={() => setEditModalTemplate(null)}
+        />
       )}
     </div>
   );
