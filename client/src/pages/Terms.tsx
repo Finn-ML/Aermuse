@@ -212,8 +212,8 @@ export default function Terms() {
           <h2>17. Contact</h2>
           <p>
             If you have questions about these terms, please contact us at{' '}
-            <a href="mailto:legal@aermuse.com" className="text-[#660033] hover:underline">
-              legal@aermuse.com
+            <a href="mailto:served@aermuse.com" className="text-[#660033] hover:underline">
+              served@aermuse.com
             </a>
             .
           </p>

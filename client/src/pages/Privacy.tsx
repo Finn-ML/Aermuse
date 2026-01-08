@@ -152,7 +152,7 @@ export default function Privacy() {
           <h2>Contact</h2>
           <p>
             If you have questions about this privacy policy, please contact us at
-            privacy@aermuse.com.
+            served@aermuse.com.
           </p>
 
           <p className="text-sm text-gray-500 mt-8">
