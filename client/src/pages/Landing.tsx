@@ -397,7 +397,7 @@ export default function Landing() {
               Features
             </p>
             <h2
-              className="font-light leading-[1.15]"
+              className="font-playfair font-light leading-[1.15]"
               style={{ fontSize: 'clamp(28px, 5vw, 64px)' }}
             >
               Built for the<br />
@@ -450,7 +450,7 @@ export default function Landing() {
             How It Works
           </p>
           <h2
-            className="font-light"
+            className="font-playfair font-light"
             style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
           >
             Get started in <span className="font-bold">minutes</span>
@@ -465,7 +465,7 @@ export default function Landing() {
             >
               1
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Upload Your Contract</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Upload Your Contract</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Drop in any music contract—PDF, Word, or use our templates.
             </p>
@@ -477,7 +477,7 @@ export default function Landing() {
             >
               2
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">AI Analysis</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">AI Analysis</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Our AI scans for red flags, unfair terms, and missing protections.
             </p>
@@ -489,7 +489,7 @@ export default function Landing() {
             >
               3
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Sign with Confidence</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Sign with Confidence</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
               Negotiate better terms and e-sign directly from the platform.
             </p>
@@ -503,7 +503,7 @@ export default function Landing() {
             Testimonials
           </p>
           <h2
-            className="font-light"
+            className="font-playfair font-light"
             style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
           >
             Trusted by <span className="font-bold">artists</span>
@@ -549,7 +549,7 @@ export default function Landing() {
               Simple Pricing
             </p>
             <h2
-              className="font-light mb-6"
+              className="font-playfair font-light mb-6"
               style={{ fontSize: 'clamp(28px, 4vw, 48px)' }}
             >
               Start free,<br /><span className="font-bold">upgrade when ready</span>
@@ -600,7 +600,7 @@ export default function Landing() {
         style={{ background: '#660033' }}
       >
         <h2
-          className="font-light mb-4 sm:mb-6"
+          className="font-playfair font-light mb-4 sm:mb-6"
           style={{ fontSize: 'clamp(24px, 4vw, 56px)' }}
         >
           Ready to own your <span className="font-bold">artistry</span>?

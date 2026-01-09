@@ -22,6 +22,7 @@ interface Props {
 export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Props) {
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description || '');
+  const [nameError, setNameError] = useState<string | null>(null);
   const { mutateAsync: createTemplate, isPending } = useCreateUserTemplate();
   const { toast } = useToast();
 
@@ -30,12 +31,11 @@ export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Clear previous error
+    setNameError(null);
+
     if (!name.trim()) {
-      toast({
-        title: 'Name required',
-        description: 'Please enter a name for your template',
-        variant: 'destructive',
-      });
+      setNameError('Template name is required');
       return;
     }
 
@@ -92,11 +92,21 @@ export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Pr
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError(null);
+              }}
               placeholder="Enter template name"
-              className="w-full px-4 py-3 rounded-xl border-2 border-[rgba(102,0,51,0.1)] focus:border-[#660033] outline-none text-sm transition-colors"
+              className={`w-full px-4 py-3 rounded-xl border-2 outline-none text-sm transition-colors ${
+                nameError
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-[rgba(102,0,51,0.1)] focus:border-[#660033]'
+              }`}
               autoFocus
             />
+            {nameError && (
+              <p className="mt-1 text-sm text-red-500">{nameError}</p>
+            )}
           </div>
 
           <div>
@@ -127,7 +137,7 @@ export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Pr
             </button>
             <button
               type="submit"
-              disabled={isPending || !name.trim()}
+              disabled={isPending}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#660033] text-[#F7E6CA] font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isPending ? (

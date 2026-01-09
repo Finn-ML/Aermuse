@@ -18,7 +18,9 @@
       "Bash(git log:*)",
       "Bash(git -C /home/runner/workspace log --oneline -10)",
       "Bash(cat:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(curl:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
