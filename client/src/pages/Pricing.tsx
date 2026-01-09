@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Sparkles, Check, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { usePremium } from '@/hooks/usePremium';
@@ -5,6 +6,8 @@ import { FAQ } from '@/components/pricing/FAQ';
 import { Link } from 'wouter';
 import type { SubscriptionTier } from '@shared/schema';
 import { TIER_HIERARCHY, STRIPE_PAYMENT_LINKS } from '@shared/constants/tiers';
+
+type BillingPeriod = 'monthly' | 'annual';
 
 interface PricingFeature {
   text: string;
@@ -15,8 +18,8 @@ interface PricingFeature {
 interface PricingTier {
   id: SubscriptionTier;
   name: string;
-  price: string;
-  period: string;
+  monthlyPrice: string;
+  annualPrice: string;
   description: string;
   features: PricingFeature[];
   cta: string;
@@ -28,8 +31,8 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'free',
     name: 'Free',
-    price: '£0',
-    period: 'forever',
+    monthlyPrice: '£0',
+    annualPrice: '£0',
     description: 'Get started with basic features',
     features: [
       { text: 'Up to 10 contracts', included: true },
@@ -45,8 +48,8 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'beta',
     name: 'AERMUSE Beta',
-    price: '£10',
-    period: '/month',
+    monthlyPrice: '£10',
+    annualPrice: '£100',
     description: 'Essential tools for artists',
     features: [
       { text: 'Unlimited contracts', included: true },
@@ -62,8 +65,8 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'alpha',
     name: 'AERMUSE Alpha',
-    price: '£19.99',
-    period: '/month',
+    monthlyPrice: '£19.99',
+    annualPrice: '£199',
     description: 'Complete contract intelligence',
     features: [
       { text: 'Unlimited contracts', included: true },
@@ -83,19 +86,23 @@ interface PricingCardProps {
   plan: PricingTier;
   currentTier: SubscriptionTier;
   isLoggedIn: boolean;
-  onSubscribe: (tier: 'beta' | 'alpha') => void;
+  billingPeriod: BillingPeriod;
+  onSubscribe: (tier: 'beta' | 'alpha', billingPeriod: BillingPeriod) => void;
 }
 
-function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe }: PricingCardProps) {
+function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe }: PricingCardProps) {
   const isCurrentPlan = currentTier === plan.id;
   const canUpgrade = !isCurrentPlan && TIER_HIERARCHY[plan.id] > TIER_HIERARCHY[currentTier];
   const isHigherTier = TIER_HIERARCHY[plan.id] < TIER_HIERARCHY[currentTier];
+
+  const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+  const period = plan.id === 'free' ? 'forever' : billingPeriod === 'monthly' ? '/month' : '/year';
 
   const handleClick = () => {
     if (plan.id === 'free') {
       window.location.href = isLoggedIn ? '/dashboard' : '/auth';
     } else if (canUpgrade) {
-      onSubscribe(plan.id as 'beta' | 'alpha');
+      onSubscribe(plan.id as 'beta' | 'alpha', billingPeriod);
     }
   };
 
@@ -124,9 +131,9 @@ function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe }: PricingCard
 
       <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
       <div className="flex items-baseline gap-1 mb-4">
-        <span className="text-4xl font-bold">{plan.price}</span>
+        <span className="text-4xl font-bold">{price}</span>
         <span className={`text-sm ${plan.highlighted ? 'opacity-70' : 'text-[#660033]/60'}`}>
-          {plan.period}
+          {period}
         </span>
       </div>
 
@@ -176,14 +183,16 @@ function PricingCard({ plan, currentTier, isLoggedIn, onSubscribe }: PricingCard
 export default function Pricing() {
   const { user } = useAuth();
   const { tier } = usePremium();
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
 
-  const handleSubscribe = (targetTier: 'beta' | 'alpha') => {
+  const handleSubscribe = (targetTier: 'beta' | 'alpha', period: BillingPeriod) => {
     if (!user) {
-      window.location.href = `/auth?redirect=/pricing&tier=${targetTier}`;
+      window.location.href = `/auth?redirect=/pricing&tier=${targetTier}&billing=${period}`;
       return;
     }
 
     // Build payment link URL with prefilled email and client reference
+    // TODO: Add annual payment links when Stripe products are set up
     const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
     const params = new URLSearchParams();
 
@@ -231,6 +240,33 @@ export default function Pricing() {
         <p className="text-lg sm:text-xl text-[#660033]/80 max-w-2xl mx-auto">
           Protect your music career with AI-powered contract analysis
         </p>
+
+        {/* Billing Toggle */}
+        <div className="mt-8 inline-flex items-center bg-white/60 rounded-full p-1 shadow-md">
+          <button
+            onClick={() => setBillingPeriod('monthly')}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              billingPeriod === 'monthly'
+                ? 'bg-[#660033] text-[#F7E6CA] shadow-sm'
+                : 'text-[#660033] hover:bg-white/50'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingPeriod('annual')}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              billingPeriod === 'annual'
+                ? 'bg-[#660033] text-[#F7E6CA] shadow-sm'
+                : 'text-[#660033] hover:bg-white/50'
+            }`}
+          >
+            Annual
+            <span className="ml-2 text-xs bg-[#D4AF37] text-[#660033] px-2 py-0.5 rounded-full font-bold">
+              Save 17%
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Pricing Cards */}
@@ -242,6 +278,7 @@ export default function Pricing() {
               plan={plan}
               currentTier={tier}
               isLoggedIn={!!user}
+              billingPeriod={billingPeriod}
               onSubscribe={handleSubscribe}
             />
           ))}
