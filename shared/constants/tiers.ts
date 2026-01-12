@@ -53,8 +53,14 @@ export const TIER_HIERARCHY: Record<SubscriptionTier, number> = {
  * These are pre-configured payment links from Stripe Dashboard
  */
 export const STRIPE_PAYMENT_LINKS = {
-  beta: 'https://buy.stripe.com/test_9B600b59s6T03Gq97hcwg01',
-  alpha: 'https://buy.stripe.com/test_fZu28jbxQ7X47WG83dcwg00',
+  beta: {
+    monthly: 'https://buy.stripe.com/test_9B600b59s6T03Gq97hcwg01',
+    yearly: 'https://buy.stripe.com/test_7sY14f45odho6SC0ALcwg02',
+  },
+  alpha: {
+    monthly: 'https://buy.stripe.com/test_fZu28jbxQ7X47WG83dcwg00',
+    yearly: 'https://buy.stripe.com/test_cNi28jatMa5c3Gqcjtcwg03',
+  },
 } as const;
 
 /**

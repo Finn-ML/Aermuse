@@ -12,17 +12,19 @@ export default function Checkout() {
   useEffect(() => {
     if (authLoading) return;
 
-    // Get tier from query params, default to 'alpha'
+    // Get tier and billing from query params
     const params = new URLSearchParams(search);
     const tier = params.get('tier') as 'beta' | 'alpha' || 'alpha';
+    const billing = params.get('billing') as 'monthly' | 'annual' || 'monthly';
 
     if (!user) {
-      setLocation(`/auth?redirect=/checkout?tier=${tier}`);
+      setLocation(`/auth?redirect=/checkout?tier=${tier}&billing=${billing}`);
       return;
     }
 
     // Build payment link URL with prefilled email and client reference
-    const paymentLink = STRIPE_PAYMENT_LINKS[tier];
+    const billingKey = billing === 'annual' ? 'yearly' : 'monthly';
+    const paymentLink = STRIPE_PAYMENT_LINKS[tier][billingKey];
     const checkoutParams = new URLSearchParams();
 
     if (user.email) {

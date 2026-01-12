@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { FileText, ArrowRight, Bookmark, Pencil, Trash2, MoreVertical, User } from 'lucide-react';
+import { FileText, ArrowRight, Bookmark, Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { usePremium } from '@/hooks/usePremium';
 import { useDeleteUserTemplate } from '@/hooks/useUserTemplates';
 import { useToast } from '@/hooks/use-toast';
@@ -67,18 +67,10 @@ export function TemplateCard({
 
   return (
     <div
-      className="rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)] overflow-hidden relative"
+      className="rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)] relative"
       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
       data-testid={`template-card-${template.id}`}
     >
-      {/* User template badge */}
-      {isOwnTemplate && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-[rgba(102,0,51,0.1)]">
-          <User size={10} className="text-[#660033]" />
-          <span className="text-[9px] font-semibold text-[#660033]">My Template</span>
-        </div>
-      )}
-
       <div className="flex items-start gap-3 sm:gap-4 mb-4">
         <div
           className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0"

@@ -193,8 +193,8 @@ export default function Pricing() {
     }
 
     // Build payment link URL with prefilled email and client reference
-    // TODO: Add annual payment links when Stripe products are set up
-    const paymentLink = STRIPE_PAYMENT_LINKS[targetTier];
+    const billingKey = period === 'annual' ? 'yearly' : 'monthly';
+    const paymentLink = STRIPE_PAYMENT_LINKS[targetTier][billingKey];
     const params = new URLSearchParams();
 
     if (user.email) {
