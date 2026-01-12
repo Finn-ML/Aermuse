@@ -676,9 +676,7 @@ export default function Dashboard() {
           color: #F7E6CA;
         }
       `}</style>
-
       <GrainOverlay />
-
       <div className="flex flex-1">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -791,7 +789,7 @@ export default function Dashboard() {
               <Menu size={24} />
             </button>
             <div>
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5" data-testid="text-page-title">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5 font-playfair" data-testid="text-page-title">
               {activeNav === 'dashboard' && `Welcome back, ${user.name?.split(' ')[0] || 'Artist'}`}
               {activeNav === 'contracts' && 'Contract Manager'}
               {activeNav === 'templates' && 'Contract Templates'}
@@ -884,7 +882,7 @@ export default function Dashboard() {
                     <div className="text-2xl sm:text-[28px] lg:text-[32px] font-bold mb-1 sm:mb-2">
                       {stat.value}
                     </div>
-                    <div className="text-[11px] sm:text-[13px] font-semibold text-[#28a745] flex items-center gap-1">
+                    <div className="text-[11px] sm:text-[13px] font-semibold flex items-center gap-1 text-[#660033]">
                       <TrendingUp size={12} className="sm:w-[14px] sm:h-[14px]" />
                       {stat.change}
                     </div>
@@ -989,7 +987,7 @@ export default function Dashboard() {
               {/* Header with action buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#660033]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#660033] font-playfair">
                     {selectedFolder === null ? 'All Contracts' : selectedFolder === 'unfiled' ? 'Unfiled Contracts' : 'Contracts'}
                   </h2>
                   {/* Contract limit indicator for free users */}
@@ -1493,12 +1491,9 @@ export default function Dashboard() {
             isPremium ? (
               selectedProposalId && selectedProposal ? (
                 // Proposal Detail View
-                proposalDetailLoading ? (
-                  <div className="flex items-center justify-center py-20">
-                    <Loader2 className="animate-spin text-[#660033]" size={32} />
-                  </div>
-                ) : (
-                  <>
+                (proposalDetailLoading ? (<div className="flex items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-[#660033]" size={32} />
+                </div>) : (<>
                   <ProposalDetail
                     proposal={selectedProposal}
                     onStatusChange={(status) => handleProposalStatusChange(selectedProposalId, status)}
@@ -1510,7 +1505,6 @@ export default function Dashboard() {
                     onCreateContract={handleCreateContractFromProposal}
                     onViewContract={handleViewContractFromProposal}
                   />
-
                   {/* Template Selection Modal for creating contract from proposal (Story 7.6) */}
                   {showTemplateSelection && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1522,7 +1516,7 @@ export default function Dashboard() {
                         className="relative rounded-[20px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
                         style={{ background: '#FDF8F3' }}
                       >
-                        <h2 className="text-2xl font-bold text-[#660033] mb-2">Select a Template</h2>
+                        <h2 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Select a Template</h2>
                         <p className="text-[rgba(102,0,51,0.6)] mb-6">
                           Choose a template for the contract. The proposal details will be pre-filled.
                         </p>
@@ -1579,11 +1573,10 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                </>
-                )
+                </>))
               ) : (
                 // Proposals List View
-                <div className="space-y-6">
+                (<div className="space-y-6">
                   {/* Status Filters */}
                   <div className="flex items-center gap-3">
                     <Filter size={16} className="text-[rgba(102,0,51,0.5)]" />
@@ -1609,7 +1602,6 @@ export default function Dashboard() {
                       ))}
                     </div>
                   </div>
-
                   {/* Proposals List */}
                   {proposalsLoading ? (
                     <div className="flex items-center justify-center py-20">
@@ -1648,7 +1640,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                   )}
-                </div>
+                </div>)
               )
             ) : (
               <PremiumFeatureGate feature="proposals" />

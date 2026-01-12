@@ -77,7 +77,7 @@ export default function ResetPassword() {
         <ShaderAnimation variant="auth" />
         <div className="relative z-10 text-center p-8">
           <XCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-          <h1 className="text-2xl font-bold mb-4">Invalid Reset Link</h1>
+          <h1 className="text-2xl font-bold mb-4 font-playfair">Invalid Reset Link</h1>
           <p className="text-[rgba(102,0,51,0.7)] mb-6">
             This password reset link is invalid or has expired.
           </p>
@@ -98,7 +98,7 @@ export default function ResetPassword() {
         <ShaderAnimation variant="auth" />
         <div className="relative z-10 text-center p-8">
           <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
-          <h1 className="text-2xl font-bold mb-4">Password Reset Complete</h1>
+          <h1 className="text-2xl font-bold mb-4 font-playfair">Password Reset Complete</h1>
           <p className="text-[rgba(102,0,51,0.7)] mb-6">
             Your password has been reset successfully. Redirecting to sign in...
           </p>
@@ -200,7 +200,7 @@ export default function ResetPassword() {
         <div
           className={`w-full max-w-[440px] transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
-          <h1 className="text-3xl font-bold text-center mb-2">Reset Password</h1>
+          <h1 className="text-3xl font-bold text-center mb-2 font-playfair">Reset Password</h1>
           <p className="text-center text-[rgba(102,0,51,0.7)] mb-8">
             Enter your new password below
           </p>

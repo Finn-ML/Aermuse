@@ -84,7 +84,7 @@ export default function VerifyEmail() {
             {status === 'loading' && (
               <>
                 <Loader2 className="w-16 h-16 mx-auto mb-4 text-[#660033] animate-spin" />
-                <h1 className="text-2xl font-bold text-[#660033] mb-2">Verifying Email</h1>
+                <h1 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Verifying Email</h1>
                 <p className="text-[rgba(102,0,51,0.7)]">
                   Please wait while we verify your email address...
                 </p>
@@ -94,7 +94,7 @@ export default function VerifyEmail() {
             {status === 'success' && (
               <>
                 <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
-                <h1 className="text-2xl font-bold text-[#660033] mb-2">Email Verified!</h1>
+                <h1 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Email Verified!</h1>
                 <p className="text-[rgba(102,0,51,0.7)] mb-6">{message}</p>
                 <Link href="/dashboard">
                   <button className="bg-[#660033] text-[#F7E6CA] px-8 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity">
@@ -107,7 +107,7 @@ export default function VerifyEmail() {
             {status === 'error' && (
               <>
                 <XCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-                <h1 className="text-2xl font-bold text-[#660033] mb-2">Verification Failed</h1>
+                <h1 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Verification Failed</h1>
                 <p className="text-[rgba(102,0,51,0.7)] mb-6">{message}</p>
                 <div className="space-y-3">
                   <Link href="/dashboard">

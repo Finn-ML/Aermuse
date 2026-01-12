@@ -61,7 +61,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
         {isSubmitted ? (
           <div className="text-center py-4">
             <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
-            <h2 className="text-2xl font-bold text-[#660033] mb-2">Check Your Email</h2>
+            <h2 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Check Your Email</h2>
             <p className="text-[rgba(102,0,51,0.7)] mb-6">
               If an account exists for <strong>{email}</strong>, you'll receive a password reset link shortly.
             </p>
@@ -76,7 +76,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
           <>
             <div className="text-center mb-6">
               <Mail className="w-12 h-12 mx-auto mb-4 text-[#660033]" />
-              <h2 className="text-2xl font-bold text-[#660033] mb-2">Forgot Password?</h2>
+              <h2 className="text-2xl font-bold text-[#660033] mb-2 font-playfair">Forgot Password?</h2>
               <p className="text-[rgba(102,0,51,0.7)]">
                 Enter your email and we'll send you a link to reset your password.
               </p>

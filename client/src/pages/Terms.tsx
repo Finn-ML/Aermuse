@@ -20,7 +20,7 @@ export default function Terms() {
           Back
         </button>
 
-        <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
+        <h1 className="text-3xl font-bold mb-6 font-playfair text-[#660033]">Terms of Service</h1>
 
         <div className="prose prose-sm max-w-none bg-white rounded-lg border p-8">
           <h2>1. Acceptance of Terms</h2>
