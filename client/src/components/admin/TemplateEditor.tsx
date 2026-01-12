@@ -60,6 +60,18 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'select', label: 'Dropdown' },
 ];
 
+// Common variable pills for quick insertion in template content
+const COMMON_VARIABLES = [
+  { id: 'artist_name', label: 'Artist Name' },
+  { id: 'artist_address', label: 'Artist Address' },
+  { id: 'effective_date', label: 'Effective Date' },
+  { id: 'label_name', label: 'Label Name' },
+  { id: 'project_title', label: 'Project Title' },
+  { id: 'advance_amount', label: 'Advance Amount' },
+  { id: 'royalty_rate', label: 'Royalty Rate' },
+  { id: 'territory', label: 'Territory' },
+];
+
 const emptySection = (): TemplateSection => ({
   id: `section-${Date.now()}`,
   heading: '',
@@ -619,6 +631,36 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
               <p className="text-xs text-muted-foreground">
                 Use {"{{variable_name}}"} syntax for dynamic values
               </p>
+              {/* Quick insert variable pills for title */}
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide self-center mr-1">
+                  Insert:
+                </span>
+                {COMMON_VARIABLES.slice(0, 4).map((variable) => (
+                  <button
+                    key={variable.id}
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById('contentTitle') as HTMLInputElement;
+                      if (input) {
+                        const start = input.selectionStart || contentTitle.length;
+                        const end = input.selectionEnd || contentTitle.length;
+                        const newText = contentTitle.substring(0, start) + `{{${variable.id}}}` + contentTitle.substring(end);
+                        setContentTitle(newText);
+                        setTimeout(() => {
+                          input.focus();
+                          const newPos = start + variable.id.length + 4;
+                          input.setSelectionRange(newPos, newPos);
+                        }, 0);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    title={`Insert {{${variable.id}}}`}
+                  >
+                    {variable.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -663,11 +705,44 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
                     <div className="space-y-2">
                       <Label>Content</Label>
                       <Textarea
+                        id={`section-content-${index}`}
                         value={section.content}
                         onChange={(e) => updateSection(index, { content: e.target.value })}
                         placeholder="Section content with {{variables}}..."
                         rows={4}
                       />
+                      {/* Quick insert variable pills */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide self-center mr-1">
+                          Insert:
+                        </span>
+                        {COMMON_VARIABLES.map((variable) => (
+                          <button
+                            key={variable.id}
+                            type="button"
+                            onClick={() => {
+                              const textarea = document.getElementById(`section-content-${index}`) as HTMLTextAreaElement;
+                              if (textarea) {
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                const text = section.content || '';
+                                const newText = text.substring(0, start) + `{{${variable.id}}}` + text.substring(end);
+                                updateSection(index, { content: newText });
+                                // Restore focus and cursor position after React re-render
+                                setTimeout(() => {
+                                  textarea.focus();
+                                  const newPos = start + variable.id.length + 4; // +4 for {{ and }}
+                                  textarea.setSelectionRange(newPos, newPos);
+                                }, 0);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                            title={`Insert {{${variable.id}}}`}
+                          >
+                            {variable.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch

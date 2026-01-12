@@ -64,7 +64,11 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
 
     // Check if this field might benefit from artist name suggestion
     const fieldLabel = (field.label || '').toLowerCase();
-    const fieldId = (field.id || '').toLowerCase();
+    // For persona fields (e.g., "artists_0_name"), extract just the base field id
+    const fullFieldId = (field.id || '').toLowerCase();
+    const fieldId = fullFieldId.includes('_')
+      ? fullFieldId.split('_').pop() || fullFieldId
+      : fullFieldId;
     const fieldPlaceholder = (field.placeholder || '').toLowerCase();
 
     const matchesArtistKeyword = ARTIST_NAME_FIELD_KEYWORDS.some(keyword =>
