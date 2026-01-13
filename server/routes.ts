@@ -2912,7 +2912,7 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
-  // Update user's custom template (name and description only)
+  // Update user's custom template (supports full editing for ALPHA users)
   app.put("/api/user/templates/:id", async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
@@ -2926,11 +2926,87 @@ Sent at: ${new Date().toISOString()}
         return res.status(403).json({ error: "This feature requires an Alpha subscription" });
       }
 
-      const { name, description } = req.body as { name?: string; description?: string };
+      const { name, description, content, fields, optionalClauses } = req.body as {
+        name?: string;
+        description?: string;
+        content?: TemplateContent;
+        fields?: TemplateField[];
+        optionalClauses?: OptionalClause[];
+      };
 
-      const updateData: { name?: string; description?: string } = {};
+      const updateData: {
+        name?: string;
+        description?: string;
+        content?: TemplateContent;
+        fields?: TemplateField[];
+        optionalClauses?: OptionalClause[];
+      } = {};
+
       if (name?.trim()) updateData.name = name.trim();
       if (description !== undefined) updateData.description = description?.trim() || '';
+
+      // Validate and add content changes if provided
+      if (content !== undefined) {
+        // Validate content structure
+        if (!content.title?.trim()) {
+          return res.status(400).json({ error: "Template must have a document title" });
+        }
+        if (!content.sections || content.sections.length === 0) {
+          return res.status(400).json({ error: "Template must have at least one section" });
+        }
+        // Validate each section
+        for (const section of content.sections) {
+          if (!section.id) {
+            return res.status(400).json({ error: "Each section must have an ID" });
+          }
+          if (!section.heading?.trim()) {
+            return res.status(400).json({ error: `Section "${section.id}" is missing a heading` });
+          }
+          if (!section.content?.trim()) {
+            return res.status(400).json({ error: `Section "${section.heading}" is missing content` });
+          }
+        }
+        updateData.content = content;
+      }
+
+      if (fields !== undefined) {
+        // Validate fields
+        const fieldIds = new Set<string>();
+        for (const field of fields) {
+          if (!field.id?.trim()) {
+            return res.status(400).json({ error: "Each field must have an ID" });
+          }
+          if (!field.label?.trim()) {
+            return res.status(400).json({ error: `Field "${field.id}" is missing a label` });
+          }
+          if (!field.type) {
+            return res.status(400).json({ error: `Field "${field.id}" is missing a type` });
+          }
+          if (fieldIds.has(field.id)) {
+            return res.status(400).json({ error: `Duplicate field ID: "${field.id}"` });
+          }
+          fieldIds.add(field.id);
+        }
+        updateData.fields = fields;
+      }
+
+      if (optionalClauses !== undefined) {
+        // Validate optional clauses
+        const clauseIds = new Set<string>();
+        for (const clause of optionalClauses) {
+          if (!clause.id?.trim()) {
+            return res.status(400).json({ error: "Each clause must have an ID" });
+          }
+          if (!clause.name?.trim()) {
+            return res.status(400).json({ error: `Clause "${clause.id}" is missing a name` });
+          }
+          if (clauseIds.has(clause.id)) {
+            return res.status(400).json({ error: `Duplicate clause ID: "${clause.id}"` });
+          }
+          clauseIds.add(clause.id);
+        }
+        updateData.optionalClauses = optionalClauses;
+      }
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ error: "No valid fields to update" });
@@ -2941,7 +3017,7 @@ Sent at: ${new Date().toISOString()}
         return res.status(404).json({ error: "Template not found or not owned by you" });
       }
 
-      console.log(`[USER TEMPLATE] Updated by user ${userId}: ${template.id}`);
+      console.log(`[USER TEMPLATE] Updated by user ${userId}: ${template.id}${updateData.content ? ' (content modified)' : ''}`);
       res.json({ template });
     } catch (error) {
       console.error("Update user template error:", error);

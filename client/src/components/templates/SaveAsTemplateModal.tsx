@@ -4,11 +4,13 @@
  *
  * Modal for saving an existing template as user's own custom template
  * with editable title and description.
+ * ALPHA users can also "Save & Customize" to open the advanced editor.
  */
 
 import { useState } from 'react';
-import { X, Save, Loader2 } from 'lucide-react';
+import { X, Save, Loader2, Settings } from 'lucide-react';
 import { useCreateUserTemplate } from '@/hooks/useUserTemplates';
+import { usePremium } from '@/hooks/usePremium';
 import { useToast } from '@/hooks/use-toast';
 import type { ContractTemplate } from '@shared/schema';
 
@@ -17,18 +19,21 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (template: ContractTemplate) => void;
+  onCustomize?: (template: ContractTemplate) => void; // Called when ALPHA user wants to customize
 }
 
-export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Props) {
+export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess, onCustomize }: Props) {
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description || '');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [customizeAfterSave, setCustomizeAfterSave] = useState(false);
   const { mutateAsync: createTemplate, isPending } = useCreateUserTemplate();
+  const { isAlpha } = usePremium();
   const { toast } = useToast();
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, shouldCustomize: boolean = false) => {
     e.preventDefault();
 
     // Clear previous error
@@ -46,13 +51,22 @@ export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Pr
         description: description.trim(),
       });
 
-      toast({
-        title: 'Template saved',
-        description: 'Your custom template has been created successfully',
-      });
-
-      onSuccess?.(result.template);
-      onClose();
+      if (shouldCustomize && onCustomize) {
+        // User wants to customize after saving
+        toast({
+          title: 'Template saved',
+          description: 'Opening editor to customize your template...',
+        });
+        onClose();
+        onCustomize(result.template);
+      } else {
+        toast({
+          title: 'Template saved',
+          description: 'Your custom template has been created successfully',
+        });
+        onSuccess?.(result.template);
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: 'Failed to save template',
@@ -127,31 +141,46 @@ export function SaveAsTemplateModal({ template, isOpen, onClose, onSuccess }: Pr
           </p>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl border-2 border-[rgba(102,0,51,0.1)] text-[#660033] font-semibold text-sm hover:bg-[rgba(102,0,51,0.05)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#660033] text-[#F7E6CA] font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>Save Template</span>
-                </>
-              )}
-            </button>
+          <div className="flex flex-col gap-3 pt-2">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-3 rounded-xl border-2 border-[rgba(102,0,51,0.1)] text-[#660033] font-semibold text-sm hover:bg-[rgba(102,0,51,0.05)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#660033] text-[#F7E6CA] font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span>Save Template</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Save & Customize option for ALPHA users */}
+            {isAlpha && onCustomize && (
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e, true)}
+                disabled={isPending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-[#660033] text-[#660033] font-semibold text-sm hover:bg-[rgba(102,0,51,0.05)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Settings size={16} />
+                <span>Save & Customize Content</span>
+              </button>
+            )}
           </div>
         </form>
       </div>

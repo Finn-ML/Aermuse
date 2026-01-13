@@ -88,7 +88,13 @@ export interface IStorage {
   // User Templates (Alpha feature)
   getUserTemplates(userId: string): Promise<ContractTemplate[]>;
   createUserTemplate(userId: string, data: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<ContractTemplate>;
-  updateUserTemplate(userId: string, templateId: string, data: { name?: string; description?: string }): Promise<ContractTemplate | undefined>;
+  updateUserTemplate(userId: string, templateId: string, data: {
+    name?: string;
+    description?: string;
+    content?: ContractTemplate['content'];
+    fields?: ContractTemplate['fields'];
+    optionalClauses?: ContractTemplate['optionalClauses'];
+  }): Promise<ContractTemplate | undefined>;
   deleteUserTemplate(userId: string, templateId: string): Promise<boolean>;
 }
 
@@ -492,8 +498,45 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
 
-  async updateUserTemplate(userId: string, templateId: string, data: { name?: string; description?: string }): Promise<ContractTemplate | undefined> {
+  async updateUserTemplate(userId: string, templateId: string, data: {
+    name?: string;
+    description?: string;
+    content?: ContractTemplate['content'];
+    fields?: ContractTemplate['fields'];
+    optionalClauses?: ContractTemplate['optionalClauses'];
+  }): Promise<ContractTemplate | undefined> {
     // Only allow updating templates owned by this user
+    // Check if content is being modified to increment version
+    const hasContentChanges = data.content !== undefined || data.fields !== undefined || data.optionalClauses !== undefined;
+
+    // If content changes, we need to get the current version first
+    if (hasContentChanges) {
+      const [existing] = await db.select({ version: contractTemplates.version })
+        .from(contractTemplates)
+        .where(and(
+          eq(contractTemplates.id, templateId),
+          eq(contractTemplates.createdBy, userId)
+        ));
+
+      if (!existing) {
+        return undefined;
+      }
+
+      const [template] = await db.update(contractTemplates)
+        .set({
+          ...data,
+          version: (existing.version || 1) + 1,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(contractTemplates.id, templateId),
+          eq(contractTemplates.createdBy, userId)
+        ))
+        .returning();
+      return template;
+    }
+
+    // No content changes, just update name/description without version bump
     const [template] = await db.update(contractTemplates)
       .set({ ...data, updatedAt: new Date() })
       .where(and(

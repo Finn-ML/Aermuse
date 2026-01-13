@@ -16,6 +16,7 @@ import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard } from './TemplateCard';
 import { SaveAsTemplateModal } from './SaveAsTemplateModal';
 import { EditTemplateModal } from './EditTemplateModal';
+import { UserTemplateEditor } from './UserTemplateEditor';
 import type { ContractTemplate } from '@shared/schema';
 
 interface Props {
@@ -41,6 +42,7 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
   // Modal state
   const [saveModalTemplate, setSaveModalTemplate] = useState<ContractTemplate | null>(null);
   const [editModalTemplate, setEditModalTemplate] = useState<ContractTemplate | null>(null);
+  const [userEditorTemplate, setUserEditorTemplate] = useState<ContractTemplate | null>(null);
 
   const isMyTemplatesCategory = category === 'my-templates';
 
@@ -134,7 +136,15 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
               template={template}
               onSelect={onSelectTemplate}
               onSaveAsTemplate={setSaveModalTemplate}
-              onEditTemplate={setEditModalTemplate}
+              onEditTemplate={(t) => {
+                // ALPHA users get the advanced UserTemplateEditor
+                // Non-ALPHA users (if any slipped through) get the simple EditTemplateModal
+                if (isAlpha) {
+                  setUserEditorTemplate(t);
+                } else {
+                  setEditModalTemplate(t);
+                }
+              }}
               isUserTemplate={isMyTemplatesCategory}
               currentUserId={user?.id}
             />
@@ -155,15 +165,36 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
               setCategory('my-templates');
             }
           }}
+          onCustomize={(newTemplate) => {
+            // ALPHA user chose "Save & Customize" - open the UserTemplateEditor
+            setSaveModalTemplate(null);
+            setUserEditorTemplate(newTemplate);
+            // Switch to my-templates view so they see their template after editing
+            if (category !== 'my-templates') {
+              setCategory('my-templates');
+            }
+          }}
         />
       )}
 
-      {/* Edit Template Modal */}
+      {/* Edit Template Modal (fallback for non-ALPHA users) */}
       {editModalTemplate && (
         <EditTemplateModal
           template={editModalTemplate}
           isOpen={!!editModalTemplate}
           onClose={() => setEditModalTemplate(null)}
+        />
+      )}
+
+      {/* User Template Editor (ALPHA users - advanced editing) */}
+      {userEditorTemplate && (
+        <UserTemplateEditor
+          template={userEditorTemplate}
+          isOpen={!!userEditorTemplate}
+          onClose={() => setUserEditorTemplate(null)}
+          onSuccess={() => {
+            setUserEditorTemplate(null);
+          }}
         />
       )}
     </div>

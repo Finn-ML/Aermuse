@@ -23,6 +23,38 @@ interface UpdateTemplateParams {
   id: string;
   name?: string;
   description?: string;
+  content?: {
+    title: string;
+    sections: Array<{
+      id: string;
+      heading: string;
+      content: string;
+      isOptional?: boolean;
+      clauseId?: string;
+    }>;
+  };
+  fields?: Array<{
+    id: string;
+    label: string;
+    type: string;
+    required: boolean;
+    placeholder?: string;
+    defaultValue?: string | number;
+    options?: Array<{ value: string; label: string }>;
+  }>;
+  optionalClauses?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    defaultEnabled: boolean;
+    fields?: Array<{
+      id: string;
+      label: string;
+      type: string;
+      required: boolean;
+      placeholder?: string;
+    }>;
+  }>;
 }
 
 export function useUserTemplates() {
