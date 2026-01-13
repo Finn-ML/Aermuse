@@ -60,17 +60,6 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'select', label: 'Dropdown' },
 ];
 
-// Common variable pills for quick insertion in template content
-const COMMON_VARIABLES = [
-  { id: 'artist_name', label: 'Artist Name' },
-  { id: 'artist_address', label: 'Artist Address' },
-  { id: 'effective_date', label: 'Effective Date' },
-  { id: 'label_name', label: 'Label Name' },
-  { id: 'project_title', label: 'Project Title' },
-  { id: 'advance_amount', label: 'Advance Amount' },
-  { id: 'royalty_rate', label: 'Royalty Rate' },
-  { id: 'territory', label: 'Territory' },
-];
 
 const emptySection = (): TemplateSection => ({
   id: `section-${Date.now()}`,
@@ -636,30 +625,36 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wide self-center mr-1">
                   Insert:
                 </span>
-                {COMMON_VARIABLES.slice(0, 4).map((variable) => (
-                  <button
-                    key={variable.id}
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('contentTitle') as HTMLInputElement;
-                      if (input) {
-                        const start = input.selectionStart || contentTitle.length;
-                        const end = input.selectionEnd || contentTitle.length;
-                        const newText = contentTitle.substring(0, start) + `{{${variable.id}}}` + contentTitle.substring(end);
-                        setContentTitle(newText);
-                        setTimeout(() => {
-                          input.focus();
-                          const newPos = start + variable.id.length + 4;
-                          input.setSelectionRange(newPos, newPos);
-                        }, 0);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                    title={`Insert {{${variable.id}}}`}
-                  >
-                    {variable.label}
-                  </button>
-                ))}
+                {fields.length === 0 ? (
+                  <span className="text-[10px] text-muted-foreground italic">
+                    Add fields in the Fields tab to insert them here
+                  </span>
+                ) : (
+                  fields.slice(0, 6).map((field) => (
+                    <button
+                      key={field.id}
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById('contentTitle') as HTMLInputElement;
+                        if (input) {
+                          const start = input.selectionStart || contentTitle.length;
+                          const end = input.selectionEnd || contentTitle.length;
+                          const newText = contentTitle.substring(0, start) + `{{${field.id}}}` + contentTitle.substring(end);
+                          setContentTitle(newText);
+                          setTimeout(() => {
+                            input.focus();
+                            const newPos = start + field.id.length + 4;
+                            input.setSelectionRange(newPos, newPos);
+                          }, 0);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                      title={`Insert {{${field.id}}}`}
+                    >
+                      {field.label || field.id}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -716,32 +711,38 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
                         <span className="text-[10px] text-muted-foreground uppercase tracking-wide self-center mr-1">
                           Insert:
                         </span>
-                        {COMMON_VARIABLES.map((variable) => (
-                          <button
-                            key={variable.id}
-                            type="button"
-                            onClick={() => {
-                              const textarea = document.getElementById(`section-content-${index}`) as HTMLTextAreaElement;
-                              if (textarea) {
-                                const start = textarea.selectionStart;
-                                const end = textarea.selectionEnd;
-                                const text = section.content || '';
-                                const newText = text.substring(0, start) + `{{${variable.id}}}` + text.substring(end);
-                                updateSection(index, { content: newText });
-                                // Restore focus and cursor position after React re-render
-                                setTimeout(() => {
-                                  textarea.focus();
-                                  const newPos = start + variable.id.length + 4; // +4 for {{ and }}
-                                  textarea.setSelectionRange(newPos, newPos);
-                                }, 0);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                            title={`Insert {{${variable.id}}}`}
-                          >
-                            {variable.label}
-                          </button>
-                        ))}
+                        {fields.length === 0 ? (
+                          <span className="text-[10px] text-muted-foreground italic">
+                            Add fields in the Fields tab to insert them here
+                          </span>
+                        ) : (
+                          fields.map((field) => (
+                            <button
+                              key={field.id}
+                              type="button"
+                              onClick={() => {
+                                const textarea = document.getElementById(`section-content-${index}`) as HTMLTextAreaElement;
+                                if (textarea) {
+                                  const start = textarea.selectionStart;
+                                  const end = textarea.selectionEnd;
+                                  const text = section.content || '';
+                                  const newText = text.substring(0, start) + `{{${field.id}}}` + text.substring(end);
+                                  updateSection(index, { content: newText });
+                                  // Restore focus and cursor position after React re-render
+                                  setTimeout(() => {
+                                    textarea.focus();
+                                    const newPos = start + field.id.length + 4; // +4 for {{ and }}
+                                    textarea.setSelectionRange(newPos, newPos);
+                                  }, 0);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                              title={`Insert {{${field.id}}}`}
+                            >
+                              {field.label || field.id}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
