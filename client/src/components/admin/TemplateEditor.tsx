@@ -789,7 +789,7 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
               </Card>
             ) : (
               fields.map((field, index) => (
-                <Card key={field.id}>
+                <Card key={index}>
                   <CardContent className="pt-4 space-y-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="grid grid-cols-2 gap-3 flex-1">
@@ -880,7 +880,7 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
               </Card>
             ) : (
               optionalClauses.map((clause, index) => (
-                <Card key={clause.id}>
+                <Card key={index}>
                   <CardContent className="pt-4 space-y-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="grid grid-cols-2 gap-3 flex-1">
