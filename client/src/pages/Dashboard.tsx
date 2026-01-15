@@ -106,6 +106,7 @@ export default function Dashboard() {
   const [showUploadContract, setShowUploadContract] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [stripeConnectLoading2, setStripeConnectLoading2] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   const [previewFormData, setPreviewFormData] = useState<TemplateFormData | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // null = all, 'unfiled' = unfiled
@@ -153,6 +154,25 @@ export default function Dashboard() {
       setLocation('/auth');
     }
   }, [user, authLoading, setLocation]);
+
+  // Handle Stripe Connect callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeConnect = params.get('stripe_connect');
+    if (stripeConnect === 'complete') {
+      // User completed onboarding, refetch status and show settings
+      setActiveNav('settings');
+      refetchStripeConnect();
+      toast({ title: 'Stripe account connected successfully!' });
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (stripeConnect === 'refresh') {
+      // User needs to refresh onboarding link
+      setActiveNav('settings');
+      toast({ title: 'Please complete your Stripe account setup', variant: 'destructive' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // Preload all supported fonts for the landing page editor preview (Story 9.3)
   useEffect(() => {
@@ -271,6 +291,23 @@ export default function Dashboard() {
     enabled: !!user && activeNav === 'landing',
   });
   const tracks = tracksData || [];
+
+  // Fetch Stripe Connect status for payment settings
+  interface StripeConnectStatus {
+    connected: boolean;
+    onboardingComplete: boolean;
+    chargesEnabled: boolean;
+    payoutsEnabled: boolean;
+  }
+  const { data: stripeConnectData, isLoading: stripeConnectLoading, refetch: refetchStripeConnect } = useQuery<StripeConnectStatus>({
+    queryKey: ['/api/stripe/connect/status'],
+    queryFn: async () => {
+      const res = await fetch('/api/stripe/connect/status', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch Stripe Connect status');
+      return res.json();
+    },
+    enabled: !!user && activeNav === 'settings',
+  });
 
   // Fetch unread proposal count for badge (Story 7.4)
   const { data: proposalCountData } = useQuery<{ count: number }>({
@@ -450,8 +487,22 @@ export default function Dashboard() {
     },
   });
 
+  // Helper to safely parse error response (handles both JSON and non-JSON responses)
+  const parseErrorResponse = async (res: Response, fallbackMessage: string): Promise<string> => {
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const error = await res.json();
+        return error.error || error.message || fallbackMessage;
+      } catch {
+        return fallbackMessage;
+      }
+    }
+    return fallbackMessage;
+  };
+
   // Track mutations for music tab
-  const uploadTrack = async (file: File, title: string, priceInCents: number) => {
+  const uploadTrack = async (file: File, title: string, priceInCents: number, coverFile?: File) => {
     const formData = new FormData();
     formData.append('audio', file);
     formData.append('title', title);
@@ -464,8 +515,26 @@ export default function Dashboard() {
     });
 
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Failed to upload track');
+      const errorMessage = await parseErrorResponse(res, 'Failed to upload track');
+      throw new Error(errorMessage);
+    }
+
+    const track = await res.json();
+
+    // Upload cover art if provided
+    if (coverFile && track.id) {
+      try {
+        const coverFormData = new FormData();
+        coverFormData.append('image', coverFile);
+        await fetch(`/api/tracks/${track.id}/cover`, {
+          method: 'POST',
+          body: coverFormData,
+          credentials: 'include',
+        });
+      } catch (err) {
+        console.warn('Failed to upload cover art:', err);
+        // Don't fail the whole upload if cover fails
+      }
     }
 
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
@@ -475,8 +544,8 @@ export default function Dashboard() {
   const updateTrack = async (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => {
     const res = await apiRequest('PATCH', `/api/tracks/${id}`, updates);
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Failed to update track');
+      const errorMessage = await parseErrorResponse(res, 'Failed to update track');
+      throw new Error(errorMessage);
     }
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
   };
@@ -484,8 +553,8 @@ export default function Dashboard() {
   const deleteTrack = async (id: string) => {
     const res = await apiRequest('DELETE', `/api/tracks/${id}`, {});
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Failed to delete track');
+      const errorMessage = await parseErrorResponse(res, 'Failed to delete track');
+      throw new Error(errorMessage);
     }
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
     toast({ title: 'Track deleted' });
@@ -502,8 +571,8 @@ export default function Dashboard() {
     });
 
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Failed to upload cover');
+      const errorMessage = await parseErrorResponse(res, 'Failed to upload cover');
+      throw new Error(errorMessage);
     }
 
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
@@ -749,6 +818,43 @@ export default function Dashboard() {
     if (!response.ok) {
       const data = await response.json();
       throw new Error(data.error || 'Failed to send verification email');
+    }
+  };
+
+  // Stripe Connect handlers
+  const handleConnectStripe = async () => {
+    setStripeConnectLoading2(true);
+    try {
+      const response = await fetch('/api/stripe/connect/create', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start Stripe Connect');
+      }
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Stripe Connect error:', error);
+      toast({ title: 'Failed to connect Stripe account', variant: 'destructive' });
+      setStripeConnectLoading2(false);
+    }
+  };
+
+  const handleStripeConnectDashboard = async () => {
+    try {
+      const response = await fetch('/api/stripe/connect/dashboard', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to get dashboard link');
+      }
+      const { url } = await response.json();
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Stripe dashboard error:', error);
+      toast({ title: 'Failed to open Stripe dashboard', variant: 'destructive' });
     }
   };
 
@@ -1875,6 +1981,105 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+
+              {/* Payment Settings - Stripe Connect */}
+              <div
+                className="mt-6 rounded-[20px] p-5 sm:p-7"
+                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                  >
+                    <DollarSign size={20} className="text-[#F7E6CA]" />
+                  </div>
+                  <h3 className="text-lg font-bold">Payment Settings</h3>
+                </div>
+                <p className="text-sm text-[rgba(102,0,51,0.6)] mb-4">
+                  Connect your Stripe account to receive payments when fans purchase your music tracks.
+                </p>
+
+                {stripeConnectLoading ? (
+                  <div className="flex items-center gap-2 text-[rgba(102,0,51,0.5)]">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span className="text-sm">Loading payment status...</span>
+                  </div>
+                ) : stripeConnectData?.connected && stripeConnectData?.onboardingComplete ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-[rgba(40,167,69,0.1)] border border-[rgba(40,167,69,0.2)]">
+                      <Check size={20} className="text-[#28a745]" />
+                      <div>
+                        <span className="text-[#28a745] font-medium block">Stripe account connected</span>
+                        <span className="text-xs text-[rgba(40,167,69,0.8)]">
+                          {stripeConnectData.chargesEnabled && stripeConnectData.payoutsEnabled
+                            ? 'Ready to receive payments'
+                            : 'Account setup in progress'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleStripeConnectDashboard}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
+                    >
+                      <ExternalLink size={16} />
+                      Open Stripe Dashboard
+                    </button>
+                  </div>
+                ) : stripeConnectData?.connected && !stripeConnectData?.onboardingComplete ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-[rgba(184,134,11,0.1)] border border-[rgba(184,134,11,0.2)]">
+                      <Loader2 size={20} className="text-[#B8860B]" />
+                      <div>
+                        <span className="text-[#B8860B] font-medium block">Onboarding incomplete</span>
+                        <span className="text-xs text-[rgba(184,134,11,0.8)]">
+                          Complete your Stripe account setup to receive payments
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleConnectStripe}
+                      disabled={stripeConnectLoading2}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50"
+                    >
+                      {stripeConnectLoading2 ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink size={16} />
+                          Complete Setup
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-[rgba(102,0,51,0.5)]">
+                      You haven't connected a Stripe account yet. Connect one to start receiving payments for your music sales.
+                    </p>
+                    <button
+                      onClick={handleConnectStripe}
+                      disabled={stripeConnectLoading2}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-50"
+                    >
+                      {stripeConnectLoading2 ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign size={16} />
+                          Connect Stripe Account
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Danger Zone */}
               <div

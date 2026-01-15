@@ -17,6 +17,7 @@ import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails } from "./services/trackStripe";
+import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, generateSpeech, OpenAIError } from "./services/openai";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
@@ -1849,6 +1850,153 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // STRIPE CONNECT ROUTES (Artist Payouts)
+  // ============================================
+
+  // Start Stripe Connect onboarding
+  app.post("/api/stripe/connect/create", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user already has a Connect account
+      if (user.stripeConnectAccountId) {
+        // Check if onboarding is complete
+        const status = await getAccountStatus(user.stripeConnectAccountId);
+        if (status.detailsSubmitted) {
+          return res.status(400).json({ error: "Stripe account already connected" });
+        }
+        // Resume onboarding for existing account
+        const accountLink = await createAccountLink(
+          user.stripeConnectAccountId,
+          `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
+          `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+        );
+        return res.json({ url: accountLink.url });
+      }
+
+      // Create new Connect account
+      const account = await createConnectAccount(userId, user.email);
+
+      // Save account ID to user
+      await storage.updateUser(userId, {
+        stripeConnectAccountId: account.id,
+        stripeConnectOnboardingComplete: false,
+      });
+
+      // Create onboarding link
+      const accountLink = await createAccountLink(
+        account.id,
+        `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
+        `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+      );
+
+      res.json({ url: accountLink.url });
+    } catch (error) {
+      console.error("Stripe Connect create error:", error);
+      res.status(500).json({ error: "Failed to start Stripe Connect onboarding" });
+    }
+  });
+
+  // Get Stripe Connect status
+  app.get("/api/stripe/connect/status", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!user.stripeConnectAccountId) {
+        return res.json({
+          connected: false,
+          onboardingComplete: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+        });
+      }
+
+      const status = await getAccountStatus(user.stripeConnectAccountId);
+
+      // Update onboarding status if it changed
+      if (status.detailsSubmitted && !user.stripeConnectOnboardingComplete) {
+        await storage.updateUser(userId, {
+          stripeConnectOnboardingComplete: true,
+        });
+      }
+
+      res.json({
+        connected: true,
+        onboardingComplete: status.detailsSubmitted,
+        chargesEnabled: status.chargesEnabled,
+        payoutsEnabled: status.payoutsEnabled,
+        requirements: status.requirements,
+      });
+    } catch (error) {
+      console.error("Stripe Connect status error:", error);
+      res.status(500).json({ error: "Failed to get Stripe Connect status" });
+    }
+  });
+
+  // Get Stripe Connect dashboard link
+  app.get("/api/stripe/connect/dashboard", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.stripeConnectAccountId) {
+        return res.status(400).json({ error: "No Stripe Connect account" });
+      }
+
+      const loginLink = await createLoginLink(user.stripeConnectAccountId);
+      res.json({ url: loginLink.url });
+    } catch (error) {
+      console.error("Stripe Connect dashboard error:", error);
+      res.status(500).json({ error: "Failed to get Stripe dashboard link" });
+    }
+  });
+
+  // Refresh Stripe Connect onboarding link (if expired)
+  app.post("/api/stripe/connect/refresh", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.stripeConnectAccountId) {
+        return res.status(400).json({ error: "No Stripe Connect account" });
+      }
+
+      const accountLink = await createAccountLink(
+        user.stripeConnectAccountId,
+        `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
+        `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+      );
+
+      res.json({ url: accountLink.url });
+    } catch (error) {
+      console.error("Stripe Connect refresh error:", error);
+      res.status(500).json({ error: "Failed to refresh onboarding link" });
+    }
+  });
+
+  // ============================================
   // MUSIC TRACKS ROUTES (Music Store Feature)
   // ============================================
 
@@ -1862,7 +2010,8 @@ export async function registerRoutes(
 
       const landingPage = await storage.getLandingPageByUser(userId);
       if (!landingPage) {
-        return res.status(404).json({ error: "Landing page not found" });
+        // Return empty array if user has no landing page yet
+        return res.json([]);
       }
 
       const tracks = await storage.getTracksByLandingPage(landingPage.id);
@@ -1886,9 +2035,23 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No audio file uploaded" });
       }
 
-      const landingPage = await storage.getLandingPageByUser(userId);
+      let landingPage = await storage.getLandingPageByUser(userId);
       if (!landingPage) {
-        return res.status(404).json({ error: "Landing page not found" });
+        // Auto-create landing page if user doesn't have one
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ error: "User not found" });
+        }
+        const slug = user.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+        landingPage = await storage.createLandingPage({
+          userId: user.id,
+          slug: `${slug}-${user.id.slice(0, 8)}`,
+          artistName: user.name,
+          tagline: "Independent Artist",
+          bio: "",
+          socialLinks: JSON.stringify([]),
+          isPublished: false,
+        });
       }
 
       // Parse metadata from request body
@@ -2200,6 +2363,24 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Artist page not found" });
       }
 
+      // Get track owner's Stripe Connect account for payout
+      const trackOwner = await storage.getUser(track.userId);
+      let connectedAccountId: string | undefined;
+      let applicationFeeAmount = 0;
+
+      if (trackOwner?.stripeConnectAccountId && trackOwner?.stripeConnectOnboardingComplete) {
+        // Check if the account is ready to receive payments
+        try {
+          const isReady = await isAccountReady(trackOwner.stripeConnectAccountId);
+          if (isReady) {
+            connectedAccountId = trackOwner.stripeConnectAccountId;
+            applicationFeeAmount = calculatePlatformFee(track.priceInCents);
+          }
+        } catch (err) {
+          console.warn("[CHECKOUT] Failed to check Connect account status:", err);
+        }
+      }
+
       const { buyerEmail } = req.body;
 
       const session = await createTrackCheckoutSession({
@@ -2209,6 +2390,8 @@ export async function registerRoutes(
         artistName: track.artistName || landingPage.artistName,
         buyerEmail,
         landingPageSlug: landingPage.slug,
+        connectedAccountId,
+        applicationFeeAmount,
       });
 
       res.json({ checkoutUrl: session.url });

@@ -39,6 +39,9 @@ export const users = pgTable("users", {
   subscriptionPriceId: varchar("subscription_price_id", { length: 50 }),
   subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end", { withTimezone: true }),
   subscriptionCancelAtPeriodEnd: boolean("subscription_cancel_at_period_end").default(false),
+  // Stripe Connect for artist payouts
+  stripeConnectAccountId: varchar("stripe_connect_account_id", { length: 50 }),
+  stripeConnectOnboardingComplete: boolean("stripe_connect_onboarding_complete").default(false),
   // Epic 12: Subscription Tier
   subscriptionTier: text("subscription_tier").default("free").$type<SubscriptionTier>(),
   // AI Disclaimer acceptance

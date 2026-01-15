@@ -112,22 +112,38 @@ export interface TrackCheckoutParams {
   artistName: string;
   buyerEmail?: string;
   landingPageSlug: string;
+  connectedAccountId?: string;
+  applicationFeeAmount?: number;
 }
 
 /**
  * Create a Stripe Checkout session for purchasing a track
+ * If connectedAccountId is provided, payment goes to the artist's connected account
  */
 export async function createTrackCheckoutSession(
   params: TrackCheckoutParams
 ): Promise<Stripe.Checkout.Session> {
-  const { trackId, priceId, trackTitle, artistName, buyerEmail, landingPageSlug } = params;
+  const {
+    trackId,
+    priceId,
+    trackTitle,
+    artistName,
+    buyerEmail,
+    landingPageSlug,
+    connectedAccountId,
+    applicationFeeAmount = 0,
+  } = params;
 
   console.log(`[TRACK-STRIPE] Creating checkout for track ${trackId}, price ${priceId}`);
+  if (connectedAccountId) {
+    console.log(`[TRACK-STRIPE] Using connected account: ${connectedAccountId}, fee: ${applicationFeeAmount}`);
+  }
 
   const successUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=success&track=${trackId}&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=cancelled`;
 
-  const session = await stripe.checkout.sessions.create({
+  // Build session options
+  const sessionOptions: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     payment_method_types: ['card'],
     line_items: [
@@ -145,9 +161,20 @@ export async function createTrackCheckoutSession(
       artistName,
       type: 'track_purchase',
     },
-    // Allow guest checkout (no Stripe account required)
     billing_address_collection: 'auto',
-  });
+  };
+
+  // Add transfer destination if artist has connected account
+  if (connectedAccountId) {
+    sessionOptions.payment_intent_data = {
+      transfer_data: {
+        destination: connectedAccountId,
+      },
+      ...(applicationFeeAmount > 0 && { application_fee_amount: applicationFeeAmount }),
+    };
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionOptions);
 
   console.log(`[TRACK-STRIPE] Checkout session created: ${session.id}`);
   return session;

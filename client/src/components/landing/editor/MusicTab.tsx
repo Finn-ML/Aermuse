@@ -2,7 +2,7 @@
 // Music selling feature with spinning disc player
 
 import { useState, useRef } from 'react';
-import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff } from 'lucide-react';
+import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '@/hooks/useAudioPlayer';
 
@@ -21,7 +21,7 @@ interface Track {
 interface MusicTabProps {
   tracks: Track[];
   isLoading: boolean;
-  onUploadTrack: (file: File, title: string, priceInCents: number) => Promise<void>;
+  onUploadTrack: (file: File, title: string, priceInCents: number, coverFile?: File) => Promise<void>;
   onUpdateTrack: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
   onDeleteTrack: (id: string) => Promise<void>;
   onUploadCover: (trackId: string, file: File) => Promise<void>;
@@ -41,11 +41,14 @@ export function MusicTab({
   const [newTrackTitle, setNewTrackTitle] = useState('');
   const [newTrackPrice, setNewTrackPrice] = useState('4.99');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [editingTrack, setEditingTrack] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editPrice, setEditPrice] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const newCoverInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [coverTrackId, setCoverTrackId] = useState<string | null>(null);
 
@@ -61,6 +64,25 @@ export function MusicTab({
     }
   };
 
+  const handleNewCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedCoverFile(file);
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearCoverSelection = () => {
+    setSelectedCoverFile(null);
+    setCoverPreview(null);
+    if (newCoverInputRef.current) newCoverInputRef.current.value = '';
+  };
+
   const handleUpload = async () => {
     if (!selectedFile || !newTrackTitle.trim()) return;
 
@@ -72,12 +94,15 @@ export function MusicTab({
 
     setUploadingTrack(true);
     try {
-      await onUploadTrack(selectedFile, newTrackTitle.trim(), priceInCents);
+      await onUploadTrack(selectedFile, newTrackTitle.trim(), priceInCents, selectedCoverFile || undefined);
       setShowUploadForm(false);
       setSelectedFile(null);
+      setSelectedCoverFile(null);
+      setCoverPreview(null);
       setNewTrackTitle('');
       setNewTrackPrice('4.99');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      if (newCoverInputRef.current) newCoverInputRef.current.value = '';
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
@@ -203,6 +228,54 @@ export function MusicTab({
             />
           </div>
 
+          {/* Cover Art Input */}
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
+              Cover Art (Optional)
+            </label>
+            <input
+              ref={newCoverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleNewCoverSelect}
+              className="hidden"
+            />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => newCoverInputRef.current?.click()}
+                className="w-20 h-20 rounded-lg border-2 border-dashed border-[rgba(102,0,51,0.2)] hover:border-[#660033] transition-colors flex items-center justify-center overflow-hidden flex-shrink-0"
+              >
+                {coverPreview ? (
+                  <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+                ) : (
+                  <ImagePlus size={24} className="text-[rgba(102,0,51,0.4)]" />
+                )}
+              </button>
+              <div className="flex-1">
+                {coverPreview ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#660033] font-medium truncate flex-1">
+                      {selectedCoverFile?.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearCoverSelection}
+                      className="p-1 rounded hover:bg-[rgba(102,0,51,0.1)] text-[rgba(102,0,51,0.5)] hover:text-[#dc3545] transition-colors"
+                      title="Remove cover"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[rgba(102,0,51,0.5)]">
+                    Click to add cover art that displays on the spinning disc player
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Price Input */}
           <div className="mb-4">
             <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
@@ -245,6 +318,8 @@ export function MusicTab({
               onClick={() => {
                 setShowUploadForm(false);
                 setSelectedFile(null);
+                setSelectedCoverFile(null);
+                setCoverPreview(null);
                 setNewTrackTitle('');
                 setNewTrackPrice('4.99');
               }}
