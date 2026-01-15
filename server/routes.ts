@@ -13,8 +13,10 @@ import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload, backgroundImageUpload } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType } from "./services/fileStorage";
+import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
+import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails } from "./services/trackStripe";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, generateSpeech, OpenAIError } from "./services/openai";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
@@ -1843,6 +1845,486 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Avatar delete error:", error);
       res.status(500).json({ error: "Failed to remove avatar" });
+    }
+  });
+
+  // ============================================
+  // MUSIC TRACKS ROUTES (Music Store Feature)
+  // ============================================
+
+  // Get tracks for a landing page (authenticated - owner only)
+  app.get("/api/landing-page/tracks", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      const tracks = await storage.getTracksByLandingPage(landingPage.id);
+      res.json(tracks);
+    } catch (error) {
+      console.error("Get tracks error:", error);
+      res.status(500).json({ error: "Failed to get tracks" });
+    }
+  });
+
+  // Upload a new track
+  app.post("/api/landing-page/tracks", audioUpload.single("audio"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No audio file uploaded" });
+      }
+
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Parse metadata from request body
+      const { title, artistName, description, priceInCents, currency = 'gbp' } = req.body;
+
+      if (!title || !priceInCents) {
+        return res.status(400).json({ error: "Title and price are required" });
+      }
+
+      const price = parseInt(priceInCents, 10);
+      if (isNaN(price) || price < 50) {
+        return res.status(400).json({ error: "Price must be at least 50 pence" });
+      }
+
+      // Verify file type
+      const verification = await verifyAudioType(file.buffer);
+      if (!verification.valid) {
+        return res.status(400).json({ error: verification.error });
+      }
+
+      const fileFormat = verification.type as 'mp3' | 'wav';
+
+      // Generate track ID
+      const trackId = crypto.randomUUID();
+
+      // Get audio metadata (duration)
+      let durationSeconds: number | undefined;
+      try {
+        const metadata = await getAudioMetadata(file.buffer);
+        durationSeconds = metadata.duration;
+      } catch (err) {
+        console.warn("[TRACKS] Failed to get audio duration:", err);
+      }
+
+      // Upload original file
+      const uploadResult = await uploadTrackAudio(userId, trackId, file.buffer, fileFormat);
+
+      // Generate and upload preview
+      let previewPath: string | undefined;
+      try {
+        const preview = await generatePreview(file.buffer, fileFormat);
+        const previewUpload = await uploadTrackPreview(userId, trackId, preview.buffer, fileFormat);
+        previewPath = previewUpload.path;
+      } catch (err) {
+        console.warn("[TRACKS] Failed to generate preview:", err);
+        // Continue without preview - we can generate it later
+      }
+
+      // Create Stripe product and price
+      let stripeProductId: string | undefined;
+      let stripePriceId: string | undefined;
+      try {
+        const stripeResult = await createTrackProduct({
+          trackId,
+          title,
+          artistName: artistName || landingPage.artistName,
+          priceInCents: price,
+          currency,
+        });
+        stripeProductId = stripeResult.productId;
+        stripePriceId = stripeResult.priceId;
+      } catch (err) {
+        console.error("[TRACKS] Failed to create Stripe product:", err);
+        // Continue without Stripe - can be set up later
+      }
+
+      // Create track record in database
+      const track = await storage.createTrack({
+        id: trackId,
+        landingPageId: landingPage.id,
+        userId,
+        title,
+        artistName: artistName || null,
+        description: description || null,
+        priceInCents: price,
+        currency,
+        originalFilePath: uploadResult.path,
+        previewFilePath: previewPath || null,
+        coverArtPath: null,
+        originalFileName: file.originalname,
+        fileFormat,
+        fileSizeBytes: file.buffer.length,
+        durationSeconds: durationSeconds || null,
+        stripeProductId: stripeProductId || null,
+        stripePriceId: stripePriceId || null,
+        displayOrder: 0,
+        isPublished: false,
+      });
+
+      res.json(track);
+    } catch (error) {
+      console.error("Upload track error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 50MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload track" });
+    }
+  });
+
+  // Get single track details
+  app.get("/api/tracks/:id", async (req: Request, res: Response) => {
+    try {
+      const track = await storage.getTrack(req.params.id);
+      if (!track) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Check ownership for unpublished tracks
+      const userId = (req.session as any).userId;
+      if (!track.isPublished && track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      res.json(track);
+    } catch (error) {
+      console.error("Get track error:", error);
+      res.status(500).json({ error: "Failed to get track" });
+    }
+  });
+
+  // Update track metadata
+  app.patch("/api/tracks/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.id);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const { title, artistName, description, priceInCents, isPublished, displayOrder } = req.body;
+
+      // If price is changing and we have a Stripe product, update it
+      if (priceInCents !== undefined && priceInCents !== track.priceInCents && track.stripeProductId) {
+        try {
+          const newPriceId = await updateTrackPriceStripe(
+            track.stripeProductId,
+            priceInCents,
+            track.stripePriceId || undefined,
+            track.currency || 'gbp'
+          );
+          req.body.stripePriceId = newPriceId;
+        } catch (err) {
+          console.warn("[TRACKS] Failed to update Stripe price:", err);
+        }
+      }
+
+      const updatedTrack = await storage.updateTrack(req.params.id, req.body);
+      res.json(updatedTrack);
+    } catch (error) {
+      console.error("Update track error:", error);
+      res.status(500).json({ error: "Failed to update track" });
+    }
+  });
+
+  // Delete track
+  app.delete("/api/tracks/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.id);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Archive Stripe product if exists
+      if (track.stripeProductId) {
+        try {
+          await archiveTrackProduct(track.stripeProductId);
+        } catch (err) {
+          console.warn("[TRACKS] Failed to archive Stripe product:", err);
+        }
+      }
+
+      // Delete files from storage
+      try {
+        await deleteTrackFiles(userId, track.id);
+      } catch (err) {
+        console.warn("[TRACKS] Failed to delete track files:", err);
+      }
+
+      // Delete track record
+      await storage.deleteTrack(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete track error:", error);
+      res.status(500).json({ error: "Failed to delete track" });
+    }
+  });
+
+  // Upload cover art for a track
+  app.post("/api/tracks/:id/cover", coverArtUpload.single("image"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.id);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No image uploaded" });
+      }
+
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const result = await uploadTrackCover(userId, track.id, file.buffer, extension);
+
+      const url = `/api/tracks/${track.id}/cover/${encodeURIComponent(result.path)}`;
+      await storage.updateTrack(track.id, { coverArtPath: result.path });
+
+      res.json({ success: true, url, path: result.path });
+    } catch (error) {
+      console.error("Cover art upload error:", error);
+      res.status(500).json({ error: "Failed to upload cover art" });
+    }
+  });
+
+  // Serve track cover art
+  app.get("/api/tracks/:id/cover/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
+
+      const buffer = await downloadTrackFile(filePath);
+
+      res.set('Content-Type', getImageContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Cover art download error:", error);
+      res.status(404).json({ error: "Cover art not found" });
+    }
+  });
+
+  // Stream track preview (public)
+  app.get("/api/tracks/:id/preview", async (req: Request, res: Response) => {
+    try {
+      const track = await storage.getTrack(req.params.id);
+      if (!track) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Only serve published tracks publicly
+      const userId = (req.session as any).userId;
+      if (!track.isPublished && track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Use preview if available, otherwise serve original
+      const filePath = track.previewFilePath || track.originalFilePath;
+      const buffer = await downloadTrackFile(filePath);
+
+      // Increment play count
+      await storage.incrementTrackPlayCount(track.id);
+
+      res.set('Content-Type', getAudioContentType(track.fileFormat));
+      res.set('Content-Length', buffer.length.toString());
+      res.set('Accept-Ranges', 'bytes');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Preview stream error:", error);
+      res.status(500).json({ error: "Failed to stream preview" });
+    }
+  });
+
+  // Get published tracks for an artist page (public)
+  app.get("/api/artist/:slug/tracks", async (req: Request, res: Response) => {
+    try {
+      const page = await storage.getLandingPageBySlug(req.params.slug);
+      if (!page || !page.isPublished) {
+        return res.status(404).json({ error: "Artist page not found" });
+      }
+
+      const tracks = await storage.getPublishedTracksByLandingPage(page.id);
+      res.json(tracks);
+    } catch (error) {
+      console.error("Get artist tracks error:", error);
+      res.status(500).json({ error: "Failed to get tracks" });
+    }
+  });
+
+  // Create checkout session for track purchase
+  app.post("/api/tracks/:id/checkout", async (req: Request, res: Response) => {
+    try {
+      const track = await storage.getTrack(req.params.id);
+      if (!track || !track.isPublished) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      if (!track.stripePriceId) {
+        return res.status(400).json({ error: "Track is not available for purchase" });
+      }
+
+      // Get landing page for slug
+      const landingPage = await storage.getLandingPage(track.landingPageId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Artist page not found" });
+      }
+
+      const { buyerEmail } = req.body;
+
+      const session = await createTrackCheckoutSession({
+        trackId: track.id,
+        priceId: track.stripePriceId,
+        trackTitle: track.title,
+        artistName: track.artistName || landingPage.artistName,
+        buyerEmail,
+        landingPageSlug: landingPage.slug,
+      });
+
+      res.json({ checkoutUrl: session.url });
+    } catch (error) {
+      console.error("Checkout creation error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Verify purchase and get download token
+  app.get("/api/tracks/purchase/verify", async (req: Request, res: Response) => {
+    try {
+      const { session_id } = req.query;
+      if (!session_id || typeof session_id !== 'string') {
+        return res.status(400).json({ error: "Session ID required" });
+      }
+
+      const session = await getCheckoutSessionStripe(session_id);
+
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      // Check if purchase already recorded
+      const existingPurchase = await storage.getTrackPurchaseBySession(session_id);
+      if (existingPurchase) {
+        return res.json({
+          success: true,
+          downloadToken: existingPurchase.downloadToken,
+          trackId: existingPurchase.trackId,
+        });
+      }
+
+      // Extract details and create purchase record
+      const details = extractTrackPurchaseDetails(session);
+      if (!details.trackId) {
+        return res.status(400).json({ error: "Invalid purchase session" });
+      }
+
+      const downloadToken = crypto.randomBytes(32).toString('hex');
+      const downloadExpires = new Date();
+      downloadExpires.setDate(downloadExpires.getDate() + 30); // 30 days
+
+      const purchase = await storage.createTrackPurchase({
+        trackId: details.trackId,
+        buyerEmail: details.buyerEmail,
+        buyerName: details.buyerName || null,
+        stripePaymentIntentId: details.paymentIntentId || null,
+        stripeCheckoutSessionId: session_id,
+        amountPaidCents: details.amountPaid,
+        currency: details.currency,
+        downloadToken,
+        downloadCount: 0,
+        maxDownloads: 5,
+        downloadExpiresAt: downloadExpires,
+        status: 'completed',
+      });
+
+      // Increment purchase count
+      await storage.incrementTrackPurchaseCount(details.trackId);
+
+      res.json({
+        success: true,
+        downloadToken: purchase.downloadToken,
+        trackId: purchase.trackId,
+      });
+    } catch (error) {
+      console.error("Purchase verification error:", error);
+      res.status(500).json({ error: "Failed to verify purchase" });
+    }
+  });
+
+  // Download purchased track
+  app.get("/api/downloads/:token", async (req: Request, res: Response) => {
+    try {
+      const purchase = await storage.getTrackPurchaseByToken(req.params.token);
+      if (!purchase) {
+        return res.status(404).json({ error: "Invalid download token" });
+      }
+
+      // Check status
+      if (purchase.status !== 'completed') {
+        return res.status(400).json({ error: "Purchase not completed" });
+      }
+
+      // Check download limit
+      if ((purchase.downloadCount || 0) >= (purchase.maxDownloads || 5)) {
+        return res.status(403).json({ error: "Download limit exceeded" });
+      }
+
+      // Check expiry
+      if (purchase.downloadExpiresAt && new Date() > new Date(purchase.downloadExpiresAt)) {
+        return res.status(403).json({ error: "Download link expired" });
+      }
+
+      // Get track
+      const track = await storage.getTrack(purchase.trackId);
+      if (!track) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Download original file
+      const buffer = await downloadTrackFile(track.originalFilePath);
+
+      // Increment download count
+      await storage.incrementDownloadCount(purchase.id);
+
+      // Set headers for download
+      const filename = `${track.title.replace(/[^a-zA-Z0-9]/g, '_')}.${track.fileFormat}`;
+      res.set('Content-Type', getAudioContentType(track.fileFormat));
+      res.set('Content-Disposition', `attachment; filename="${filename}"`);
+      res.set('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error) {
+      console.error("Download error:", error);
+      res.status(500).json({ error: "Failed to download track" });
     }
   });
 

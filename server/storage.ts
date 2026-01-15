@@ -6,7 +6,9 @@ import {
   type LandingPage, type InsertLandingPage,
   type LandingPageLink, type InsertLandingPageLink,
   type ContractTemplate,
-  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates
+  type Track, type InsertTrack,
+  type TrackPurchase, type InsertTrackPurchase,
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
@@ -96,6 +98,23 @@ export interface IStorage {
     optionalClauses?: ContractTemplate['optionalClauses'];
   }): Promise<ContractTemplate | undefined>;
   deleteUserTemplate(userId: string, templateId: string): Promise<boolean>;
+
+  // Music Tracks
+  getTrack(id: string): Promise<Track | undefined>;
+  getTracksByLandingPage(landingPageId: string): Promise<Track[]>;
+  getPublishedTracksByLandingPage(landingPageId: string): Promise<Track[]>;
+  createTrack(track: InsertTrack & { id: string }): Promise<Track>;
+  updateTrack(id: string, data: Partial<InsertTrack>): Promise<Track | undefined>;
+  deleteTrack(id: string): Promise<boolean>;
+  incrementTrackPlayCount(id: string): Promise<void>;
+  incrementTrackPurchaseCount(id: string): Promise<void>;
+
+  // Track Purchases
+  getTrackPurchase(id: string): Promise<TrackPurchase | undefined>;
+  getTrackPurchaseByToken(token: string): Promise<TrackPurchase | undefined>;
+  getTrackPurchaseBySession(sessionId: string): Promise<TrackPurchase | undefined>;
+  createTrackPurchase(purchase: InsertTrackPurchase): Promise<TrackPurchase>;
+  incrementDownloadCount(purchaseId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -557,6 +576,92 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return !!template;
+  }
+
+  // ============================================
+  // MUSIC TRACKS (Music Store Feature)
+  // ============================================
+
+  async getTrack(id: string): Promise<Track | undefined> {
+    const [track] = await db.select().from(tracks).where(eq(tracks.id, id));
+    return track;
+  }
+
+  async getTracksByLandingPage(landingPageId: string): Promise<Track[]> {
+    return db.select()
+      .from(tracks)
+      .where(eq(tracks.landingPageId, landingPageId))
+      .orderBy(asc(tracks.displayOrder), desc(tracks.createdAt));
+  }
+
+  async getPublishedTracksByLandingPage(landingPageId: string): Promise<Track[]> {
+    return db.select()
+      .from(tracks)
+      .where(and(
+        eq(tracks.landingPageId, landingPageId),
+        eq(tracks.isPublished, true)
+      ))
+      .orderBy(asc(tracks.displayOrder), desc(tracks.createdAt));
+  }
+
+  async createTrack(track: InsertTrack & { id: string }): Promise<Track> {
+    const [newTrack] = await db.insert(tracks).values(track).returning();
+    return newTrack;
+  }
+
+  async updateTrack(id: string, data: Partial<InsertTrack>): Promise<Track | undefined> {
+    const [track] = await db.update(tracks)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tracks.id, id))
+      .returning();
+    return track;
+  }
+
+  async deleteTrack(id: string): Promise<boolean> {
+    const result = await db.delete(tracks).where(eq(tracks.id, id));
+    return true;
+  }
+
+  async incrementTrackPlayCount(id: string): Promise<void> {
+    await db.execute(
+      `UPDATE tracks SET play_count = COALESCE(play_count, 0) + 1 WHERE id = '${id}'`
+    );
+  }
+
+  async incrementTrackPurchaseCount(id: string): Promise<void> {
+    await db.execute(
+      `UPDATE tracks SET purchase_count = COALESCE(purchase_count, 0) + 1 WHERE id = '${id}'`
+    );
+  }
+
+  // ============================================
+  // TRACK PURCHASES (Music Store Feature)
+  // ============================================
+
+  async getTrackPurchase(id: string): Promise<TrackPurchase | undefined> {
+    const [purchase] = await db.select().from(trackPurchases).where(eq(trackPurchases.id, id));
+    return purchase;
+  }
+
+  async getTrackPurchaseByToken(token: string): Promise<TrackPurchase | undefined> {
+    const [purchase] = await db.select().from(trackPurchases).where(eq(trackPurchases.downloadToken, token));
+    return purchase;
+  }
+
+  async getTrackPurchaseBySession(sessionId: string): Promise<TrackPurchase | undefined> {
+    const [purchase] = await db.select().from(trackPurchases).where(eq(trackPurchases.stripeCheckoutSessionId, sessionId));
+    return purchase;
+  }
+
+  async createTrackPurchase(purchase: InsertTrackPurchase): Promise<TrackPurchase> {
+    const [newPurchase] = await db.insert(trackPurchases).values(purchase).returning();
+    return newPurchase;
+  }
+
+  async incrementDownloadCount(purchaseId: string): Promise<void> {
+    await db.execute(
+      `UPDATE track_purchases SET download_count = COALESCE(download_count, 0) + 1, last_download_at = NOW() WHERE id = '${purchaseId}'`
+    );
   }
 }
 

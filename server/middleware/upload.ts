@@ -113,3 +113,75 @@ export const BACKGROUND_IMAGE_CONSTANTS = {
   ALLOWED_IMAGE_MIMES,
   MAX_SIZE: MAX_BACKGROUND_IMAGE_SIZE
 };
+
+// ============================================
+// AUDIO UPLOAD (Music Store Feature)
+// ============================================
+
+const ALLOWED_AUDIO_EXTENSIONS = ['.mp3', '.wav'];
+const ALLOWED_AUDIO_MIMES = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/wave'];
+const MAX_AUDIO_SIZE = 50 * 1024 * 1024; // 50MB
+
+export const audioUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_AUDIO_SIZE
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_AUDIO_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_AUDIO_EXTENSIONS.join(', ')}`));
+    }
+    if (!ALLOWED_AUDIO_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Accepted: mp3, wav`));
+    }
+    cb(null, true);
+  }
+});
+
+// Verify audio file content using magic bytes
+export async function verifyAudioType(buffer: Buffer): Promise<FileVerificationResult> {
+  const detected = await fileTypeFromBuffer(buffer);
+
+  if (!detected) {
+    return { valid: false, type: null, error: 'Could not determine audio file type' };
+  }
+
+  if (detected.mime === 'audio/mpeg') {
+    return { valid: true, type: 'mp3' };
+  }
+
+  if (detected.mime === 'audio/wav' || detected.mime === 'audio/x-wav' || detected.mime === 'audio/wave') {
+    return { valid: true, type: 'wav' };
+  }
+
+  return {
+    valid: false,
+    type: null,
+    error: `Invalid audio file type: ${detected.mime}. Accepted: MP3, WAV`
+  };
+}
+
+export const AUDIO_UPLOAD_CONSTANTS = {
+  ALLOWED_AUDIO_EXTENSIONS,
+  ALLOWED_AUDIO_MIMES,
+  MAX_AUDIO_SIZE
+};
+
+// Cover art upload for tracks (same as avatar size)
+export const coverArtUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_IMAGE_SIZE
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_IMAGE_EXTENSIONS.join(', ')}`));
+    }
+    if (!ALLOWED_IMAGE_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Accepted: jpg, png, webp`));
+    }
+    cb(null, true);
+  }
+});

@@ -152,3 +152,124 @@ export async function downloadAvatarImage(path: string): Promise<Buffer> {
 
   return result.value![0];
 }
+
+// ============================================
+// TRACK AUDIO STORAGE (Music Store Feature)
+// ============================================
+
+/**
+ * Upload original track audio file
+ */
+export async function uploadTrackAudio(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const path = `tracks/${userId}/${trackId}/original.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Upload generated preview (30-second clip)
+ */
+export async function uploadTrackPreview(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const path = `tracks/${userId}/${trackId}/preview.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Upload track cover art
+ */
+export async function uploadTrackCover(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `tracks/${userId}/${trackId}/cover-${timestamp}.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Download track file (original or preview)
+ */
+export async function downloadTrackFile(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download track file: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+/**
+ * Delete track files (original, preview, cover)
+ */
+export async function deleteTrackFiles(userId: string, trackId: string): Promise<void> {
+  const basePath = `tracks/${userId}/${trackId}`;
+
+  // Try to delete all possible track files
+  const filesToDelete = [
+    `${basePath}/original.mp3`,
+    `${basePath}/original.wav`,
+    `${basePath}/preview.mp3`,
+    `${basePath}/preview.wav`
+  ];
+
+  for (const filePath of filesToDelete) {
+    try {
+      await getStorage().delete(filePath);
+    } catch {
+      // Ignore errors for files that don't exist
+    }
+  }
+
+  // List and delete any cover images
+  try {
+    const listResult = await getStorage().list({ prefix: `${basePath}/cover-` });
+    if (!listResult.error && listResult.value) {
+      for (const item of listResult.value) {
+        await getStorage().delete(item.name);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
+/**
+ * Get audio content type from format
+ */
+export function getAudioContentType(format: string): string {
+  const types: Record<string, string> = {
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav'
+  };
+  return types[format.toLowerCase()] || 'audio/mpeg';
+}

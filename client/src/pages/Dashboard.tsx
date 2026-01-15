@@ -93,6 +93,7 @@ function DraggableContractCard({ id, children }: { id: string; children: React.R
 export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
+  const [editorTab, setEditorTab] = useState<'design' | 'links' | 'music' | 'social' | 'settings'>('design');
   const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -247,6 +248,29 @@ export default function Dashboard() {
     },
     enabled: !!landingPageData?.id,
   });
+
+  // Fetch tracks for music tab
+  interface Track {
+    id: string;
+    title: string;
+    priceInCents: number;
+    fileFormat: string;
+    coverArtPath?: string | null;
+    previewFilePath?: string | null;
+    isPublished: boolean;
+    playCount: number;
+    purchaseCount: number;
+  }
+  const { data: tracksData, isLoading: tracksLoading } = useQuery<Track[]>({
+    queryKey: ['/api/landing-page/tracks'],
+    queryFn: async () => {
+      const res = await fetch('/api/landing-page/tracks', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch tracks');
+      return res.json();
+    },
+    enabled: !!user && activeNav === 'landing',
+  });
+  const tracks = tracksData || [];
 
   // Fetch unread proposal count for badge (Story 7.4)
   const { data: proposalCountData } = useQuery<{ count: number }>({
@@ -425,6 +449,66 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
     },
   });
+
+  // Track mutations for music tab
+  const uploadTrack = async (file: File, title: string, priceInCents: number) => {
+    const formData = new FormData();
+    formData.append('audio', file);
+    formData.append('title', title);
+    formData.append('priceInCents', priceInCents.toString());
+
+    const res = await fetch('/api/landing-page/tracks', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to upload track');
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+    toast({ title: 'Track uploaded successfully' });
+  };
+
+  const updateTrack = async (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => {
+    const res = await apiRequest('PATCH', `/api/tracks/${id}`, updates);
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to update track');
+    }
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+  };
+
+  const deleteTrack = async (id: string) => {
+    const res = await apiRequest('DELETE', `/api/tracks/${id}`, {});
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to delete track');
+    }
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+    toast({ title: 'Track deleted' });
+  };
+
+  const uploadTrackCover = async (trackId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const res = await fetch(`/api/tracks/${trackId}/cover`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to upload cover');
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+    toast({ title: 'Cover art updated' });
+  };
 
   // Proposal mutations (Story 7.5)
   const updateProposalMutation = useMutation({
@@ -1479,6 +1563,14 @@ export default function Dashboard() {
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
                     onNavigateToUpgrade={() => setLocation('/pricing')}
+                    tracks={tracks}
+                    isLoadingTracks={tracksLoading}
+                    onUploadTrack={uploadTrack}
+                    onUpdateTrack={updateTrack}
+                    onDeleteTrack={deleteTrack}
+                    onUploadTrackCover={uploadTrackCover}
+                    activeTab={editorTab}
+                    onTabChange={setEditorTab}
                   />
                 )}
               </>

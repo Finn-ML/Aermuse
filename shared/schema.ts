@@ -525,3 +525,135 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
     references: [contracts.id],
   }),
 }));
+
+// ============================================
+// MUSIC TRACKS TABLE (Music Store Feature)
+// ============================================
+
+export const tracks = pgTable("tracks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Track metadata
+  title: text("title").notNull(),
+  artistName: text("artist_name"), // Override if different from landing page
+  description: text("description"),
+
+  // Pricing (stored in cents for precision)
+  priceInCents: integer("price_in_cents").notNull(),
+  currency: varchar("currency", { length: 3 }).default("gbp"),
+
+  // File storage paths (Replit Object Storage)
+  originalFilePath: text("original_file_path").notNull(),
+  previewFilePath: text("preview_file_path"), // 30-sec preview (generated)
+  coverArtPath: text("cover_art_path"),
+
+  // File metadata
+  originalFileName: text("original_file_name").notNull(),
+  fileFormat: varchar("file_format", { length: 10 }).notNull(), // 'mp3' | 'wav'
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  durationSeconds: integer("duration_seconds"),
+
+  // Stripe integration
+  stripeProductId: varchar("stripe_product_id", { length: 50 }),
+  stripePriceId: varchar("stripe_price_id", { length: 50 }),
+
+  // Display options
+  displayOrder: integer("display_order").default(0),
+  isPublished: boolean("is_published").default(false),
+
+  // Analytics
+  playCount: integer("play_count").default(0),
+  purchaseCount: integer("purchase_count").default(0),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  landingPageIdx: index('idx_tracks_landing_page').on(table.landingPageId),
+  userIdIdx: index('idx_tracks_user_id').on(table.userId),
+  publishedIdx: index('idx_tracks_published').on(table.isPublished),
+}));
+
+export const insertTrackSchema = createInsertSchema(tracks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTrack = z.infer<typeof insertTrackSchema>;
+export type Track = typeof tracks.$inferSelect;
+
+// ============================================
+// TRACK PURCHASES TABLE (Music Store Feature)
+// ============================================
+
+export const trackPurchases = pgTable("track_purchases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trackId: varchar("track_id").notNull().references(() => tracks.id, { onDelete: 'cascade' }),
+
+  // Buyer information
+  buyerEmail: text("buyer_email").notNull(),
+  buyerName: text("buyer_name"),
+  buyerUserId: varchar("buyer_user_id").references(() => users.id), // Optional: link to registered user
+
+  // Stripe payment details
+  stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 50 }),
+  stripeCheckoutSessionId: varchar("stripe_checkout_session_id", { length: 100 }),
+  amountPaidCents: integer("amount_paid_cents").notNull(),
+  currency: varchar("currency", { length: 3 }).default("gbp"),
+
+  // Download access
+  downloadToken: varchar("download_token", { length: 64 }).notNull().unique(),
+  downloadCount: integer("download_count").default(0),
+  maxDownloads: integer("max_downloads").default(5),
+  downloadExpiresAt: timestamp("download_expires_at", { withTimezone: true }),
+
+  // Status tracking
+  status: text("status").notNull().default("pending"), // 'pending' | 'completed' | 'refunded'
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  trackIdIdx: index('idx_track_purchases_track').on(table.trackId),
+  buyerEmailIdx: index('idx_track_purchases_email').on(table.buyerEmail),
+  downloadTokenIdx: index('idx_track_purchases_token').on(table.downloadToken),
+  statusIdx: index('idx_track_purchases_status').on(table.status),
+}));
+
+export const insertTrackPurchaseSchema = createInsertSchema(trackPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTrackPurchase = z.infer<typeof insertTrackPurchaseSchema>;
+export type TrackPurchase = typeof trackPurchases.$inferSelect;
+
+// Track purchase status type
+export type TrackPurchaseStatus = 'pending' | 'completed' | 'refunded';
+
+// ============================================
+// MUSIC TRACKS RELATIONS
+// ============================================
+
+export const tracksRelations = relations(tracks, ({ one, many }) => ({
+  landingPage: one(landingPages, {
+    fields: [tracks.landingPageId],
+    references: [landingPages.id],
+  }),
+  user: one(users, {
+    fields: [tracks.userId],
+    references: [users.id],
+  }),
+  purchases: many(trackPurchases),
+}));
+
+export const trackPurchasesRelations = relations(trackPurchases, ({ one }) => ({
+  track: one(tracks, {
+    fields: [trackPurchases.trackId],
+    references: [tracks.id],
+  }),
+  buyer: one(users, {
+    fields: [trackPurchases.buyerUserId],
+    references: [users.id],
+  }),
+}));

@@ -2,19 +2,21 @@
 // Story 9.10: Landing Page Editor Redesign
 
 import { useState, useEffect, useCallback } from 'react';
-import { Palette, Link, Share2, Settings, Loader2, Save } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Palette, Link, Share2, Settings, Loader2, Save, Music } from 'lucide-react';
+// Note: Using custom buttons instead of Radix Tabs since we render content separately
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DesignTab } from './DesignTab';
 import { LinksTab } from './LinksTab';
 import { SocialTab } from './SocialTab';
 import { SettingsTab } from './SettingsTab';
+import { MusicTab } from './MusicTab';
 import { EditorPreview } from './EditorPreview';
 import type { SocialIcon } from '@/components/landing/SocialIconsEditor';
 
 const EDITOR_TABS = [
   { id: 'design', label: 'Design', icon: Palette },
   { id: 'links', label: 'Links', icon: Link },
+  { id: 'music', label: 'Music', icon: Music },
   { id: 'social', label: 'Social', icon: Share2 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -59,6 +61,18 @@ interface LandingPageData {
   links?: LandingPageLink[];
 }
 
+interface Track {
+  id: string;
+  title: string;
+  priceInCents: number;
+  fileFormat: string;
+  coverArtPath?: string | null;
+  previewFilePath?: string | null;
+  isPublished: boolean;
+  playCount: number;
+  purchaseCount: number;
+}
+
 interface LandingPageEditorProps {
   landingPageData: LandingPageData;
   isPro: boolean;
@@ -72,6 +86,16 @@ interface LandingPageEditorProps {
   onAvatarRemove: () => void;
   onBackgroundRemove?: () => void; // Story 9.13
   onNavigateToUpgrade: () => void;
+  // Music tab props
+  tracks?: Track[];
+  isLoadingTracks?: boolean;
+  onUploadTrack?: (file: File, title: string, priceInCents: number) => Promise<void>;
+  onUpdateTrack?: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
+  onDeleteTrack?: (id: string) => Promise<void>;
+  onUploadTrackCover?: (trackId: string, file: File) => Promise<void>;
+  // Tab state controlled by parent
+  activeTab?: TabId;
+  onTabChange?: (tab: TabId) => void;
 }
 
 export function LandingPageEditor({
@@ -87,8 +111,19 @@ export function LandingPageEditor({
   onAvatarRemove,
   onBackgroundRemove,
   onNavigateToUpgrade,
+  tracks = [],
+  isLoadingTracks = false,
+  onUploadTrack,
+  onUpdateTrack,
+  onDeleteTrack,
+  onUploadTrackCover,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: LandingPageEditorProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('design');
+  // Use controlled state if provided, otherwise use internal state
+  const [internalActiveTab, setInternalActiveTab] = useState<TabId>('design');
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const setActiveTab = onTabChange ?? setInternalActiveTab;
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile viewport
@@ -162,20 +197,22 @@ export function LandingPageEditor({
               </SelectContent>
             </Select>
           ) : (
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
-              <TabsList className="w-full grid grid-cols-4 bg-[rgba(102,0,51,0.05)]">
-                {EDITOR_TABS.map(tab => (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    className="flex items-center gap-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-[#660033]"
-                  >
-                    <tab.icon size={14} />
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <div className="w-full grid grid-cols-5 bg-[rgba(102,0,51,0.05)] rounded-md p-1">
+              {EDITOR_TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-white text-[#660033] shadow-sm'
+                      : 'text-[rgba(102,0,51,0.6)] hover:text-[#660033]'
+                  }`}
+                >
+                  <tab.icon size={14} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -200,6 +237,22 @@ export function LandingPageEditor({
               onDeleteLink={onDeleteLink}
               onNavigateToUpgrade={onNavigateToUpgrade}
             />
+          )}
+          {activeTab === 'music' && (
+            onUploadTrack && onUpdateTrack && onDeleteTrack && onUploadTrackCover ? (
+              <MusicTab
+                tracks={tracks}
+                isLoading={isLoadingTracks}
+                onUploadTrack={onUploadTrack}
+                onUpdateTrack={onUpdateTrack}
+                onDeleteTrack={onDeleteTrack}
+                onUploadCover={onUploadTrackCover}
+              />
+            ) : (
+              <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
+                <p>Music features are loading...</p>
+              </div>
+            )
           )}
           {activeTab === 'social' && (
             <SocialTab

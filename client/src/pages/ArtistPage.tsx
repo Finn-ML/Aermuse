@@ -1,11 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'wouter';
+import { useParams, useSearch } from 'wouter';
 import { Loader2 } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { parseVideoUrl } from '@/lib/video-parser';
 import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
+import { MusicSection } from '@/components/music/MusicSection';
 import type { LandingPage, LandingPageLink } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
@@ -433,6 +434,16 @@ export default function ArtistPage() {
               })}
           </div>
         </section>
+      )}
+
+      {/* Music Section - Music Store Feature */}
+      {slug && (
+        <MusicSection
+          artistSlug={slug}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          className="py-8 px-4"
+        />
       )}
 
       {/* Legacy Social Links (for backwards compatibility) */}

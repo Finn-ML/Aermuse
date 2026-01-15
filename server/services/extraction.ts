@@ -1,7 +1,7 @@
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
-import { pdf } from 'pdf-to-img';
-import { PDFParse } from 'pdf-parse';
+// Lazy imports for pdf libraries to avoid DOMMatrix error at startup
+// These libraries use pdfjs-dist which requires browser APIs like DOMMatrix
 
 export interface ExtractionResult {
   success: boolean;
@@ -21,6 +21,9 @@ const OCR_MAX_PAGES = 10; // Limit OCR to first N pages for performance
 async function extractWithOCR(buffer: Buffer, maxPages: number = OCR_MAX_PAGES): Promise<ExtractionResult> {
   try {
     console.log('[OCR] Starting OCR extraction...');
+
+    // Dynamic import to avoid DOMMatrix error at server startup
+    const { pdf } = await import('pdf-to-img');
 
     // Convert PDF pages to images using pdf-to-img
     const pdfDocument = await pdf(buffer, { scale: 2.0 });
@@ -104,8 +107,11 @@ async function extractWithOCR(buffer: Buffer, maxPages: number = OCR_MAX_PAGES):
  * Falls back to OCR for scanned documents
  */
 export async function extractFromPDF(buffer: Buffer): Promise<ExtractionResult> {
-  let parser: PDFParse | null = null;
+  let parser: any = null;
   try {
+    // Dynamic import to avoid DOMMatrix error at server startup
+    const { PDFParse } = await import('pdf-parse');
+
     // First try standard text extraction using pdf-parse v2.x API
     parser = new PDFParse({ data: buffer });
     const textResult = await parser.getText({
