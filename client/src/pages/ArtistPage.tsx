@@ -1,13 +1,14 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useSearch } from 'wouter';
+import { useParams, useSearch, useLocation } from 'wouter';
 import { Loader2 } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { parseVideoUrl } from '@/lib/video-parser';
 import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
-import { MusicSection } from '@/components/music/MusicSection';
-import type { LandingPage, LandingPageLink } from '@shared/schema';
+import { PlaylistSection } from '@/components/music/PlaylistSection';
+import { PurchaseSuccessModal } from '@/components/music/PurchaseSuccessModal';
+import type { LandingPage, LandingPageLink, Track } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
 interface ArtistPageData extends LandingPage {
@@ -80,7 +81,18 @@ function getOverlayClass(overlay: BackgroundOverlay | string | null | undefined)
 
 export default function ArtistPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [, setLocation] = useLocation();
   const pageViewIdRef = useRef<string | null>(null);
+
+  // Purchase success state
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<{
+    downloadToken: string | null;
+    trackId: string | null;
+    trackTitle?: string;
+    artistName?: string;
+  }>({ downloadToken: null, trackId: null });
+  const purchaseVerifiedRef = useRef(false);
 
   const { data: page, isLoading, error } = useQuery<ArtistPageData>({
     queryKey: ['/api/artist', slug],
@@ -102,6 +114,69 @@ export default function ArtistPage() {
       pageViewIdRef.current = id;
     });
   }, [page?.id]);
+
+  // Handle purchase success - verify payment and show modal
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const purchaseStatus = urlParams.get('purchase');
+    const sessionId = urlParams.get('session_id');
+    const trackId = urlParams.get('track');
+
+    // Only process if purchase=success and we have a session ID
+    if (purchaseStatus !== 'success' || !sessionId || purchaseVerifiedRef.current) {
+      return;
+    }
+
+    // Mark as processing to prevent duplicate calls
+    purchaseVerifiedRef.current = true;
+
+    // Verify the purchase with the server
+    const verifyPurchase = async () => {
+      try {
+        const response = await fetch(`/api/tracks/purchase/verify?session_id=${encodeURIComponent(sessionId)}`);
+        if (!response.ok) {
+          console.error('Purchase verification failed');
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success && data.downloadToken) {
+          // Fetch track details for the modal
+          let trackTitle = 'Your Track';
+          let artistName = page?.artistName;
+
+          if (data.trackId) {
+            try {
+              const trackResponse = await fetch(`/api/tracks/${data.trackId}`);
+              if (trackResponse.ok) {
+                const trackData = await trackResponse.json();
+                trackTitle = trackData.title || trackTitle;
+                artistName = trackData.artistName || artistName;
+              }
+            } catch (err) {
+              console.warn('Failed to fetch track details:', err);
+            }
+          }
+
+          setPurchaseData({
+            downloadToken: data.downloadToken,
+            trackId: data.trackId,
+            trackTitle,
+            artistName,
+          });
+          setShowPurchaseModal(true);
+
+          // Clean up URL params without reloading
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      } catch (err) {
+        console.error('Error verifying purchase:', err);
+      }
+    };
+
+    verifyPurchase();
+  }, [page?.artistName]);
 
   // Track page end on unload/visibility change (AC-5)
   useEffect(() => {
@@ -219,7 +294,7 @@ export default function ArtistPage() {
       }}
     >
       {/* Hero Section (Story 9.8: Layout options) */}
-      <section className="relative pt-8 pb-4 px-4">
+      <section className="relative pt-8 md:pt-12 lg:pt-16 pb-4 md:pb-8 px-4">
         {/* Cover Image (if no custom background set) */}
         {page.coverImageUrl && backgroundType === 'solid' && !backgroundValue && (
           <div
@@ -229,10 +304,10 @@ export default function ArtistPage() {
         )}
 
         <div
-          className={`max-w-4xl mx-auto relative z-10 ${
+          className={`max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto relative z-10 ${
             layout === 'centered' ? 'text-center' : layout === 'right' ? 'text-right' : 'text-left'
           } ${
-            avatarPosition === 'left' ? 'flex flex-col sm:flex-row items-center sm:items-start gap-6' : ''
+            avatarPosition === 'left' ? 'flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8' : ''
           }`}
         >
           {/* Avatar */}
@@ -241,7 +316,7 @@ export default function ArtistPage() {
               <img
                 src={page.avatarUrl}
                 alt={page.artistName}
-                className={`w-32 h-32 rounded-full border-4 shadow-lg object-cover ${
+                className={`w-28 h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-full border-4 shadow-xl object-cover transition-transform hover:scale-105 ${
                   avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
                 } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                 style={{ borderColor: accentColor }}
@@ -252,7 +327,7 @@ export default function ArtistPage() {
               />
             ) : (
               <div
-                className={`w-32 h-32 rounded-full border-4 shadow-lg flex items-center justify-center text-4xl font-bold ${
+                className={`w-28 h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-full border-4 shadow-xl flex items-center justify-center text-4xl md:text-5xl lg:text-6xl font-bold ${
                   avatarPosition === 'top' ? 'mx-auto mb-6' : 'flex-shrink-0'
                 } ${layout === 'left' && avatarPosition === 'top' ? 'mx-0' : ''} ${layout === 'right' && avatarPosition === 'top' ? 'ml-auto mr-0' : ''}`}
                 style={{
@@ -269,7 +344,7 @@ export default function ArtistPage() {
           <div className={avatarPosition === 'left' ? 'flex-1' : ''}>
             {/* Artist Name */}
             <h1
-              className="text-4xl md:text-5xl font-bold mb-4"
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-4"
               style={{
                 color: textColor,
                 fontFamily: `"${headingFont}", system-ui, sans-serif`,
@@ -281,7 +356,7 @@ export default function ArtistPage() {
             {/* Tagline */}
             {page.tagline && (
               <p
-                className="text-xl mb-6"
+                className="text-lg md:text-xl lg:text-2xl mb-4 md:mb-6"
                 style={{ color: `${textColor}99` }}
               >
                 {page.tagline}
@@ -291,7 +366,7 @@ export default function ArtistPage() {
             {/* Bio */}
             {page.bio && (
               <p
-                className={`mb-6 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : layout === 'right' ? 'max-w-2xl ml-auto' : 'max-w-2xl'}`}
+                className={`text-sm md:text-base lg:text-lg mb-6 leading-relaxed ${layout === 'centered' ? 'max-w-2xl mx-auto' : layout === 'right' ? 'max-w-2xl ml-auto' : 'max-w-2xl'}`}
                 style={{ color: `${textColor}cc` }}
               >
                 {page.bio}
@@ -300,7 +375,7 @@ export default function ArtistPage() {
 
             {/* Social Icons - right after bio */}
             {showSocialBar && socialIcons.length > 0 && (
-              <div className={`flex gap-4 mb-6 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
+              <div className={`flex flex-wrap gap-3 md:gap-4 mb-6 ${layout === 'centered' ? 'justify-center' : layout === 'right' ? 'justify-end' : ''}`}>
                 {socialIcons
                   .sort((a, b) => a.order - b.order)
                   .map((icon) => (
@@ -309,14 +384,14 @@ export default function ArtistPage() {
                       href={icon.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-3 rounded-full transition-all hover:scale-110 hover:opacity-80"
+                      className="p-2.5 md:p-3 lg:p-4 rounded-full transition-all hover:scale-110 hover:opacity-80"
                       style={{
                         color: secondaryColor,
                         backgroundColor: `${secondaryColor}20`,
                       }}
                       title={icon.platform}
                     >
-                      {getPlatformIcon(icon.platform, "w-6 h-6")}
+                      {getPlatformIcon(icon.platform, "w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7")}
                     </a>
                   ))}
               </div>
@@ -338,110 +413,124 @@ export default function ArtistPage() {
 
       {/* Links Section (Story 9.7: Headers support, Story 9.8: Layout options) */}
       {page.links && page.links.length > 0 && (
-        <section className="py-4 px-4">
-          <div
-            className={`mx-auto max-w-md space-y-4 ${layout === 'left' ? 'ml-0 mr-auto' : ''} ${layout === 'right' ? 'mr-0 ml-auto' : ''}`}
-            style={{
-              maxWidth: linkWidth === 'full' ? '28rem' :
-                linkWidth === 'medium' ? '22rem' :
-                '18rem',
-            }}
-          >
-            {page.links
-              .filter(link => {
-                // Headers: show if title is not empty
-                if (link.type === 'header') {
-                  return link.title && link.title.trim() !== '';
-                }
-                // Links: show if enabled
-                return link.enabled;
-              })
-              .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
-              .map((link) => {
-                // Render section headers differently (Story 9.7)
-                if (link.type === 'header') {
-                  return (
-                    <h3
-                      key={link.id}
-                      className="text-lg font-semibold mt-6 mb-2 first:mt-0"
-                      style={{
-                        color: textColor,
-                        fontFamily: `"${headingFont}", system-ui, sans-serif`,
-                      }}
-                    >
-                      {link.title}
-                    </h3>
-                  );
-                }
+        <section className="py-4 md:py-8 px-4">
+          <div className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
+            {/* Video embeds in a grid on desktop */}
+            {(() => {
+              const videoLinks = page.links.filter(l => l.type === 'video_embed' && l.enabled && l.videoUrl);
+              const regularLinks = page.links.filter(l => l.type !== 'video_embed' && l.enabled);
+              const headers = page.links.filter(l => l.type === 'header' && l.title?.trim());
 
-                // Render video embeds (Story 9.9)
-                if (link.type === 'video_embed' && link.videoUrl) {
-                  const embed = parseVideoUrl(link.videoUrl);
-                  if (!embed) return null;
+              return (
+                <>
+                  {/* Video Embeds Grid */}
+                  {videoLinks.length > 0 && (
+                    <div className="mb-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        {videoLinks
+                          .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
+                          .map((link) => {
+                            const embed = parseVideoUrl(link.videoUrl!);
+                            if (!embed) return null;
 
-                  return (
-                    <div
-                      key={link.id}
-                      className="rounded-lg overflow-hidden"
-                    >
-                      {link.title && (
-                        <p
-                          className="text-sm font-medium mb-2"
-                          style={{ color: textColor }}
-                        >
-                          {link.title}
-                        </p>
-                      )}
-                      <div
-                        className="relative w-full overflow-hidden rounded-lg"
-                        style={{
-                          aspectRatio: embed.aspectRatio === '16:9' ? '16 / 9' : '1 / 1',
-                          maxWidth: embed.platform === 'spotify' ? '300px' : '100%',
-                        }}
-                      >
-                        <iframe
-                          src={embed.embedUrl}
-                          className="absolute inset-0 w-full h-full"
-                          frameBorder="0"
-                          allow="autoplay; encrypted-media"
-                          allowFullScreen
-                          title={link.title}
-                        />
+                            return (
+                              <div
+                                key={link.id}
+                                className="rounded-xl overflow-hidden"
+                              >
+                                {link.title && (
+                                  <p
+                                    className="text-sm md:text-base font-medium mb-2"
+                                    style={{ color: textColor }}
+                                  >
+                                    {link.title}
+                                  </p>
+                                )}
+                                <div
+                                  className="relative w-full overflow-hidden rounded-xl shadow-lg"
+                                  style={{
+                                    aspectRatio: embed.aspectRatio === '16:9' ? '16 / 9' : '1 / 1',
+                                  }}
+                                >
+                                  <iframe
+                                    src={embed.embedUrl}
+                                    className="absolute inset-0 w-full h-full"
+                                    frameBorder="0"
+                                    allow="autoplay; encrypted-media"
+                                    allowFullScreen
+                                    title={link.title}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
-                  );
-                }
+                  )}
 
-                // Regular links
-                return (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => handleLinkClick(link.id)}
-                    className={getButtonClasses(buttonStyle)}
-                    style={{
-                      backgroundColor: buttonBgColor,
-                      color: buttonTextColor,
-                      borderColor: buttonBorderColor,
-                      fontFamily: `"${bodyFont}", system-ui, sans-serif`,
-                    }}
-                  >
-                    {link.title}
-                  </a>
-                );
-              })}
+                  {/* Regular Links */}
+                  {regularLinks.length > 0 && (
+                    <div
+                      className={`mx-auto space-y-3 md:space-y-4 ${layout === 'left' ? 'ml-0 mr-auto' : ''} ${layout === 'right' ? 'mr-0 ml-auto' : ''}`}
+                      style={{
+                        maxWidth: linkWidth === 'full' ? '32rem' :
+                          linkWidth === 'medium' ? '26rem' :
+                          '20rem',
+                      }}
+                    >
+                      {[...headers, ...regularLinks]
+                        .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
+                        .map((link) => {
+                          if (link.type === 'header') {
+                            return (
+                              <h3
+                                key={link.id}
+                                className="text-base md:text-lg font-semibold mt-6 mb-2 first:mt-0"
+                                style={{
+                                  color: textColor,
+                                  fontFamily: `"${headingFont}", system-ui, sans-serif`,
+                                }}
+                              >
+                                {link.title}
+                              </h3>
+                            );
+                          }
+
+                          return (
+                            <a
+                              key={link.id}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => handleLinkClick(link.id)}
+                              className={getButtonClasses(buttonStyle)}
+                              style={{
+                                backgroundColor: buttonBgColor,
+                                color: buttonTextColor,
+                                borderColor: buttonBorderColor,
+                                fontFamily: `"${bodyFont}", system-ui, sans-serif`,
+                              }}
+                            >
+                              {link.title}
+                            </a>
+                          );
+                        })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </section>
       )}
 
-      {/* Music Section - Music Store Feature */}
+      {/* Music Section - Playlist Style */}
       {slug && (
-        <MusicSection
+        <PlaylistSection
           artistSlug={slug}
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
+          textColor={textColor}
           className="py-8 px-4"
         />
       )}
@@ -479,6 +568,17 @@ export default function ArtistPage() {
           <a href="/privacy" className="hover:underline">Privacy</a>
         </p>
       </footer>
+
+      {/* Purchase Success Modal */}
+      <PurchaseSuccessModal
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
+        downloadToken={purchaseData.downloadToken}
+        trackTitle={purchaseData.trackTitle}
+        artistName={purchaseData.artistName}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+      />
     </div>
   );
 }

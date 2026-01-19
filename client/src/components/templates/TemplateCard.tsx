@@ -67,7 +67,7 @@ export function TemplateCard({
 
   return (
     <div
-      className="rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)] relative"
+      className={`rounded-[20px] p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(102,0,51,0.08)] relative ${showMenu ? 'z-30' : ''}`}
       style={{ background: 'rgba(255, 255, 255, 0.6)' }}
       data-testid={`template-card-${template.id}`}
     >
@@ -124,10 +124,10 @@ export function TemplateCard({
             {showMenu && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-40"
                   onClick={() => setShowMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-white shadow-xl border border-[rgba(102,0,51,0.1)] z-20 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-white shadow-xl border border-[rgba(102,0,51,0.1)] z-50 overflow-hidden">
                   {!isOwnTemplate && (
                     <button
                       onClick={() => {

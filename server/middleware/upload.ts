@@ -63,7 +63,7 @@ export const UPLOAD_CONSTANTS = {
 // Image upload configuration for landing page backgrounds
 const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB
 
 export const imageUpload = multer({
   storage,

@@ -113,6 +113,7 @@ export interface IStorage {
   getTrackPurchase(id: string): Promise<TrackPurchase | undefined>;
   getTrackPurchaseByToken(token: string): Promise<TrackPurchase | undefined>;
   getTrackPurchaseBySession(sessionId: string): Promise<TrackPurchase | undefined>;
+  getTrackPurchasesByEmail(email: string): Promise<TrackPurchase[]>;
   createTrackPurchase(purchase: InsertTrackPurchase): Promise<TrackPurchase>;
   incrementDownloadCount(purchaseId: string): Promise<void>;
 }
@@ -653,6 +654,12 @@ export class DatabaseStorage implements IStorage {
     return purchase;
   }
 
+  async getTrackPurchasesByEmail(email: string): Promise<TrackPurchase[]> {
+    return db.select().from(trackPurchases)
+      .where(eq(trackPurchases.buyerEmail, email))
+      .orderBy(desc(trackPurchases.createdAt));
+  }
+
   async createTrackPurchase(purchase: InsertTrackPurchase): Promise<TrackPurchase> {
     const [newPurchase] = await db.insert(trackPurchases).values(purchase).returning();
     return newPurchase;
@@ -660,7 +667,7 @@ export class DatabaseStorage implements IStorage {
 
   async incrementDownloadCount(purchaseId: string): Promise<void> {
     await db.execute(
-      `UPDATE track_purchases SET download_count = COALESCE(download_count, 0) + 1, last_download_at = NOW() WHERE id = '${purchaseId}'`
+      `UPDATE track_purchases SET download_count = COALESCE(download_count, 0) + 1 WHERE id = '${purchaseId}'`
     );
   }
 }

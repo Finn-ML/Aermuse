@@ -216,16 +216,24 @@ export function SpinningDiscPlayer({
 
       {/* Purchase button */}
       {onPurchase && (
-        <Button
-          onClick={() => onPurchase(track.id)}
-          className="w-full max-w-[200px] font-semibold"
-          style={{
-            backgroundColor: primaryColor,
-            color: secondaryColor,
-          }}
-        >
-          {formatPrice(track.priceInCents, track.currency)} - Buy Now
-        </Button>
+        <div className="w-full max-w-[200px] space-y-1">
+          <Button
+            onClick={() => onPurchase(track.id)}
+            className="w-full font-semibold"
+            style={{
+              backgroundColor: primaryColor,
+              color: secondaryColor,
+            }}
+          >
+            {formatPrice(track.priceInCents, track.currency || 'gbp')} - Buy Now
+          </Button>
+          <p
+            className="text-[10px] text-center opacity-60"
+            style={{ color: primaryColor }}
+          >
+            + VAT where applicable
+          </p>
+        </div>
       )}
     </div>
   );

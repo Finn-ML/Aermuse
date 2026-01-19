@@ -26,7 +26,8 @@ export async function createTrackProduct(
 
   console.log(`[TRACK-STRIPE] Creating product for track ${trackId}: "${title}" by ${artistName}`);
 
-  // Create the product
+  // Create the product with tax code for digital goods (music downloads)
+  // Tax code txcd_10201000 = Digital goods - Audio/visual media - Downloadable audio
   const product = await stripe.products.create({
     name: title,
     description: `Digital download by ${artistName}`,
@@ -36,13 +37,16 @@ export async function createTrackProduct(
       type: 'music_track',
     },
     images: coverArtUrl ? [coverArtUrl] : undefined,
+    tax_code: 'txcd_10201000', // Digital audio downloads
   });
 
-  // Create the price (one-time payment)
+  // Create the price (one-time payment) with tax behavior
+  // 'exclusive' means tax is added on top of the price
   const price = await stripe.prices.create({
     product: product.id,
     unit_amount: priceInCents,
     currency,
+    tax_behavior: 'exclusive', // VAT added on top
   });
 
   console.log(`[TRACK-STRIPE] Product created: ${product.id} with price ${price.id} (${priceInCents} ${currency})`);
@@ -75,11 +79,12 @@ export async function updateTrackPrice(
     }
   }
 
-  // Create new price
+  // Create new price with tax behavior
   const price = await stripe.prices.create({
     product: productId,
     unit_amount: newPriceInCents,
     currency,
+    tax_behavior: 'exclusive', // VAT added on top
   });
 
   console.log(`[TRACK-STRIPE] New price created: ${price.id}`);
@@ -161,7 +166,30 @@ export async function createTrackCheckoutSession(
       artistName,
       type: 'track_purchase',
     },
-    billing_address_collection: 'auto',
+    billing_address_collection: 'required', // Required for VAT calculation
+
+    // UK VAT compliance - automatic tax calculation
+    // Requires origin address configured in Stripe Dashboard: https://dashboard.stripe.com/settings/tax
+    // Set STRIPE_TAX_ENABLED=true in env once configured
+    ...(process.env.STRIPE_TAX_ENABLED === 'true' && {
+      automatic_tax: {
+        enabled: true,
+      },
+    }),
+
+    // UK Consumer Rights compliance for digital downloads
+    // Customer must acknowledge they're waiving their 14-day cancellation right
+    // for immediate access to digital content
+    consent_collection: {
+      terms_of_service: 'required',
+    },
+
+    // Custom text for the checkout page
+    custom_text: {
+      terms_of_service_acceptance: {
+        message: 'I agree that by completing this purchase, I will have immediate access to download the digital content. I understand that I am waiving my 14-day cancellation right under the Consumer Contracts Regulations 2013.',
+      },
+    },
   };
 
   // Add transfer destination if artist has connected account

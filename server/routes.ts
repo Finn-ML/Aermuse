@@ -9,7 +9,7 @@ import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { validatePassword } from "@shared/passwordValidation";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
-import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail } from "./services/postmark";
+import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail, sendPurchaseReceiptEmail, sendTrackSoldNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
@@ -2251,22 +2251,35 @@ export async function registerRoutes(
   });
 
   // Upload cover art for a track
-  app.post("/api/tracks/:id/cover", coverArtUpload.single("image"), async (req: Request, res: Response) => {
+  app.post("/api/tracks/:id/cover", (req: Request, res: Response, next) => {
+    coverArtUpload.single("image")(req, res, (err) => {
+      if (err) {
+        console.error("Cover art multer error:", err.message);
+        return res.status(400).json({ error: err.message || "Failed to process image" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
+        console.log("[COVER] Not authenticated");
         return res.status(401).json({ error: "Not authenticated" });
       }
 
       const track = await storage.getTrack(req.params.id);
       if (!track || track.userId !== userId) {
+        console.log("[COVER] Track not found or not owned:", req.params.id);
         return res.status(404).json({ error: "Track not found" });
       }
 
       const file = req.file;
       if (!file) {
+        console.log("[COVER] No image in request");
         return res.status(400).json({ error: "No image uploaded" });
       }
+
+      console.log("[COVER] Uploading cover for track:", track.id, "file:", file.originalname, "size:", file.size);
 
       const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
       const result = await uploadTrackCover(userId, track.id, file.buffer, extension);
@@ -2274,6 +2287,7 @@ export async function registerRoutes(
       const url = `/api/tracks/${track.id}/cover/${encodeURIComponent(result.path)}`;
       await storage.updateTrack(track.id, { coverArtPath: result.path });
 
+      console.log("[COVER] Upload successful:", result.path);
       res.json({ success: true, url, path: result.path });
     } catch (error) {
       console.error("Cover art upload error:", error);
@@ -2453,6 +2467,56 @@ export async function registerRoutes(
       // Increment purchase count
       await storage.incrementTrackPurchaseCount(details.trackId);
 
+      // Get track and artist details for emails
+      const track = await storage.getTrack(details.trackId);
+      const baseUrl = getBaseUrl(req);
+
+      // Send purchase receipt email to buyer (async, don't block response)
+      if (track) {
+        const landingPage = await storage.getLandingPage(track.landingPageId);
+        const artistName = track.artistName || landingPage?.artistName || 'Unknown Artist';
+
+        console.log('[PURCHASE] Sending receipt email to:', details.buyerEmail);
+
+        // Send receipt to buyer
+        sendPurchaseReceiptEmail({
+          buyerEmail: details.buyerEmail,
+          buyerName: details.buyerName || '',
+          trackTitle: track.title,
+          artistName,
+          amountPaidCents: details.amountPaid,
+          currency: details.currency,
+          downloadToken,
+          downloadExpiresAt: downloadExpires,
+          maxDownloads: 5,
+          baseUrl,
+        }).then(result => {
+          console.log('[PURCHASE] Receipt email result:', result);
+        }).catch(err => console.error('[PURCHASE] Failed to send receipt email:', err));
+
+        // Notify the artist about the sale
+        const artist = await storage.getUser(track.userId);
+        if (artist?.email) {
+          // Calculate artist's earnings (amount minus platform fee)
+          const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || '0', 10);
+          const platformFee = Math.round((details.amountPaid * platformFeePercent) / 100);
+          const artistEarnings = details.amountPaid - platformFee;
+
+          console.log('[PURCHASE] Sending artist notification to:', artist.email);
+
+          sendTrackSoldNotificationEmail(
+            artist.email,
+            artist.name,
+            track.title,
+            details.buyerName || details.buyerEmail,
+            artistEarnings,
+            details.currency
+          ).then(result => {
+            console.log('[PURCHASE] Artist notification result:', result);
+          }).catch(err => console.error('[PURCHASE] Failed to send artist notification:', err));
+        }
+      }
+
       res.json({
         success: true,
         downloadToken: purchase.downloadToken,
@@ -2508,6 +2572,72 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Download error:", error);
       res.status(500).json({ error: "Failed to download track" });
+    }
+  });
+
+  // Get purchase history by email (for buyers to view their purchases)
+  app.get("/api/purchases", async (req: Request, res: Response) => {
+    try {
+      const { email, token } = req.query;
+
+      // Either authenticated user or valid download token required
+      const userId = (req.session as any).userId;
+      let buyerEmail: string | undefined;
+
+      if (userId) {
+        // Authenticated user - get their email
+        const user = await storage.getUser(userId);
+        buyerEmail = user?.email;
+      } else if (token && typeof token === 'string') {
+        // Validate via download token
+        const purchase = await storage.getTrackPurchaseByToken(token);
+        if (purchase) {
+          buyerEmail = purchase.buyerEmail;
+        }
+      } else if (email && typeof email === 'string') {
+        // Allow email lookup (will return limited info)
+        buyerEmail = email;
+      }
+
+      if (!buyerEmail) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const purchases = await storage.getTrackPurchasesByEmail(buyerEmail);
+
+      // Fetch track details for each purchase
+      const purchasesWithTracks = await Promise.all(
+        purchases.map(async (purchase) => {
+          const track = await storage.getTrack(purchase.trackId);
+          const landingPage = track ? await storage.getLandingPage(track.landingPageId) : null;
+
+          return {
+            id: purchase.id,
+            trackId: purchase.trackId,
+            trackTitle: track?.title || 'Unknown Track',
+            artistName: track?.artistName || landingPage?.artistName || 'Unknown Artist',
+            coverArtPath: track?.coverArtPath,
+            amountPaidCents: purchase.amountPaidCents,
+            currency: purchase.currency,
+            downloadToken: purchase.downloadToken,
+            downloadCount: purchase.downloadCount,
+            maxDownloads: purchase.maxDownloads,
+            downloadExpiresAt: purchase.downloadExpiresAt,
+            status: purchase.status,
+            createdAt: purchase.createdAt,
+            canDownload: (
+              purchase.status === 'completed' &&
+              (purchase.downloadCount || 0) < (purchase.maxDownloads || 5) &&
+              (!purchase.downloadExpiresAt || new Date() < new Date(purchase.downloadExpiresAt))
+            ),
+          };
+        })
+      );
+
+      res.json(purchasesWithTracks);
+    } catch (error) {
+      console.error("Get purchases error:", error);
+      res.status(500).json({ error: "Failed to get purchases" });
     }
   });
 

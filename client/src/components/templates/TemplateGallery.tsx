@@ -47,7 +47,7 @@ export function TemplateGallery({ onSelectTemplate }: Props) {
   const isMyTemplatesCategory = category === 'my-templates';
 
   return (
-    <div className="space-y-4 sm:space-y-6 overflow-hidden">
+    <div className="space-y-4 sm:space-y-6">
       {/* Filters Row */}
       <div className="flex flex-col gap-3 sm:gap-4">
         <CategoryFilter

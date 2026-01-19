@@ -18,6 +18,7 @@ import Pricing from "@/pages/Pricing";
 import Checkout from "@/pages/Checkout";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import ArtistPage from "@/pages/ArtistPage";
+import MyPurchases from "@/pages/MyPurchases";
 // Admin pages
 import {
   AdminOverview,
@@ -46,6 +47,8 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
+      {/* Buyer purchases history */}
+      <Route path="/my-purchases" component={MyPurchases} />
       {/* Admin routes */}
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/users" component={AdminUsers} />

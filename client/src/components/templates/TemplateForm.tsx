@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2, HelpCircle, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useTemplateForm } from '@/hooks/useTemplateForm';
@@ -51,6 +51,7 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
   const personaGroups = (template.personaGroups || []) as PersonaGroup[];
   const queryClient = useQueryClient();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const { user } = useAuth();
 
   // Get suggestions for a field based on its label/id
@@ -178,13 +179,122 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
           </div>
         </div>
 
-        {lastSaved && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[rgba(40,167,69,0.1)] text-sm text-[#28a745]">
-            <Clock size={14} />
-            Saved {lastSaved.toLocaleTimeString()}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowHelp(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[rgba(255,255,255,0.6)] text-[#660033] hover:bg-[rgba(255,255,255,0.8)] transition-all text-sm font-medium"
+            title="How to use this form"
+          >
+            <HelpCircle size={18} />
+            <span className="hidden sm:inline">Help</span>
+          </button>
+
+          {lastSaved && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[rgba(40,167,69,0.1)] text-sm text-[#28a745]">
+              <Clock size={14} />
+              Saved {lastSaved.toLocaleTimeString()}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowHelp(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(102,0,51,0.1)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#660033] flex items-center justify-center">
+                  <HelpCircle size={20} className="text-[#F7E6CA]" />
+                </div>
+                <h3 className="text-lg font-bold text-[#660033]">How to Create Your Contract</h3>
+              </div>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.05)] transition-colors"
+              >
+                <X size={20} className="text-[#660033]" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  1
+                </div>
+                <div>
+                  <h4 className="font-semibold text-[#660033] mb-1">Fill in the form fields</h4>
+                  <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                    Complete each section with the relevant details. Required fields are marked and must be filled before previewing.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-semibold text-[#660033] mb-1">Toggle optional clauses</h4>
+                  <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                    Enable or disable optional clauses to customize your contract. Some clauses may have additional fields when enabled.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-semibold text-[#660033] mb-1">Preview your contract</h4>
+                  <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                    Click "Preview Contract" to see how your filled contract looks. You can go back and make changes if needed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  4
+                </div>
+                <div>
+                  <h4 className="font-semibold text-[#660033] mb-1">Save your contract</h4>
+                  <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                    Use "Save to Contracts" to store your contract in the Contract Manager. From there you can download, share, or send for signatures.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 rounded-xl bg-[rgba(102,0,51,0.05)]">
+                <h4 className="font-semibold text-[#660033] mb-2 flex items-center gap-2">
+                  <Clock size={16} />
+                  Auto-Save
+                </h4>
+                <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                  Your progress is automatically saved locally as you type. If you close the page, your draft will be restored when you return.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-[rgba(102,0,51,0.1)]">
+              <button
+                onClick={() => setShowHelp(false)}
+                className="w-full py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={(e) => { e.preventDefault(); handlePreview(); }} className="space-y-6">
