@@ -70,8 +70,8 @@ export function substituteVariables(
   return text.replace(/\{\{(\w+)\}\}/g, (match, variable) => {
     const value = values[variable];
 
-    if (value === undefined || value === null) {
-      return match; // Keep placeholder if no value
+    if (value === undefined || value === null || value === '') {
+      return ''; // Remove placeholder if no value provided
     }
 
     // Format dates nicely
