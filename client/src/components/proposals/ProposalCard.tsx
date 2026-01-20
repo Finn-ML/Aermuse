@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mail, Building2, Calendar, MoreVertical, Trash2, Archive, CheckCircle, Eye } from 'lucide-react';
+import { Mail, Building2, Calendar, MoreVertical, Trash2, Archive, CheckCircle, Eye, Paperclip } from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -8,12 +8,14 @@ interface Proposal {
   senderCompany: string | null;
   proposalType: string;
   message: string;
-  status: 'new' | 'viewed' | 'responded' | 'archived';
+  status: 'new' | 'viewed' | 'in_review' | 'pending_signature' | 'responded' | 'archived';
   createdAt: string;
   landingPage: {
     id: string;
     artistName: string;
   } | null;
+  // Epic 13: Contract attachment indicator
+  hasContract?: boolean;
 }
 
 interface Props {
@@ -26,8 +28,19 @@ interface Props {
 const STATUS_COLORS: Record<string, string> = {
   new: 'bg-[rgba(59,130,246,0.15)] text-[#3b82f6]',
   viewed: 'bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.6)]',
+  in_review: 'bg-[rgba(255,193,7,0.15)] text-[#d39e00]',
+  pending_signature: 'bg-[rgba(138,43,226,0.15)] text-[#8a2be2]',
   responded: 'bg-[rgba(40,167,69,0.15)] text-[#28a745]',
   archived: 'bg-[rgba(102,0,51,0.05)] text-[rgba(102,0,51,0.4)]',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  new: 'New',
+  viewed: 'Viewed',
+  in_review: 'In Review',
+  pending_signature: 'Pending Signature',
+  responded: 'Responded',
+  archived: 'Archived',
 };
 
 const PROPOSAL_TYPE_LABELS: Record<string, string> = {
@@ -84,11 +97,18 @@ export function ProposalCard({ proposal, onStatusChange, onDelete, onSelect }: P
               {proposal.senderName}
             </button>
             <span className={`px-3 py-1 text-[11px] font-bold uppercase tracking-[0.05em] rounded-full ${STATUS_COLORS[proposal.status]}`}>
-              {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
+              {STATUS_LABELS[proposal.status] || proposal.status}
             </span>
             <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.05em] rounded-full bg-[rgba(102,0,51,0.1)] text-[#660033]">
               {PROPOSAL_TYPE_LABELS[proposal.proposalType] || proposal.proposalType}
             </span>
+            {/* Epic 13: Contract badge */}
+            {proposal.hasContract && (
+              <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.05em] rounded-full bg-[rgba(40,167,69,0.15)] text-[#28a745] flex items-center gap-1">
+                <Paperclip size={11} />
+                Contract
+              </span>
+            )}
           </div>
 
           {/* Contact Info */}

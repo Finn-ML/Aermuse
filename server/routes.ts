@@ -13,8 +13,8 @@ import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
@@ -4834,6 +4834,24 @@ Sent at: ${new Date().toISOString()}
       // Update contract status
       await storage.updateContract(input.contractId, { status: 'pending_signature' } as any);
 
+      // Epic 13: Update linked proposal status if this contract came from a proposal
+      const linkedProposal = await db
+        .select()
+        .from(proposals)
+        .where(eq(proposals.contractId, input.contractId))
+        .limit(1);
+
+      if (linkedProposal.length > 0) {
+        await db
+          .update(proposals)
+          .set({
+            status: 'pending_signature',
+            updatedAt: new Date(),
+          })
+          .where(eq(proposals.id, linkedProposal[0].id));
+        console.log(`[SIGNATURES] Updated linked proposal ${linkedProposal[0].id} status to pending_signature`);
+      }
+
       // Get initiator info for email
       const initiator = await storage.getUser(userId);
       const initiatorName = initiator?.name || initiator?.email || 'Someone';
@@ -5611,6 +5629,25 @@ Sent at: ${new Date().toISOString()}
       // Update contract status to signed
       await storage.updateContract(request.contractId, { status: 'signed' } as any);
 
+      // Epic 13: Update linked proposal status to responded (completed)
+      const linkedProposal = await db
+        .select()
+        .from(proposals)
+        .where(eq(proposals.contractId, request.contractId))
+        .limit(1);
+
+      if (linkedProposal.length > 0) {
+        await db
+          .update(proposals)
+          .set({
+            status: 'responded',
+            respondedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(proposals.id, linkedProposal[0].id));
+        console.log(`[WEBHOOK] Updated linked proposal ${linkedProposal[0].id} status to responded (signed)`);
+      }
+
       console.log(`[WEBHOOK] Request ${request.id} marked as completed`);
 
       // Get all signatories and send completion emails
@@ -5814,10 +5851,25 @@ Sent at: ${new Date().toISOString()}
     message: z.string().min(1, 'Message is required').max(1000, 'Message must be 1000 characters or less'),
   });
 
-  // POST /api/proposals - Submit new proposal (public, rate limited)
-  app.post("/api/proposals", proposalRateLimiter, async (req: Request, res: Response) => {
+  // POST /api/proposals - Submit new proposal with optional contract (Epic 13)
+  // Supports both JSON body (no file) and multipart/form-data (with file)
+  app.post("/api/proposals", proposalRateLimiter, proposalContractUpload.single('contractFile'), async (req: Request, res: Response) => {
     try {
-      const parsed = proposalSubmissionSchema.safeParse(req.body);
+      // Handle both JSON and multipart/form-data
+      let proposalData;
+      if (req.body.proposalData) {
+        // Multipart form: proposal data is in a JSON string field
+        try {
+          proposalData = JSON.parse(req.body.proposalData);
+        } catch {
+          return res.status(400).json({ error: 'Invalid proposal data format' });
+        }
+      } else {
+        // Regular JSON body
+        proposalData = req.body;
+      }
+
+      const parsed = proposalSubmissionSchema.safeParse(proposalData);
 
       if (!parsed.success) {
         return res.status(400).json({
@@ -5839,7 +5891,7 @@ Sent at: ${new Date().toISOString()}
         return res.status(400).json({ error: 'This page is not accepting proposals' });
       }
 
-      // Create proposal
+      // Create proposal first to get the ID
       const [proposal] = await db
         .insert(proposals)
         .values({
@@ -5852,12 +5904,61 @@ Sent at: ${new Date().toISOString()}
           message,
           ipAddress: req.ip || null,
           userAgent: req.headers['user-agent'] || null,
+          hasContract: false, // Will update if file is present
         })
         .returning();
 
-      console.log(`[PROPOSALS] New proposal submitted: ${proposal.id} for landing page ${landingPageId}`);
+      // Handle contract file upload (Epic 13)
+      let contractFileName: string | null = null;
+      let contractFilePath: string | null = null;
+      let contractFileSize: number | null = null;
+      let contractFileType: string | null = null;
 
-      // Send notification email to artist (Story 7.4)
+      if (req.file) {
+        try {
+          // Verify file type using magic bytes
+          const verification = await verifyFileType(req.file.buffer);
+          if (!verification.valid) {
+            // Delete the proposal and return error
+            await db.delete(proposals).where(eq(proposals.id, proposal.id));
+            return res.status(400).json({ error: verification.error || 'Invalid file type' });
+          }
+
+          // Upload to Object Storage
+          const uploaded = await uploadProposalContract(
+            proposal.id,
+            req.file.buffer,
+            req.file.originalname
+          );
+
+          contractFileName = req.file.originalname;
+          contractFilePath = uploaded.path;
+          contractFileSize = uploaded.size;
+          contractFileType = verification.type;
+
+          // Update proposal with file info
+          await db
+            .update(proposals)
+            .set({
+              hasContract: true,
+              contractFileName,
+              contractFilePath,
+              contractFileSize,
+              contractFileType,
+              updatedAt: new Date(),
+            })
+            .where(eq(proposals.id, proposal.id));
+
+          console.log(`[PROPOSALS] Contract uploaded: ${contractFileName} (${contractFileSize} bytes) for proposal ${proposal.id}`);
+        } catch (uploadError) {
+          console.error('[PROPOSALS] Contract upload failed:', uploadError);
+          // Continue without the contract - don't fail the whole proposal
+        }
+      }
+
+      console.log(`[PROPOSALS] New proposal submitted: ${proposal.id} for landing page ${landingPageId}${contractFileName ? ' (with contract)' : ''}`);
+
+      // Send notification email to artist (Story 7.4, enhanced for Epic 13)
       const artist = await storage.getUser(landingPage.userId);
       if (artist) {
         sendProposalNotificationEmail({
@@ -5871,6 +5972,9 @@ Sent at: ${new Date().toISOString()}
           message,
           proposalId: proposal.id,
           baseUrl: getBaseUrl(req),
+          // Epic 13: Include contract info
+          hasContract: !!contractFileName,
+          contractFileName: contractFileName || undefined,
         }).catch((err) => {
           // Log but don't fail the request if email fails
           console.error('[PROPOSALS] Failed to send notification email:', err);
@@ -5879,10 +5983,19 @@ Sent at: ${new Date().toISOString()}
 
       res.status(201).json({
         success: true,
-        message: 'Proposal submitted successfully',
+        message: contractFileName
+          ? 'Proposal with contract submitted successfully'
+          : 'Proposal submitted successfully',
+        hasContract: !!contractFileName,
       });
     } catch (error) {
       console.error('[PROPOSALS] Submit error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Contract file too large. Maximum size: 10MB' });
+        }
+        return res.status(400).json({ error: error.message });
+      }
       res.status(500).json({ error: 'Failed to submit proposal' });
     }
   });
@@ -5896,16 +6009,23 @@ Sent at: ${new Date().toISOString()}
       }
 
       const status = req.query.status as string | undefined;
+      const hasContractFilter = req.query.hasContract as string | undefined;
 
-      let whereConditions;
+      // Build where conditions
+      const conditions = [eq(proposals.userId, userId)];
+
       if (status && status !== 'all') {
-        whereConditions = and(
-          eq(proposals.userId, userId),
-          eq(proposals.status, status)
-        );
-      } else {
-        whereConditions = eq(proposals.userId, userId);
+        conditions.push(eq(proposals.status, status));
       }
+
+      // Epic 13: Filter by hasContract
+      if (hasContractFilter === 'true') {
+        conditions.push(eq(proposals.hasContract, true));
+      } else if (hasContractFilter === 'false') {
+        conditions.push(eq(proposals.hasContract, false));
+      }
+
+      const whereConditions = conditions.length === 1 ? conditions[0] : and(...conditions);
 
       const results = await db
         .select({
@@ -5920,6 +6040,9 @@ Sent at: ${new Date().toISOString()}
           viewedAt: proposals.viewedAt,
           respondedAt: proposals.respondedAt,
           landingPageId: proposals.landingPageId,
+          // Epic 13: Include contract fields
+          hasContract: proposals.hasContract,
+          contractFileName: proposals.contractFileName,
         })
         .from(proposals)
         .where(whereConditions)
@@ -6002,8 +6125,8 @@ Sent at: ${new Date().toISOString()}
       const { id } = req.params;
       const { status } = req.body;
 
-      // Validate status
-      const validStatuses = ['new', 'viewed', 'responded', 'archived'];
+      // Validate status (Epic 13: added in_review and pending_signature)
+      const validStatuses = ['new', 'viewed', 'in_review', 'pending_signature', 'responded', 'archived'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
       }
@@ -6152,5 +6275,204 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
+  // ============================================
+  // EPIC 13: PDF CONTRACT CONVERSION ENDPOINTS
+  // ============================================
+
+  // GET /api/proposals/:id/contract-file - Download/stream contract file for preview
+  app.get("/api/proposals/:id/contract-file", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+
+      // Verify proposal exists and belongs to user
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      if (!proposal.hasContract || !proposal.contractFilePath) {
+        return res.status(404).json({ error: 'No contract attached to this proposal' });
+      }
+
+      // Download file from storage
+      const fileBuffer = await downloadProposalContract(proposal.contractFilePath);
+
+      // Set appropriate headers
+      const contentType = getContentType(proposal.contractFileType || 'pdf');
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${proposal.contractFileName || 'contract.pdf'}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error('[PROPOSALS] Contract file download error:', error);
+      res.status(500).json({ error: 'Failed to download contract file' });
+    }
+  });
+
+  // POST /api/proposals/:id/convert-contract - Convert uploaded PDF to editable contract (Epic 13)
+  app.post("/api/proposals/:id/convert-contract", requireAuth, requirePremium, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+
+      // Verify proposal exists and belongs to user
+      const [proposal] = await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.id, id), eq(proposals.userId, userId)));
+
+      if (!proposal) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      if (!proposal.hasContract || !proposal.contractFilePath) {
+        return res.status(400).json({ error: 'No contract attached to this proposal' });
+      }
+
+      // Check if already converted
+      if (proposal.contractId) {
+        return res.status(400).json({
+          error: 'Contract already converted',
+          contractId: proposal.contractId
+        });
+      }
+
+      // Download file from storage
+      const fileBuffer = await downloadProposalContract(proposal.contractFilePath);
+
+      // Extract text from document
+      const extraction = await extractText(fileBuffer, proposal.contractFileType || 'pdf');
+
+      console.log(`[PROPOSALS] Extracted ${extraction.charCount} chars from proposal ${id} contract`);
+
+      // Map proposal type to contract type
+      const contractTypeMap: Record<string, string> = {
+        collaboration: 'artist',
+        licensing: 'licensing',
+        booking: 'touring',
+        recording: 'production',
+        distribution: 'business',
+        other: 'other'
+      };
+
+      // Create contract record
+      const contractName = proposal.contractFileName
+        ? proposal.contractFileName.replace(/\.[^/.]+$/, '') // Remove extension
+        : `Contract from ${proposal.senderName}`;
+
+      const contract = await storage.createContract({
+        userId,
+        name: contractName,
+        type: contractTypeMap[proposal.proposalType] || 'other',
+        status: 'pending',
+        partnerName: proposal.senderName,
+        fileName: proposal.contractFileName,
+        filePath: proposal.contractFilePath,
+        fileSize: proposal.contractFileSize,
+        fileType: proposal.contractFileType,
+        extractedText: extraction.text || '',
+        // Store rendered HTML for editing
+        renderedContent: formatExtractedTextToHtml(extraction.text || ''),
+      });
+
+      // Link contract to proposal and update status
+      await db
+        .update(proposals)
+        .set({
+          contractId: contract.id,
+          status: 'in_review',
+          contractExtractedText: extraction.text || '',
+          updatedAt: new Date(),
+        })
+        .where(eq(proposals.id, id));
+
+      console.log(`[PROPOSALS] Converted proposal ${id} to contract ${contract.id}`);
+
+      // Trigger async AI analysis (non-blocking)
+      if (extraction.text && extraction.charCount > 100) {
+        analyzeContractAsync(contract.id, extraction.text, contractTypeMap[proposal.proposalType] || 'other');
+      }
+
+      res.status(201).json({
+        success: true,
+        contractId: contract.id,
+        extraction: {
+          success: extraction.success,
+          charCount: extraction.charCount,
+        }
+      });
+    } catch (error) {
+      console.error('[PROPOSALS] Convert contract error:', error);
+      res.status(500).json({ error: 'Failed to convert contract' });
+    }
+  });
+
   return httpServer;
+}
+
+// Helper function to format extracted text to HTML for the editor
+function formatExtractedTextToHtml(text: string): string {
+  if (!text) return '<p></p>';
+
+  // Split into paragraphs
+  const paragraphs = text.split(/\n\n+/);
+
+  return paragraphs
+    .map(para => {
+      // Trim whitespace
+      const trimmed = para.trim();
+      if (!trimmed) return '';
+
+      // Check if it looks like a heading (all caps, short)
+      if (trimmed.length < 100 && trimmed === trimmed.toUpperCase() && !trimmed.includes('.')) {
+        return `<h2>${trimmed}</h2>`;
+      }
+
+      // Check if it looks like a numbered section (e.g., "1. Introduction")
+      const numberedMatch = trimmed.match(/^(\d+\.)\s+(.+)/);
+      if (numberedMatch) {
+        return `<h3>${numberedMatch[1]} ${numberedMatch[2]}</h3>`;
+      }
+
+      // Regular paragraph - preserve line breaks within
+      const withBreaks = trimmed.replace(/\n/g, '<br/>');
+      return `<p>${withBreaks}</p>`;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+// Async helper to analyze contract without blocking the response
+async function analyzeContractAsync(contractId: string, text: string, _contractType: string) {
+  try {
+    const truncated = truncateForAI(text);
+    const result = await analyzeContract(truncated.text);
+
+    if (result && result.analysis) {
+      const riskLevel = result.analysis.riskAssessment?.level || 'medium';
+      await storage.updateContract(contractId, {
+        aiAnalysis: result.analysis,
+        aiRiskScore: riskLevel,
+        analyzedAt: new Date(),
+        analysisVersion: 1,
+      });
+      console.log(`[AI] Analyzed converted contract ${contractId}: ${riskLevel} risk`);
+    }
+  } catch (error) {
+    console.error(`[AI] Failed to analyze contract ${contractId}:`, error);
+  }
 }

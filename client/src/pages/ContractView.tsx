@@ -10,6 +10,7 @@ import { AnalyzingState } from '../components/contracts/AnalyzingState';
 import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
 import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
+import { ContractEditor } from '../components/contracts/ContractEditor';
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { UpgradePrompt } from '../components/UpgradePrompt';
 import { BlurredUpgradeOverlay } from '../components/BlurredUpgradeOverlay';
@@ -572,6 +573,55 @@ export default function ContractView() {
             style={{ transitionDelay: '300ms' }}
           >
             <LegalDisclaimer />
+          </div>
+        )}
+
+        {/* Epic 13: Editable Contract Content */}
+        {contract.renderedContent && (
+          <div
+            className={`mb-6 transition-all duration-500 ${
+              isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+            style={{ transitionDelay: '350ms' }}
+          >
+            <div
+              className="rounded-[20px] overflow-hidden"
+              style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+            >
+              <div className="p-4 sm:p-6 border-b border-[rgba(102,0,51,0.08)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                    >
+                      <FileText size={20} className="text-[#F7E6CA]" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-[#660033]">Contract Content</h2>
+                      <p className="text-sm text-[rgba(102,0,51,0.5)]">
+                        Edit and review the contract before sending for signatures
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <ContractEditor
+                contractId={id!}
+                initialContent={contract.renderedContent}
+                onSave={async (content) => {
+                  const response = await fetch(`/api/contracts/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ renderedContent: content }),
+                  });
+                  if (!response.ok) throw new Error('Failed to save');
+                  // Refresh contract
+                  fetchContract();
+                }}
+              />
+            </div>
           </div>
         )}
 

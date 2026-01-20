@@ -185,3 +185,27 @@ export const coverArtUpload = multer({
     cb(null, true);
   }
 });
+
+// ============================================
+// PROPOSAL CONTRACT UPLOAD (Epic 13)
+// ============================================
+
+// Reuse same config as contract uploads for consistency
+export const proposalContractUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE // 10MB
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_EXTENSIONS.join(', ')}`));
+    }
+    cb(null, true);
+  }
+});
+
+export const PROPOSAL_CONTRACT_CONSTANTS = {
+  ALLOWED_EXTENSIONS,
+  MAX_FILE_SIZE
+};

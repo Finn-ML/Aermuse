@@ -1,4 +1,5 @@
-import { Mail, Building2, Calendar, Trash2, Archive, CheckCircle, ArrowLeft, FileText, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, Building2, Calendar, Trash2, Archive, CheckCircle, ArrowLeft, FileText, ExternalLink, Download, FileEdit, Loader2, Paperclip } from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -7,7 +8,7 @@ interface Proposal {
   senderCompany: string | null;
   proposalType: string;
   message: string;
-  status: 'new' | 'viewed' | 'responded' | 'archived';
+  status: 'new' | 'viewed' | 'in_review' | 'pending_signature' | 'responded' | 'archived';
   createdAt: string;
   viewedAt: string | null;
   respondedAt: string | null;
@@ -16,6 +17,12 @@ interface Proposal {
     id: string;
     artistName: string;
   } | null;
+  // Epic 13: Contract attachment fields
+  hasContract?: boolean;
+  contractFileName?: string | null;
+  contractFilePath?: string | null;
+  contractFileSize?: number | null;
+  contractFileType?: string | null;
 }
 
 interface Props {
@@ -25,6 +32,7 @@ interface Props {
   onBack: () => void;
   onCreateContract: () => void;
   onViewContract: (contractId: string) => void;
+  onConvertContract?: () => void;
 }
 
 const PROPOSAL_TYPE_LABELS: Record<string, string> = {
@@ -39,11 +47,32 @@ const PROPOSAL_TYPE_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   new: 'bg-[rgba(59,130,246,0.15)] text-[#3b82f6]',
   viewed: 'bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.6)]',
+  in_review: 'bg-[rgba(255,193,7,0.15)] text-[#d39e00]',
+  pending_signature: 'bg-[rgba(138,43,226,0.15)] text-[#8a2be2]',
   responded: 'bg-[rgba(40,167,69,0.15)] text-[#28a745]',
   archived: 'bg-[rgba(102,0,51,0.05)] text-[rgba(102,0,51,0.4)]',
 };
 
-export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onCreateContract, onViewContract }: Props) {
+const STATUS_LABELS: Record<string, string> = {
+  new: 'New',
+  viewed: 'Viewed',
+  in_review: 'In Review',
+  pending_signature: 'Pending Signature',
+  responded: 'Responded',
+  archived: 'Archived',
+};
+
+// Format file size for display
+function formatFileSize(bytes: number | null | undefined): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onCreateContract, onViewContract, onConvertContract }: Props) {
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: 'numeric',
@@ -81,8 +110,14 @@ export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onC
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-bold text-[#660033]">{proposal.senderName}</h1>
               <span className={`px-3 py-1 text-[11px] font-bold uppercase tracking-[0.05em] rounded-full ${STATUS_COLORS[proposal.status]}`}>
-                {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
+                {STATUS_LABELS[proposal.status] || proposal.status}
               </span>
+              {proposal.hasContract && (
+                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.05em] rounded-full bg-[rgba(40,167,69,0.15)] text-[#28a745] flex items-center gap-1">
+                  <Paperclip size={12} />
+                  Contract
+                </span>
+              )}
             </div>
             {proposal.landingPage && (
               <p className="text-[rgba(102,0,51,0.6)]">
@@ -152,6 +187,103 @@ export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onC
           </div>
         </div>
       </div>
+
+      {/* Epic 13: Attached Contract Card */}
+      {proposal.hasContract && proposal.contractFileName && (
+        <div
+          className="rounded-[20px] p-7"
+          style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+        >
+          <h2 className="text-lg font-bold text-[#660033] mb-4 flex items-center gap-2">
+            <Paperclip size={20} />
+            Attached Contract
+          </h2>
+
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-[rgba(102,0,51,0.04)]">
+            <div
+              className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(102, 0, 51, 0.08)' }}
+            >
+              <FileText size={24} className="text-[#660033]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-[#660033] truncate">{proposal.contractFileName}</p>
+              <p className="text-sm text-[rgba(102,0,51,0.6)]">
+                {proposal.contractFileType?.toUpperCase()} • {formatFileSize(proposal.contractFileSize)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/proposals/${proposal.id}/contract-file`}
+                download={proposal.contractFileName}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(102,0,51,0.1)] text-[#660033] rounded-xl font-semibold text-sm hover:bg-[rgba(102,0,51,0.15)] transition-all"
+              >
+                <Download size={16} />
+                Download
+              </a>
+            </div>
+          </div>
+
+          {/* Convert to Editable Contract CTA */}
+          {!proposal.contractId && (
+            <div className="mt-4 p-4 rounded-xl border-2 border-dashed border-[rgba(102,0,51,0.2)] bg-[rgba(102,0,51,0.02)]">
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                >
+                  <FileEdit size={20} className="text-[#F7E6CA]" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-[#660033]">Review & Edit This Contract</h3>
+                  <p className="text-sm text-[rgba(102,0,51,0.6)]">
+                    Convert to an editable format, review AI risk analysis, make changes, and send for e-signing.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setIsConverting(true);
+                    setConvertError(null);
+                    try {
+                      const response = await fetch(`/api/proposals/${proposal.id}/convert-contract`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                      const data = await response.json();
+                      if (response.ok && data.contractId) {
+                        onViewContract(data.contractId);
+                      } else {
+                        setConvertError(data.error || 'Failed to convert contract');
+                      }
+                    } catch {
+                      setConvertError('Network error. Please try again.');
+                    } finally {
+                      setIsConverting(false);
+                    }
+                  }}
+                  disabled={isConverting}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all disabled:opacity-60"
+                >
+                  {isConverting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Converting...
+                    </>
+                  ) : (
+                    <>
+                      <FileEdit size={18} />
+                      Review & Edit
+                    </>
+                  )}
+                </button>
+              </div>
+              {convertError && (
+                <p className="mt-3 text-sm text-red-500">{convertError}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions Card */}
       <div

@@ -462,8 +462,8 @@ export type AiUsage = typeof aiUsage.$inferSelect;
 export const PROPOSAL_TYPES = ['collaboration', 'licensing', 'booking', 'recording', 'distribution', 'other'] as const;
 export type ProposalType = typeof PROPOSAL_TYPES[number];
 
-// Proposal status enum values
-export const PROPOSAL_STATUSES = ['new', 'viewed', 'responded', 'archived'] as const;
+// Proposal status enum values (Epic 13: added in_review, pending_signature for contract workflow)
+export const PROPOSAL_STATUSES = ['new', 'viewed', 'in_review', 'pending_signature', 'responded', 'archived'] as const;
 export type ProposalStatus = typeof PROPOSAL_STATUSES[number];
 
 export const proposals = pgTable("proposals", {
@@ -490,6 +490,17 @@ export const proposals = pgTable("proposals", {
   // Link to created contract (if converted)
   contractId: varchar("contract_id").references(() => contracts.id),
 
+  // Epic 13: Contract attachment fields
+  hasContract: boolean("has_contract").default(false),
+  contractFileName: text("contract_file_name"),
+  contractFilePath: text("contract_file_path"),  // Path in Object Storage
+  contractFileSize: integer("contract_file_size"), // Size in bytes
+  contractFileType: text("contract_file_type"),   // 'pdf' | 'doc' | 'docx'
+  contractExtractedText: text("contract_extracted_text"),
+  contractAiAnalysis: jsonb("contract_ai_analysis"),
+  contractAiRiskScore: text("contract_ai_risk_score"), // 'low' | 'medium' | 'high'
+  contractAnalyzedAt: timestamp("contract_analyzed_at", { withTimezone: true }),
+
   // Metadata for spam prevention
   ipAddress: inet("ip_address"),
   userAgent: text("user_agent"),
@@ -502,6 +513,7 @@ export const proposals = pgTable("proposals", {
   userIdIdx: index('idx_proposals_user_id').on(table.userId),
   statusIdx: index('idx_proposals_status').on(table.status),
   createdAtIdx: index('idx_proposals_created_at').on(table.createdAt),
+  hasContractIdx: index('idx_proposals_has_contract').on(table.hasContract), // Epic 13
 }));
 
 export const insertProposalSchema = createInsertSchema(proposals).omit({

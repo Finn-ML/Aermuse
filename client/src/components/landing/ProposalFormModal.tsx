@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { X, Send, CheckCircle, AlertCircle, Upload, FileText, Trash2 } from 'lucide-react';
 
 interface ProposalFormModalProps {
   isOpen: boolean;
@@ -20,6 +20,13 @@ const PROPOSAL_TYPES = [
 ] as const;
 
 const MAX_MESSAGE_LENGTH = 1000;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx'];
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
 
 export function ProposalFormModal({
   isOpen,
@@ -40,6 +47,89 @@ export function ProposalFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Epic 13: Contract upload state
+  const [includeContract, setIncludeContract] = useState(false);
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // File validation
+  const validateFile = useCallback((file: File): string | null => {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`;
+    }
+
+    // Check file type
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_FILE_TYPES.includes(ext) && !ALLOWED_MIME_TYPES.includes(file.type)) {
+      return `Invalid file type. Accepted: ${ALLOWED_FILE_TYPES.join(', ')}`;
+    }
+
+    return null;
+  }, []);
+
+  // Handle file selection
+  const handleFileSelect = useCallback((file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      setFileError(error);
+      setContractFile(null);
+    } else {
+      setFileError(null);
+      setContractFile(file);
+    }
+  }, [validateFile]);
+
+  // Handle drag events
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }, [handleFileSelect]);
+
+  // Handle file input change
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }, [handleFileSelect]);
+
+  // Remove selected file
+  const removeFile = useCallback(() => {
+    setContractFile(null);
+    setFileError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   if (!isOpen) return null;
 
@@ -75,14 +165,33 @@ export function ProposalFormModal({
     setErrorMessage('');
 
     try {
-      const response = await fetch('/api/proposals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let response: Response;
+
+      // Epic 13: Use FormData if contract file is included
+      if (includeContract && contractFile) {
+        const formDataObj = new FormData();
+        formDataObj.append('proposalData', JSON.stringify({
           landingPageId,
           ...formData,
-        }),
-      });
+        }));
+        formDataObj.append('contractFile', contractFile);
+
+        response = await fetch('/api/proposals', {
+          method: 'POST',
+          body: formDataObj,
+          // Don't set Content-Type header - browser will set it with boundary for multipart
+        });
+      } else {
+        // Standard JSON request for proposals without contracts
+        response = await fetch('/api/proposals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            landingPageId,
+            ...formData,
+          }),
+        });
+      }
 
       if (response.ok) {
         setSubmitStatus('success');
@@ -110,6 +219,13 @@ export function ProposalFormModal({
     setErrors({});
     setSubmitStatus('idle');
     setErrorMessage('');
+    // Epic 13: Reset contract state
+    setIncludeContract(false);
+    setContractFile(null);
+    setFileError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onClose();
   };
 
@@ -124,9 +240,11 @@ export function ProposalFormModal({
           >
             <CheckCircle className="h-8 w-8" style={{ color: primaryColor }} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Proposal Sent!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {contractFile ? 'Proposal with Contract Sent!' : 'Proposal Sent!'}
+          </h2>
           <p className="text-gray-600 mb-6">
-            Your proposal has been sent to {artistName}. They'll receive a notification
+            Your proposal{contractFile ? ' and contract' : ''} has been sent to {artistName}. They'll receive a notification
             and can respond to you directly.
           </p>
           <button
@@ -271,6 +389,99 @@ export function ProposalFormModal({
                 {formData.message.length}/{MAX_MESSAGE_LENGTH}
               </span>
             </div>
+          </div>
+
+          {/* Epic 13: Contract Upload Section */}
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeContract}
+                onChange={(e) => {
+                  setIncludeContract(e.target.checked);
+                  if (!e.target.checked) {
+                    removeFile();
+                  }
+                }}
+                className="w-4 h-4 rounded border-gray-300 focus:ring-2"
+                style={{ accentColor: primaryColor }}
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Include a contract with this proposal
+              </span>
+            </label>
+
+            {includeContract && (
+              <div className="mt-3">
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ALLOWED_FILE_TYPES.join(',')}
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+
+                {!contractFile ? (
+                  /* Drop zone */
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      isDragging
+                        ? 'border-blue-400 bg-blue-50'
+                        : fileError
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                    <p className="text-sm font-medium text-gray-700">
+                      {isDragging ? 'Drop file here' : 'Drag & drop or click to upload'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      PDF, DOC, DOCX up to 10MB
+                    </p>
+                  </div>
+                ) : (
+                  /* File preview */
+                  <div className="border border-gray-200 rounded-lg p-3 flex items-center gap-3 bg-gray-50">
+                    <div
+                      className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${primaryColor}20` }}
+                    >
+                      <FileText className="h-5 w-5" style={{ color: primaryColor }} />
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {contractFile.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(contractFile.size)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeFile}
+                      className="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      aria-label="Remove file"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* File error */}
+                {fileError && (
+                  <p className="mt-2 text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {fileError}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Submit */}

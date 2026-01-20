@@ -570,6 +570,9 @@ interface ProposalNotificationParams {
   message: string;
   proposalId: string;
   baseUrl: string;
+  // Epic 13: Contract attachment info
+  hasContract?: boolean;
+  contractFileName?: string;
 }
 
 /**
@@ -589,6 +592,8 @@ export async function sendProposalNotificationEmail(
     message,
     proposalId,
     baseUrl,
+    hasContract,
+    contractFileName,
   } = params;
 
   const proposalTypeLabels: Record<string, string> = {
@@ -604,6 +609,11 @@ export async function sendProposalNotificationEmail(
   const messagePreview = message.length > 200 ? message.substring(0, 200) + '...' : message;
   const viewProposalUrl = `${baseUrl}/dashboard?tab=proposals&id=${proposalId}`;
 
+  // Epic 13: Contract attachment info for email
+  const contractInfo = hasContract && contractFileName
+    ? ` with contract attached (${contractFileName})`
+    : '';
+
   if (!client) {
     console.log('[EMAIL] Proposal notification email (dev mode):');
     console.log(`  To: ${artistEmail}`);
@@ -613,11 +623,24 @@ export async function sendProposalNotificationEmail(
     console.log(`  Company: ${senderCompany || '(none)'}`);
     console.log(`  Type: ${typeLabel}`);
     console.log(`  Message: ${messagePreview}`);
+    console.log(`  Contract: ${hasContract ? contractFileName : '(none)'}`);
     console.log(`  View URL: ${viewProposalUrl}`);
     return { success: true, messageId: 'dev-mode' };
   }
 
   try {
+    // Epic 13: Contract attachment row
+    const contractRow = hasContract ? `
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Attachment:</td>
+            <td style="padding: 10px 0;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; background-color: #e8f5e9; color: #2e7d32; font-size: 12px; padding: 6px 12px; border-radius: 50px; font-weight: 600;">
+                <span style="font-size: 14px;">📎</span> Contract attached
+              </span>
+              <span style="color: ${COLORS.textMuted}; font-size: 12px; margin-left: 8px;">${contractFileName}</span>
+            </td>
+          </tr>` : '';
+
     const proposalDetails = `
       <div style="background-color: ${COLORS.cream}; border-radius: 16px; padding: 24px; margin: 20px 0;">
         <table width="100%" cellpadding="0" cellspacing="0">
@@ -638,7 +661,7 @@ export async function sendProposalNotificationEmail(
             <td style="padding: 10px 0;">
               <span style="display: inline-block; background: linear-gradient(135deg, ${COLORS.burgundy} 0%, ${COLORS.burgundyLight} 100%); color: ${COLORS.champagne}; font-size: 12px; padding: 6px 16px; border-radius: 50px; font-weight: 600;">${typeLabel}</span>
             </td>
-          </tr>
+          </tr>${contractRow}
         </table>
       </div>
     `;
@@ -646,10 +669,12 @@ export async function sendProposalNotificationEmail(
     const result = await client.sendEmail({
       From: FROM_EMAIL,
       To: artistEmail,
-      Subject: `New ${typeLabel} Proposal for ${landingPageTitle}`,
+      Subject: hasContract
+        ? `New ${typeLabel} Proposal with Contract for ${landingPageTitle}`
+        : `New ${typeLabel} Proposal for ${landingPageTitle}`,
       HtmlBody: emailTemplate({
-        title: 'New Proposal Received!',
-        preheader: `${senderName} sent you a ${typeLabel} proposal`,
+        title: hasContract ? 'New Proposal with Contract!' : 'New Proposal Received!',
+        preheader: `${senderName} sent you a ${typeLabel} proposal${contractInfo}`,
         greeting: `Hi ${artistName || 'there'},`,
         content: `You've received a new <strong>${typeLabel}</strong> proposal through your Aermuse page "<strong>${landingPageTitle}</strong>"!
           ${proposalDetails}
@@ -661,7 +686,7 @@ export async function sendProposalNotificationEmail(
         buttonUrl: viewProposalUrl,
         footerNote: 'You received this because someone submitted a proposal through your Aermuse landing page.',
       }),
-      TextBody: `Hi ${artistName || 'there'},\n\nYou've received a new ${typeLabel} proposal through your Aermuse page "${landingPageTitle}"!\n\nFrom: ${senderName}\nEmail: ${senderEmail}\nCompany: ${senderCompany || 'Not specified'}\nType: ${typeLabel}\n\nMessage:\n${messagePreview}\n\nView full proposal: ${viewProposalUrl}\n\nYou can reply directly to ${senderEmail}\n\n- The Aermuse Team`,
+      TextBody: `Hi ${artistName || 'there'},\n\nYou've received a new ${typeLabel} proposal${contractInfo} through your Aermuse page "${landingPageTitle}"!\n\nFrom: ${senderName}\nEmail: ${senderEmail}\nCompany: ${senderCompany || 'Not specified'}\nType: ${typeLabel}${hasContract ? `\nContract: ${contractFileName}` : ''}\n\nMessage:\n${messagePreview}\n\nView full proposal: ${viewProposalUrl}\n\nYou can reply directly to ${senderEmail}\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 

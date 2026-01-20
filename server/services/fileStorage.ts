@@ -273,3 +273,51 @@ export function getAudioContentType(format: string): string {
   };
   return types[format.toLowerCase()] || 'audio/mpeg';
 }
+
+// ============================================
+// PROPOSAL CONTRACT STORAGE (Epic 13)
+// ============================================
+
+/**
+ * Upload contract file attached to a proposal
+ */
+export async function uploadProposalContract(
+  proposalId: string,
+  buffer: Buffer,
+  originalFilename: string
+): Promise<UploadResult> {
+  const extension = originalFilename.split('.').pop()?.toLowerCase() || 'pdf';
+  const sanitizedFilename = originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const path = `proposals/${proposalId}/${sanitizedFilename}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Download contract file from a proposal
+ */
+export async function downloadProposalContract(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download proposal contract: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+/**
+ * Delete contract file from a proposal
+ */
+export async function deleteProposalContract(path: string): Promise<void> {
+  const result = await getStorage().delete(path);
+
+  if (result.error) {
+    throw new Error(`Failed to delete proposal contract: ${result.error.message}`);
+  }
+}
