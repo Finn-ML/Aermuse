@@ -3256,7 +3256,17 @@ Sent at: ${new Date().toISOString()}
         );
       }
 
-      res.json({ templates });
+      // Ensure fields have group property assigned based on content sections
+      const templatesWithGroups = templates.map(template => {
+        const content = template.content as TemplateContent;
+        const fields = template.fields as TemplateField[];
+        if (content && fields) {
+          return { ...template, fields: assignFieldGroups(fields, content) };
+        }
+        return template;
+      });
+
+      res.json({ templates: templatesWithGroups });
     } catch (error) {
       console.error("Get templates error:", error);
       res.status(500).json({ error: "Failed to get templates" });
@@ -3273,6 +3283,13 @@ Sent at: ${new Date().toISOString()}
       const template = await storage.getTemplate(req.params.id);
       if (!template) {
         return res.status(404).json({ error: "Template not found" });
+      }
+
+      // Ensure fields have group property assigned based on content sections
+      const content = template.content as TemplateContent;
+      const fields = template.fields as TemplateField[];
+      if (content && fields) {
+        template.fields = assignFieldGroups(fields, content);
       }
 
       res.json(template);
