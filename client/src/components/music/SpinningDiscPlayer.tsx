@@ -15,13 +15,19 @@ export interface Track {
   previewFilePath?: string | null;
   durationSeconds?: number | null;
   isPublished: boolean;
+  // PWYW (Pay What You Want) fields
+  pricingType?: 'fixed' | 'pwyw' | null;
+  minimumPriceInCents?: number | null;
+  suggestedPriceInCents?: number | null;
+  // Free streaming
+  allowFreeStreaming?: boolean | null;
 }
 
 interface SpinningDiscPlayerProps {
   track: Track;
   primaryColor?: string;
   secondaryColor?: string;
-  onPurchase?: (trackId: string) => void;
+  onPurchase?: (trackId: string, customAmount?: number) => void;
   className?: string;
 }
 
@@ -32,9 +38,12 @@ export function SpinningDiscPlayer({
   onPurchase,
   className,
 }: SpinningDiscPlayerProps) {
-  const previewUrl = track.previewFilePath
-    ? `/api/tracks/${track.id}/preview`
-    : undefined;
+  // Determine audio source: full stream if free streaming enabled, otherwise preview
+  const audioUrl = track.allowFreeStreaming
+    ? `/api/tracks/${track.id}/stream`
+    : track.previewFilePath
+      ? `/api/tracks/${track.id}/preview`
+      : undefined;
 
   const coverArtUrl = track.coverArtPath
     ? `/api/tracks/${track.id}/cover/${encodeURIComponent(track.coverArtPath)}`
@@ -47,9 +56,15 @@ export function SpinningDiscPlayer({
     isLoading,
     toggle,
     seek,
-  } = useAudioPlayer(previewUrl);
+  } = useAudioPlayer(audioUrl);
 
   const [isHovering, setIsHovering] = useState(false);
+
+  // PWYW state
+  const isPWYW = track.pricingType === 'pwyw';
+  const minPrice = track.minimumPriceInCents || 0;
+  const suggestedPrice = track.suggestedPriceInCents || track.priceInCents || 0;
+  const [customAmount, setCustomAmount] = useState<number>(suggestedPrice);
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -68,7 +83,7 @@ export function SpinningDiscPlayer({
         className="relative cursor-pointer"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        onClick={() => previewUrl && toggle()}
+        onClick={() => audioUrl && toggle()}
       >
         {/* Outer vinyl ring */}
         <motion.div
@@ -130,7 +145,7 @@ export function SpinningDiscPlayer({
         </motion.div>
 
         {/* Play/Pause overlay */}
-        {previewUrl && (
+        {audioUrl && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center rounded-full"
             initial={{ opacity: 0 }}
@@ -189,7 +204,7 @@ export function SpinningDiscPlayer({
       </div>
 
       {/* Progress bar */}
-      {previewUrl && (
+      {audioUrl && (
         <div className="w-full max-w-[200px]">
           <div
             className="h-1 rounded-full cursor-pointer overflow-hidden"
@@ -214,25 +229,88 @@ export function SpinningDiscPlayer({
         </div>
       )}
 
-      {/* Purchase button */}
+      {/* Purchase section */}
       {onPurchase && (
-        <div className="w-full max-w-[200px] space-y-1">
+        <div className="w-full max-w-[200px] space-y-2">
+          {/* PWYW Price Input */}
+          {isPWYW && (
+            <div className="space-y-1">
+              <label
+                className="text-xs font-medium block text-center"
+                style={{ color: primaryColor }}
+              >
+                {minPrice === 0 ? 'Name Your Price' : 'Pay What You Want'}
+              </label>
+              <div className="relative">
+                <span
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium"
+                  style={{ color: primaryColor }}
+                >
+                  £
+                </span>
+                <input
+                  type="number"
+                  min={minPrice / 100}
+                  step="0.50"
+                  value={(customAmount / 100).toFixed(2)}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) * 100;
+                    setCustomAmount(Math.max(minPrice, Math.round(value) || 0));
+                  }}
+                  className="w-full pl-7 pr-3 py-2 text-center text-sm font-semibold rounded-lg border-2 focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: `${primaryColor}40`,
+                    color: primaryColor,
+                    backgroundColor: 'white',
+                  }}
+                />
+              </div>
+              {minPrice > 0 && (
+                <p
+                  className="text-[10px] text-center opacity-60"
+                  style={{ color: primaryColor }}
+                >
+                  Min: {formatPrice(minPrice, track.currency || 'gbp')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Buy Button */}
           <Button
-            onClick={() => onPurchase(track.id)}
+            onClick={() => onPurchase(track.id, isPWYW ? customAmount : undefined)}
             className="w-full font-semibold"
             style={{
               backgroundColor: primaryColor,
               color: secondaryColor,
             }}
           >
-            {formatPrice(track.priceInCents, track.currency || 'gbp')} - Buy Now
+            {isPWYW
+              ? customAmount === 0
+                ? 'Get Free'
+                : `${formatPrice(customAmount, track.currency || 'gbp')} - Buy Now`
+              : `${formatPrice(track.priceInCents, track.currency || 'gbp')} - Buy Now`}
           </Button>
-          <p
-            className="text-[10px] text-center opacity-60"
-            style={{ color: primaryColor }}
-          >
-            + VAT where applicable
-          </p>
+
+          {/* Free streaming badge */}
+          {track.allowFreeStreaming && (
+            <p
+              className="text-[10px] text-center font-medium"
+              style={{ color: primaryColor }}
+            >
+              Free to stream
+            </p>
+          )}
+
+          {/* VAT notice */}
+          {(isPWYW ? customAmount > 0 : true) && (
+            <p
+              className="text-[10px] text-center opacity-60"
+              style={{ color: primaryColor }}
+            >
+              + VAT where applicable
+            </p>
+          )}
         </div>
       )}
     </div>

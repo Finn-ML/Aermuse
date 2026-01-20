@@ -112,17 +112,21 @@ export async function archiveTrackProduct(productId: string): Promise<void> {
 
 export interface TrackCheckoutParams {
   trackId: string;
-  priceId: string;
+  priceId?: string; // Optional for PWYW
+  customAmountCents?: number; // For PWYW custom pricing
+  productId?: string; // Stripe product ID for PWYW
   trackTitle: string;
   artistName: string;
   buyerEmail?: string;
   landingPageSlug: string;
+  currency?: string;
   connectedAccountId?: string;
   applicationFeeAmount?: number;
 }
 
 /**
  * Create a Stripe Checkout session for purchasing a track
+ * Supports both fixed pricing (with priceId) and PWYW (with customAmountCents)
  * If connectedAccountId is provided, payment goes to the artist's connected account
  */
 export async function createTrackCheckoutSession(
@@ -131,15 +135,20 @@ export async function createTrackCheckoutSession(
   const {
     trackId,
     priceId,
+    customAmountCents,
+    productId,
     trackTitle,
     artistName,
     buyerEmail,
     landingPageSlug,
+    currency = 'gbp',
     connectedAccountId,
     applicationFeeAmount = 0,
   } = params;
 
-  console.log(`[TRACK-STRIPE] Creating checkout for track ${trackId}, price ${priceId}`);
+  const isPWYW = !priceId && customAmountCents !== undefined;
+
+  console.log(`[TRACK-STRIPE] Creating checkout for track ${trackId}${isPWYW ? ` (PWYW: ${customAmountCents} ${currency})` : `, price ${priceId}`}`);
   if (connectedAccountId) {
     console.log(`[TRACK-STRIPE] Using connected account: ${connectedAccountId}, fee: ${applicationFeeAmount}`);
   }
@@ -147,16 +156,48 @@ export async function createTrackCheckoutSession(
   const successUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=success&track=${trackId}&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=cancelled`;
 
-  // Build session options
-  const sessionOptions: Stripe.Checkout.SessionCreateParams = {
-    mode: 'payment',
-    payment_method_types: ['card'],
-    line_items: [
+  // Build line items - different for PWYW vs fixed price
+  let lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
+
+  if (isPWYW) {
+    // For PWYW, create line item with custom price data
+    lineItems = [
+      {
+        price_data: {
+          currency,
+          unit_amount: customAmountCents,
+          product_data: {
+            name: trackTitle,
+            description: `Digital download by ${artistName} (Pay What You Want)`,
+            metadata: {
+              trackId,
+              artistName,
+              type: 'music_track_pwyw',
+            },
+          },
+          tax_behavior: 'exclusive',
+        },
+        quantity: 1,
+      },
+    ];
+  } else {
+    // Fixed price - use existing Stripe price ID
+    if (!priceId) {
+      throw new Error('Price ID required for fixed pricing');
+    }
+    lineItems = [
       {
         price: priceId,
         quantity: 1,
       },
-    ],
+    ];
+  }
+
+  // Build session options
+  const sessionOptions: Stripe.Checkout.SessionCreateParams = {
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: lineItems,
     customer_email: buyerEmail,
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -165,6 +206,7 @@ export async function createTrackCheckoutSession(
       trackTitle,
       artistName,
       type: 'track_purchase',
+      pricingType: isPWYW ? 'pwyw' : 'fixed',
     },
     billing_address_collection: 'required', // Required for VAT calculation
 

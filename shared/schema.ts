@@ -545,6 +545,10 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
 // MUSIC TRACKS TABLE (Music Store Feature)
 // ============================================
 
+// Pricing type enum values
+export const PRICING_TYPES = ['fixed', 'pwyw'] as const;
+export type PricingType = typeof PRICING_TYPES[number];
+
 export const tracks = pgTable("tracks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
@@ -558,6 +562,14 @@ export const tracks = pgTable("tracks", {
   // Pricing (stored in cents for precision)
   priceInCents: integer("price_in_cents").notNull(),
   currency: varchar("currency", { length: 3 }).default("gbp"),
+
+  // PWYW (Pay What You Want) pricing options
+  pricingType: text("pricing_type").default("fixed").$type<PricingType>(), // 'fixed' | 'pwyw'
+  minimumPriceInCents: integer("minimum_price_in_cents").default(0), // Minimum price for PWYW (0 = free with tip)
+  suggestedPriceInCents: integer("suggested_price_in_cents"), // Optional suggested price for PWYW
+
+  // Free streaming option
+  allowFreeStreaming: boolean("allow_free_streaming").default(false), // Allow full track to be streamed for free
 
   // File storage paths (Replit Object Storage)
   originalFilePath: text("original_file_path").notNull(),
@@ -598,7 +610,12 @@ export const tracks = pgTable("tracks", {
   autoPublishIdx: index('idx_tracks_auto_publish').on(table.autoPublishAt),
 }));
 
-export const insertTrackSchema = createInsertSchema(tracks).omit({
+// Zod schema for pricing type validation
+const pricingTypeSchema = z.enum(['fixed', 'pwyw']).nullable().optional();
+
+export const insertTrackSchema = createInsertSchema(tracks, {
+  pricingType: pricingTypeSchema,
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
