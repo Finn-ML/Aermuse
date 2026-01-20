@@ -488,6 +488,8 @@ export async function generateContractPDFWithSignatureAreas(
 
     // Strip HTML tags if present and render as plain text
     const plainText = content
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove entire <style> blocks
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove entire <script> blocks
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n\n')
       .replace(/<\/div>/gi, '\n')

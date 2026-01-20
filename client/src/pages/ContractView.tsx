@@ -719,7 +719,7 @@ export default function ContractView() {
               </button>
             </div>
           )
-        ) : !contract.extractedText ? (
+        ) : !contract.extractedText && !contract.renderedContent ? (
           <div
             className={`rounded-[20px] p-12 text-center transition-all duration-500 ${
               isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'

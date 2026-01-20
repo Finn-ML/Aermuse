@@ -279,7 +279,8 @@ export async function sendSignatureRequestEmail(
   initiatorName: string,
   contractTitle: string,
   signingUrl: string,
-  message?: string | null
+  message?: string | null,
+  contractDownloadUrl?: string | null
 ): Promise<EmailResult> {
   if (!client) {
     console.log('[EMAIL] Signature request email (dev mode):');
@@ -288,13 +289,17 @@ export async function sendSignatureRequestEmail(
     console.log(`  From: ${initiatorName}`);
     console.log(`  Contract: ${contractTitle}`);
     console.log(`  Signing URL: ${signingUrl}`);
+    console.log(`  Download URL: ${contractDownloadUrl || '(none)'}`);
     console.log(`  Message: ${message || '(none)'}`);
     return { success: true, messageId: 'dev-mode' };
   }
 
   try {
     const messageBox = message ? infoBox(`"${message}"`, 'Personal Message') : '';
-    
+    const downloadLink = contractDownloadUrl
+      ? `<p style="margin: 16px 0 0 0; text-align: center;"><a href="${contractDownloadUrl}" style="color: #660033; text-decoration: underline;">Download Contract PDF</a></p>`
+      : '';
+
     const result = await client.sendEmail({
       From: FROM_EMAIL,
       To: signatoryEmail,
@@ -306,12 +311,13 @@ export async function sendSignatureRequestEmail(
         content: `<strong>${initiatorName}</strong> has requested your signature on the following contract:
           ${infoBox(contractTitle, 'Contract')}
           ${messageBox}
-          Please review and sign the document at your earliest convenience.`,
+          Please review and sign the document at your earliest convenience.
+          ${downloadLink}`,
         buttonText: 'Review & Sign',
         buttonUrl: signingUrl,
         footerNote: 'This signature request was sent via Aermuse. If you weren\'t expecting this, please contact the sender directly.',
       }),
-      TextBody: `Hi ${signatoryName},\n\n${initiatorName} has requested your signature on the following contract:\n\nContract: ${contractTitle}${message ? `\nMessage: "${message}"` : ''}\n\nSign here: ${signingUrl}\n\n- The Aermuse Team`,
+      TextBody: `Hi ${signatoryName},\n\n${initiatorName} has requested your signature on the following contract:\n\nContract: ${contractTitle}${message ? `\nMessage: "${message}"` : ''}${contractDownloadUrl ? `\n\nDownload contract: ${contractDownloadUrl}` : ''}\n\nSign here: ${signingUrl}\n\n- The Aermuse Team`,
       MessageStream: 'outbound'
     });
 

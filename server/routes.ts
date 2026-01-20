@@ -4213,16 +4213,21 @@ Sent at: ${new Date().toISOString()}
       // For sequential signing, only the first signer gets an email initially
       // Others will receive emails via the handleNextSignerReady webhook when it's their turn
       console.log(`[SIGNATURES] Sending emails to pending signatories`);
+      const baseUrl = getBaseUrl(req);
       for (const signatory of signatoryRecords) {
         if (signatory.status === 'pending' && signatory.signingUrl) {
           try {
+            const contractDownloadUrl = signatory.signingToken
+              ? `${baseUrl}/api/signatures/contract/${signatory.signingToken}`
+              : null;
             await sendSignatureRequestEmail(
               signatory.email,
               signatory.name,
               initiatorName,
               contract.name,
               signatory.signingUrl,
-              input.message
+              input.message,
+              contractDownloadUrl
             );
             console.log(`[SIGNATURES] Email sent to ${signatory.email}`);
           } catch (emailError) {
@@ -4728,7 +4733,7 @@ Sent at: ${new Date().toISOString()}
           await handleSignatureCompleted(payload);
           break;
         case 'signature.next_signer_ready':
-          await handleNextSignerReady(payload);
+          await handleNextSignerReady(payload, req);
           break;
         case 'document.completed':
           await handleDocumentCompleted(payload, req);
@@ -4807,7 +4812,7 @@ Sent at: ${new Date().toISOString()}
   }
 
   // Handle next signer ready notification
-  async function handleNextSignerReady(payload: any) {
+  async function handleNextSignerReady(payload: any, req: Request) {
     try {
       // Handle both possible field naming conventions from DocuSeal
       const signatureRequestId = payload.signatureRequestId || payload.signature_request_id || payload.signer_id;
@@ -4856,6 +4861,10 @@ Sent at: ${new Date().toISOString()}
       if (request) {
         const contract = await storage.getContract(request.contractId);
         const initiator = await storage.getUser(request.initiatorId);
+        const baseUrl = getBaseUrl(req);
+        const contractDownloadUrl = signatory.signingToken
+          ? `${baseUrl}/api/signatures/contract/${signatory.signingToken}`
+          : null;
 
         // Send signature request email
         sendSignatureRequestEmail(
@@ -4864,7 +4873,8 @@ Sent at: ${new Date().toISOString()}
           initiator?.name || 'Someone',
           contract?.name || 'Contract',
           signingUrl || signatory.signingUrl || '',
-          request.message
+          request.message,
+          contractDownloadUrl
         ).catch((err: Error) => console.error('[WEBHOOK] Failed to send request email:', err));
       }
     } catch (error) {
@@ -5067,6 +5077,72 @@ Sent at: ${new Date().toISOString()}
     } catch (error) {
       console.error('[SIGNATURES] Error downloading signed PDF:', error);
       res.status(500).json({ error: 'Failed to download signed document' });
+    }
+  });
+
+  // GET /api/signatures/contract/:token - Download contract for signatory (public, token-based auth)
+  app.get("/api/signatures/contract/:token", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+
+      // Find signatory by signing token
+      const [signatory] = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.signingToken, token));
+
+      if (!signatory) {
+        return res.status(404).json({ error: 'Invalid or expired token' });
+      }
+
+      // Get the signature request to find the contract
+      const [request] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.id, signatory.signatureRequestId));
+
+      if (!request) {
+        return res.status(404).json({ error: 'Signature request not found' });
+      }
+
+      // Get the contract
+      const contract = await storage.getContract(request.contractId);
+      if (!contract) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // For uploaded contracts, return the file
+      if (contract.filePath) {
+        const buffer = await downloadContractFile(contract.filePath);
+        res.setHeader("Content-Type", getContentType(contract.fileType || "pdf"));
+        res.setHeader("Content-Disposition", `inline; filename="${contract.fileName || 'contract.pdf'}"`);
+        return res.send(buffer);
+      }
+
+      // For template contracts, generate PDF from rendered content
+      if (contract.renderedContent) {
+        const pdfBuffer = await generateContractPdf({
+          id: contract.id,
+          name: contract.name,
+          type: contract.type,
+          status: contract.status,
+          partnerName: contract.partnerName,
+          value: contract.value,
+          createdAt: contract.createdAt || new Date(),
+          updatedAt: contract.updatedAt || new Date(),
+          signedAt: contract.signedAt,
+          aiRiskScore: contract.aiRiskScore,
+          aiAnalysis: contract.aiAnalysis as any,
+        });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `inline; filename="${contract.name || 'contract'}.pdf"`);
+        return res.send(pdfBuffer);
+      }
+
+      return res.status(404).json({ error: 'No contract document available' });
+    } catch (error) {
+      console.error('[SIGNATURES] Error downloading contract for signatory:', error);
+      res.status(500).json({ error: 'Failed to download contract' });
     }
   });
 
