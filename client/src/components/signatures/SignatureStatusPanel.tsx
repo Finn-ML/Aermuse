@@ -175,7 +175,11 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string, isRequestCompleted: boolean) => {
+    // If the overall request is completed, all signatories should show as signed
+    if (isRequestCompleted && status !== 'declined') {
+      return 'Signed';
+    }
     switch (status) {
       case 'signed':
         return 'Signed';
@@ -188,8 +192,18 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
     }
   };
 
+  const getEffectiveStatus = (status: string, isRequestCompleted: boolean) => {
+    // If the overall request is completed, treat all non-declined signatories as signed
+    if (isRequestCompleted && status !== 'declined') {
+      return 'signed';
+    }
+    return status;
+  };
+
   const getOverallProgress = () => {
     if (!request) return 0;
+    // If request is completed, progress is 100%
+    if (request.status === 'completed') return 100;
     const signedCount = request.signatories.filter(s => s.status === 'signed').length;
     return Math.round((signedCount / request.signatories.length) * 100);
   };
@@ -305,15 +319,17 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
         <h4 className="font-semibold text-[#660033]">Signing Order</h4>
 
         <div className="space-y-3">
-          {request.signatories.map((s, i) => (
+          {request.signatories.map((s, i) => {
+            const effectiveStatus = getEffectiveStatus(s.status, isCompleted);
+            return (
             <div
               key={s.id}
               className={`flex items-center justify-between p-4 rounded-xl border ${
-                s.status === 'signed'
+                effectiveStatus === 'signed'
                   ? 'bg-green-50 border-green-200'
-                  : s.status === 'pending'
+                  : effectiveStatus === 'pending'
                   ? 'bg-amber-50 border-amber-200'
-                  : s.status === 'declined'
+                  : effectiveStatus === 'declined'
                   ? 'bg-red-50 border-red-200'
                   : 'bg-gray-50 border-gray-200'
               }`}
@@ -321,18 +337,18 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
               <div className="flex items-center gap-3">
                 <span
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    s.status === 'signed'
+                    effectiveStatus === 'signed'
                       ? 'bg-green-500 text-white'
-                      : s.status === 'pending'
+                      : effectiveStatus === 'pending'
                       ? 'bg-amber-500 text-white'
-                      : s.status === 'declined'
+                      : effectiveStatus === 'declined'
                       ? 'bg-red-500 text-white'
                       : 'bg-gray-300 text-gray-600'
                   }`}
                 >
-                  {s.status === 'signed' ? (
+                  {effectiveStatus === 'signed' ? (
                     <Check className="h-4 w-4" />
-                  ) : s.status === 'declined' ? (
+                  ) : effectiveStatus === 'declined' ? (
                     <X className="h-4 w-4" />
                   ) : (
                     i + 1
@@ -356,11 +372,11 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
               </div>
 
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getStatusColor(s.status)}`}>
-                  {getStatusLabel(s.status)}
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getStatusColor(effectiveStatus)}`}>
+                  {getStatusLabel(s.status, isCompleted)}
                 </span>
 
-                {s.status === 'pending' && s.signingUrl && !isCancelled && !isExpired && (
+                {effectiveStatus === 'pending' && s.signingUrl && !isCancelled && !isExpired && (
                   <>
                     <button
                       onClick={() => copySigningUrl(s.id, s.signingUrl!)}
@@ -387,7 +403,8 @@ export function SignatureStatusPanel({ contractId, onClose, onStatusChange }: Pr
                 )}
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         {/* Message */}
