@@ -1668,6 +1668,41 @@ export default function Dashboard() {
                       // Refresh landing page data
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
+                    onVideoUpload={async (file) => {
+                      // Spotify Canvas style video upload
+                      const formData = new FormData();
+                      formData.append('video', file);
+                      const response = await fetch('/api/landing-page/background-video', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to upload video');
+                      }
+                      const result = await response.json();
+                      // Refresh landing page data
+                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                      return {
+                        webmUrl: result.webmUrl,
+                        mp4Url: result.mp4Url,
+                        duration: result.duration,
+                      };
+                    }}
+                    onVideoRemove={async () => {
+                      // Remove video background
+                      const response = await fetch('/api/landing-page/background-video', {
+                        method: 'DELETE',
+                        credentials: 'include',
+                      });
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to remove video');
+                      }
+                      // Refresh landing page data
+                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                    }}
                     onNavigateToUpgrade={() => setLocation('/pricing')}
                     tracks={tracks}
                     isLoadingTracks={tracksLoading}

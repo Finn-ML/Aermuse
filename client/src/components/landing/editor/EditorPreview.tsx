@@ -64,6 +64,16 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
   }
 }
 
+// Parse video background value JSON
+function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; duration?: number } | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 // Generate background style
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
@@ -86,6 +96,9 @@ function getBackgroundStyle(
             backgroundRepeat: 'no-repeat',
           }
         : { backgroundColor: fallbackColor };
+    case 'video':
+      // Video uses a separate element, return fallback color for the container
+      return { backgroundColor: fallbackColor };
     case 'solid':
     default:
       return { backgroundColor: backgroundValue || fallbackColor };
@@ -132,6 +145,9 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
 
   const backgroundStyle = getBackgroundStyle(backgroundType, backgroundValue, primaryColor);
   const overlayClass = getOverlayClass(backgroundOverlay);
+
+  // Parse video background data
+  const videoData = backgroundType === 'video' ? parseVideoBackground(backgroundValue) : null;
 
   // Filter and sort links
   const visibleLinks = links
@@ -190,6 +206,26 @@ export function EditorPreview({ page, links }: EditorPreviewProps) {
               fontFamily: `"${bodyFont}", system-ui, sans-serif`,
             }}
           >
+            {/* Video Background */}
+            {backgroundType === 'video' && videoData && (
+              <div className="absolute inset-0 overflow-hidden">
+                <video
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute min-w-full min-h-full w-auto h-auto top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
+                >
+                  {videoData.webm && (
+                    <source src={videoData.webm} type="video/webm" />
+                  )}
+                  {videoData.mp4 && (
+                    <source src={videoData.mp4} type="video/mp4" />
+                  )}
+                </video>
+              </div>
+            )}
+
             {/* Hero Section */}
             <div className="p-6 relative z-10">
               <div

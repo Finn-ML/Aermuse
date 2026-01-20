@@ -1,7 +1,7 @@
 // Theme Presets for Landing Page Customization (Epic 9)
 
 export type ButtonStyle = 'rounded' | 'pill' | 'square' | 'outline' | 'filled' | 'shadow';
-export type BackgroundType = 'solid' | 'gradient' | 'image';
+export type BackgroundType = 'solid' | 'gradient' | 'image' | 'video';
 export type BackgroundOverlay = 'none' | 'dark' | 'light';
 export type GradientDirection = 'to-right' | 'to-bottom' | 'to-bottom-right' | 'to-bottom-left';
 

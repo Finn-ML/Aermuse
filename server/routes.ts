@@ -13,9 +13,10 @@ import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, videoUpload, verifyVideoType } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
+import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { extractText, truncateForAI } from "./services/extraction";
@@ -1805,6 +1806,136 @@ ${urls}
     } catch (error) {
       console.error("Background image delete error:", error);
       res.status(500).json({ error: "Failed to remove background image" });
+    }
+  });
+
+  // ============================================
+  // BACKGROUND VIDEO UPLOAD (Spotify Canvas Style)
+  // ============================================
+
+  // Upload background video (mp4, mov) - converts to webm for smooth playback
+  app.post("/api/landing-page/background-video", videoUpload.single("video"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Get landing page using storage helper
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Verify video type using magic bytes
+      const verification = await verifyVideoType(file.buffer);
+      if (!verification.valid) {
+        return res.status(400).json({ error: verification.error || "Invalid video file" });
+      }
+
+      const inputFormat = verification.type as 'mp4' | 'mov' | 'webm';
+
+      console.log(`[VIDEO] Processing upload: ${file.originalname} (${inputFormat}, ${file.size} bytes)`);
+
+      // Process video - convert to webm with mp4 fallback
+      const { webm, mp4 } = await processCanvasVideo(file.buffer, inputFormat, {
+        generateFallback: true,
+        quality: 'medium'
+      });
+
+      // Upload WebM (primary format)
+      const webmResult = await uploadBackgroundVideo(userId, landingPage.id, webm.buffer, 'webm');
+      const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
+
+      // Upload MP4 fallback
+      let mp4Url: string | undefined;
+      if (mp4) {
+        const mp4Result = await uploadBackgroundVideo(userId, landingPage.id, mp4.buffer, 'mp4');
+        mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
+      }
+
+      // Store both URLs in backgroundValue as JSON
+      const backgroundVideoData = JSON.stringify({
+        webm: webmUrl,
+        mp4: mp4Url,
+        duration: webm.duration
+      });
+
+      // Update landing page with video background
+      await storage.updateLandingPage(landingPage.id, {
+        backgroundType: 'video',
+        backgroundValue: backgroundVideoData,
+      });
+
+      res.json({
+        success: true,
+        webmUrl,
+        mp4Url,
+        duration: webm.duration
+      });
+    } catch (error) {
+      console.error("Background video upload error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 50MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload background video" });
+    }
+  });
+
+  // Serve background videos
+  app.get("/api/landing-page/background-video/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+
+      // Extract extension for content type
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'webm';
+
+      const buffer = await downloadBackgroundVideo(filePath);
+
+      res.set('Content-Type', getVideoContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+      res.set('Accept-Ranges', 'bytes'); // Support range requests for video seeking
+      res.send(buffer);
+    } catch (error) {
+      console.error("Background video download error:", error);
+      res.status(404).json({ error: "Video not found" });
+    }
+  });
+
+  // Delete background video
+  app.delete("/api/landing-page/background-video", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get landing page using storage helper
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      // Delete video files from storage
+      await deleteBackgroundVideoFiles(userId, landingPage.id);
+
+      // Clear background value and set to solid color
+      await storage.updateLandingPage(landingPage.id, {
+        backgroundType: 'solid',
+        backgroundValue: '#660033',
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Background video delete error:", error);
+      res.status(500).json({ error: "Failed to remove background video" });
     }
   });
 
