@@ -19,6 +19,7 @@ import { MoveToFolderModal } from '@/components/contracts/MoveToFolderModal';
 import { ContractSortDropdown, type SortField, type SortOrder } from '@/components/contracts/ContractSortDropdown';
 import { AwaitingSignatureList } from '@/components/signatures';
 import { ProposalCard, ProposalDetail } from '@/components/proposals';
+import { MusicSalesMetrics } from '@/components/music/MusicSalesMetrics';
 import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
 import { SplitRegistrationForm } from '@/components/music/SplitRegistrationForm';
@@ -1113,6 +1114,14 @@ export default function Dashboard() {
               {/* Awaiting Signatures Section */}
               <div className="mb-8">
                 <AwaitingSignatureList maxItems={3} />
+              </div>
+
+              {/* Music Sales Metrics Section */}
+              <div
+                className="rounded-[20px] p-5 sm:p-7 mb-6 sm:mb-8"
+                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+              >
+                <MusicSalesMetrics />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

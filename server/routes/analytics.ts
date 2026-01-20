@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { db } from "../db";
-import { pageViews, linkClicks, landingPages, landingPageLinks } from "@shared/schema";
-import { eq, and, sql, count, countDistinct, avg } from "drizzle-orm";
+import { pageViews, linkClicks, landingPages, landingPageLinks, tracks, trackPurchases } from "@shared/schema";
+import { eq, and, sql, count, countDistinct, avg, sum, desc, gte } from "drizzle-orm";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -228,6 +228,119 @@ export function registerAnalyticsRoutes(app: Express): void {
     } catch (error) {
       console.error("[Analytics] Get stats error:", error);
       return res.status(500).json({ error: "Failed to get analytics" });
+    }
+  });
+
+  // GET /api/analytics/music-sales - Get music sales metrics (auth required)
+  app.get("/api/analytics/music-sales", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      // Get user's landing page
+      const [landingPage] = await db
+        .select({ id: landingPages.id })
+        .from(landingPages)
+        .where(eq(landingPages.userId, userId))
+        .limit(1);
+
+      if (!landingPage) {
+        // Return empty metrics if no landing page
+        return res.json({
+          totalRevenue: 0,
+          totalSales: 0,
+          totalPlays: 0,
+          revenueThisMonth: 0,
+          salesThisMonth: 0,
+          topTracks: [],
+        });
+      }
+
+      // Get all tracks for this landing page
+      const userTracks = await db
+        .select({
+          id: tracks.id,
+          title: tracks.title,
+          playCount: tracks.playCount,
+          purchaseCount: tracks.purchaseCount,
+          coverArtPath: tracks.coverArtPath,
+        })
+        .from(tracks)
+        .where(eq(tracks.landingPageId, landingPage.id));
+
+      const trackIds = userTracks.map(t => t.id);
+
+      if (trackIds.length === 0) {
+        return res.json({
+          totalRevenue: 0,
+          totalSales: 0,
+          totalPlays: 0,
+          revenueThisMonth: 0,
+          salesThisMonth: 0,
+          topTracks: [],
+        });
+      }
+
+      // Calculate total plays from tracks
+      const totalPlays = userTracks.reduce((sum, t) => sum + (t.playCount || 0), 0);
+
+      // Get all completed purchases for user's tracks
+      const allPurchases = await db
+        .select({
+          trackId: trackPurchases.trackId,
+          amountPaidCents: trackPurchases.amountPaidCents,
+          createdAt: trackPurchases.createdAt,
+        })
+        .from(trackPurchases)
+        .where(
+          and(
+            sql`${trackPurchases.trackId} = ANY(${trackIds})`,
+            eq(trackPurchases.status, 'completed')
+          )
+        );
+
+      // Calculate totals
+      const totalRevenue = allPurchases.reduce((sum, p) => sum + (p.amountPaidCents || 0), 0);
+      const totalSales = allPurchases.length;
+
+      // Calculate this month's metrics
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const thisMonthPurchases = allPurchases.filter(p =>
+        p.createdAt && new Date(p.createdAt) >= startOfMonth
+      );
+
+      const revenueThisMonth = thisMonthPurchases.reduce((sum, p) => sum + (p.amountPaidCents || 0), 0);
+      const salesThisMonth = thisMonthPurchases.length;
+
+      // Get top selling tracks (by purchase count)
+      const topTracks = userTracks
+        .filter(t => (t.purchaseCount || 0) > 0)
+        .sort((a, b) => (b.purchaseCount || 0) - (a.purchaseCount || 0))
+        .slice(0, 5)
+        .map(t => ({
+          id: t.id,
+          title: t.title,
+          sales: t.purchaseCount || 0,
+          plays: t.playCount || 0,
+          coverArtPath: t.coverArtPath,
+        }));
+
+      return res.json({
+        totalRevenue,
+        totalSales,
+        totalPlays,
+        revenueThisMonth,
+        salesThisMonth,
+        topTracks,
+      });
+    } catch (error) {
+      console.error("[Analytics] Get music sales error:", error);
+      return res.status(500).json({ error: "Failed to get music sales metrics" });
     }
   });
 }
