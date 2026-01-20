@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
-import { validateFormData, renderTemplateContent, generateHTML, generateText } from "./services/templateRenderer";
+import { validateFormData, renderTemplateContent, generateHTML, generateText, assignFieldGroups } from "./services/templateRenderer";
 import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
@@ -3437,12 +3437,15 @@ Sent at: ${new Date().toISOString()}
       const allTemplates = await storage.getAllTemplates();
       const maxSortOrder = allTemplates.reduce((max, t) => Math.max(max, t.sortOrder ?? 0), 0);
 
+      // Auto-assign group property to fields based on section headings
+      const fieldsWithGroups = assignFieldGroups(fields || [], content as TemplateContent);
+
       const template = await storage.createTemplate({
         name,
         description,
         category,
         content,
-        fields: fields || [],
+        fields: fieldsWithGroups,
         optionalClauses: optionalClauses || [],
         personaGroups: personaGroups || [],
         isActive: true,
@@ -3489,12 +3492,15 @@ Sent at: ${new Date().toISOString()}
         return res.status(400).json({ error: "Invalid template", details: validation.errors });
       }
 
+      // Auto-assign group property to fields based on section headings
+      const fieldsWithGroups = assignFieldGroups(fields || [], content as TemplateContent);
+
       const template = await storage.updateTemplate(req.params.id, {
         name,
         description,
         category,
         content,
-        fields: fields || [],
+        fields: fieldsWithGroups,
         optionalClauses: optionalClauses || [],
         version: (existing.version ?? 1) + 1
       });

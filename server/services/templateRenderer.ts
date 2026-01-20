@@ -128,6 +128,54 @@ export function extractVariables(content: TemplateContent): string[] {
 }
 
 /**
+ * Extract variable names mapped to their section headings
+ * Used to auto-assign group property to fields
+ */
+export function extractVariableGroups(content: TemplateContent): Record<string, string> {
+  const variableGroups: Record<string, string> = {};
+  const regex = /\{\{(\w+)\}\}/g;
+
+  // Variables in title get "General" group
+  let match;
+  while ((match = regex.exec(content.title)) !== null) {
+    variableGroups[match[1]] = 'General';
+  }
+
+  // Extract from sections - map to section heading
+  for (const section of content.sections) {
+    const groupName = section.heading || 'Other';
+
+    // Reset regex lastIndex for each string
+    regex.lastIndex = 0;
+    while ((match = regex.exec(section.heading)) !== null) {
+      variableGroups[match[1]] = groupName;
+    }
+    regex.lastIndex = 0;
+    while ((match = regex.exec(section.content)) !== null) {
+      variableGroups[match[1]] = groupName;
+    }
+  }
+
+  return variableGroups;
+}
+
+/**
+ * Auto-assign group property to fields based on where their variables appear in content
+ */
+export function assignFieldGroups(
+  fields: TemplateField[],
+  content: TemplateContent
+): TemplateField[] {
+  const variableGroups = extractVariableGroups(content);
+
+  return fields.map(field => ({
+    ...field,
+    // Use existing group if defined, otherwise use the section heading where the variable appears
+    group: field.group || variableGroups[field.id] || 'Other'
+  }));
+}
+
+/**
  * Validate that all required fields are provided
  */
 export function validateFormData(
