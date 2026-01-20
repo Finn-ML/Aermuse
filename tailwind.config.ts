@@ -103,10 +103,54 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // Cinematic Stage keyframes
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-20px)" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0px) scale(1)" },
+          "50%": { transform: "translateY(-12px) scale(1.02)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.4", filter: "blur(40px)" },
+          "50%": { opacity: "0.7", filter: "blur(60px)" },
+        },
+        "reveal-up": {
+          from: { opacity: "0", transform: "translateY(30px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "reveal-scale": {
+          from: { opacity: "0", transform: "scale(0.9)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "spotlight-sweep": {
+          "0%": { transform: "translateX(-100%) rotate(15deg)", opacity: "0" },
+          "10%": { opacity: "0.6" },
+          "90%": { opacity: "0.6" },
+          "100%": { transform: "translateX(200%) rotate(15deg)", opacity: "0" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Cinematic Stage animations
+        "float": "float 6s ease-in-out infinite",
+        "float-slow": "float-slow 8s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 4s ease-in-out infinite",
+        "spotlight": "spotlight-sweep 3s ease-in-out",
+        "reveal-up": "reveal-up 0.8s ease-out forwards",
+        "reveal-scale": "reveal-scale 0.6s ease-out forwards",
+        "fade-in": "fade-in 0.5s ease-out forwards",
+        "slide-up": "slide-up 0.6s ease-out forwards",
       },
     },
   },
