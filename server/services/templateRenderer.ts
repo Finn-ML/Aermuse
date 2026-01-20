@@ -128,51 +128,76 @@ export function extractVariables(content: TemplateContent): string[] {
 }
 
 /**
- * Extract variable names mapped to their section headings
- * Used to auto-assign group property to fields
+ * Extract variable names mapped to their section headings and order
+ * Used to auto-assign group property and sort order to fields
  */
-export function extractVariableGroups(content: TemplateContent): Record<string, string> {
-  const variableGroups: Record<string, string> = {};
+export function extractVariableInfo(content: TemplateContent): Record<string, { group: string; order: number; sectionIndex: number }> {
+  const variableInfo: Record<string, { group: string; order: number; sectionIndex: number }> = {};
   const regex = /\{\{(\w+)\}\}/g;
+  let globalOrder = 0;
 
   // Variables in title get "General" group
   let match;
   while ((match = regex.exec(content.title)) !== null) {
-    variableGroups[match[1]] = 'General';
+    if (!variableInfo[match[1]]) {
+      variableInfo[match[1]] = { group: 'General', order: globalOrder++, sectionIndex: -1 };
+    }
   }
 
-  // Extract from sections - map to section heading
-  for (const section of content.sections) {
+  // Extract from sections - map to section heading and track order
+  for (let sectionIndex = 0; sectionIndex < content.sections.length; sectionIndex++) {
+    const section = content.sections[sectionIndex];
     const groupName = section.heading || 'Other';
 
     // Reset regex lastIndex for each string
     regex.lastIndex = 0;
     while ((match = regex.exec(section.heading)) !== null) {
-      variableGroups[match[1]] = groupName;
+      if (!variableInfo[match[1]]) {
+        variableInfo[match[1]] = { group: groupName, order: globalOrder++, sectionIndex };
+      }
     }
     regex.lastIndex = 0;
     while ((match = regex.exec(section.content)) !== null) {
-      variableGroups[match[1]] = groupName;
+      if (!variableInfo[match[1]]) {
+        variableInfo[match[1]] = { group: groupName, order: globalOrder++, sectionIndex };
+      }
     }
   }
 
-  return variableGroups;
+  return variableInfo;
 }
 
 /**
  * Auto-assign group property to fields based on where their variables appear in content
+ * Also sorts fields by their order of appearance in the content
  */
 export function assignFieldGroups(
   fields: TemplateField[],
   content: TemplateContent
 ): TemplateField[] {
-  const variableGroups = extractVariableGroups(content);
+  const variableInfo = extractVariableInfo(content);
 
-  return fields.map(field => ({
-    ...field,
-    // Use existing group if defined, otherwise use the section heading where the variable appears
-    group: field.group || variableGroups[field.id] || 'Other'
-  }));
+  // Assign groups and sort order to fields
+  const fieldsWithInfo = fields.map(field => {
+    const info = variableInfo[field.id];
+    return {
+      ...field,
+      group: field.group || info?.group || 'Other',
+      _order: info?.order ?? 9999,
+      _sectionIndex: info?.sectionIndex ?? 9999,
+    };
+  });
+
+  // Sort by section index first, then by order within section
+  fieldsWithInfo.sort((a, b) => {
+    if (a._sectionIndex !== b._sectionIndex) {
+      return a._sectionIndex - b._sectionIndex;
+    }
+    return a._order - b._order;
+  });
+
+  // Remove temporary sort properties
+  return fieldsWithInfo.map(({ _order, _sectionIndex, ...field }) => field);
 }
 
 /**
