@@ -42,6 +42,8 @@ import {
   Eye,
   PenLine,
   AlertCircle,
+  HelpCircle,
+  X,
 } from 'lucide-react';
 import { useUpdateUserTemplate } from '@/hooks/useUserTemplates';
 import { useToast } from '@/hooks/use-toast';
@@ -143,6 +145,9 @@ export function UserTemplateEditor({ template, isOpen, onClose, onSuccess }: Pro
 
   // Validation
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Help dialog
+  const [showHelp, setShowHelp] = useState(false);
 
   // Reset form when template changes or dialog opens
   useEffect(() => {
@@ -318,8 +323,113 @@ export function UserTemplateEditor({ template, isOpen, onClose, onSuccess }: Pro
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[#660033]">Customize Template</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-[#660033]">Customize Template</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHelp(true)}
+              className="border-[rgba(102,0,51,0.2)] text-[#660033] hover:bg-[rgba(102,0,51,0.05)]"
+            >
+              <HelpCircle size={16} className="mr-1.5" />
+              How it works
+            </Button>
+          </div>
         </DialogHeader>
+
+        {/* Help Modal */}
+        {showHelp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowHelp(false)}
+            />
+            <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-[rgba(102,0,51,0.1)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#660033] flex items-center justify-center">
+                    <HelpCircle size={20} className="text-[#F7E6CA]" />
+                  </div>
+                  <h3 className="text-lg font-bold text-[#660033]">How to Customize Your Template</h3>
+                </div>
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.05)] transition-colors"
+                >
+                  <X size={20} className="text-[#660033]" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[#660033] mb-1">Basic Info</h4>
+                    <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                      Give your template a name and optional description. This helps you identify it later.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[#660033] mb-1">Content Sections</h4>
+                    <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                      Edit the document title and sections. Use <code className="bg-[rgba(102,0,51,0.1)] px-1 rounded text-xs">{"{{variable_name}}"}</code> syntax to insert placeholders that will be filled in when creating contracts.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[#660033] mb-1">Variables</h4>
+                    <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                      Configure each variable - set its display label, field type (text, date, number, etc.), and whether it's required. Variables are auto-detected from your content.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-[#660033] text-[#F7E6CA] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    4
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[#660033] mb-1">Review & Save</h4>
+                    <p className="text-sm text-[rgba(102,0,51,0.7)]">
+                      Review your changes and save. Your customized template will appear in "My Templates" for future use.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-[rgba(102,0,51,0.05)]">
+                  <h4 className="font-semibold text-[#660033] mb-2">Variable Tips</h4>
+                  <ul className="text-sm text-[rgba(102,0,51,0.7)] space-y-1 list-disc list-inside">
+                    <li>Use underscores for multi-word IDs: <code className="bg-[rgba(102,0,51,0.1)] px-1 rounded text-xs">artist_name</code></li>
+                    <li>Click the insert buttons below text fields to quickly add variables</li>
+                    <li>New variables in content are automatically detected</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-[rgba(102,0,51,0.1)]">
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="w-full py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold hover:shadow-lg transition-all"
+                >
+                  Got it!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 py-4 border-b border-[rgba(102,0,51,0.1)]">
