@@ -115,6 +115,45 @@ export default function ArtistPage() {
     });
   }, [page?.id]);
 
+  // JSON-LD structured data for SEO
+  useEffect(() => {
+    if (!page) return;
+
+    const socialIcons = (page.socialIcons as { platform: string; url: string }[]) || [];
+    const sameAs = socialIcons.map(icon => icon.url).filter(Boolean);
+
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "MusicGroup",
+      "name": page.artistName,
+      "description": page.bio || page.tagline || `Official page of ${page.artistName}`,
+      "image": page.avatarUrl || page.coverImageUrl,
+      "url": window.location.href,
+      ...(sameAs.length > 0 && { "sameAs": sameAs }),
+    };
+
+    // Remove any existing JSON-LD script
+    const existingScript = document.querySelector('script[data-jsonld="artist"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
+    // Add new JSON-LD script
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-jsonld', 'artist');
+    script.textContent = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // Cleanup on unmount
+    return () => {
+      const scriptToRemove = document.querySelector('script[data-jsonld="artist"]');
+      if (scriptToRemove) {
+        scriptToRemove.remove();
+      }
+    };
+  }, [page]);
+
   // Handle purchase success - verify payment and show modal
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);

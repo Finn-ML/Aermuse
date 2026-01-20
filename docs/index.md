@@ -22,6 +22,7 @@
 | [Architecture - Server](./architecture-server.md) | server | Express backend, authentication, API design |
 | [Data Models](./data-models.md) | shared | Database schema, relationships, TypeScript types |
 | [Source Tree](./source-tree.md) | all | Complete file structure analysis |
+| [SEO Implementation](./seo-implementation.md) | server/client | Server-side meta tags, sitemap, structured data |
 
 ### Design & UX
 

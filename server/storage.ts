@@ -67,6 +67,7 @@ export interface IStorage {
   getLandingPage(id: string): Promise<LandingPage | undefined>;
   getLandingPageBySlug(slug: string): Promise<LandingPage | undefined>;
   getLandingPageByUser(userId: string): Promise<LandingPage | undefined>;
+  getAllPublishedLandingPages(): Promise<LandingPage[]>;
   createLandingPage(page: InsertLandingPage): Promise<LandingPage>;
   updateLandingPage(id: string, data: Partial<InsertLandingPage>): Promise<LandingPage | undefined>;
   
@@ -397,6 +398,10 @@ export class DatabaseStorage implements IStorage {
   async getLandingPageByUser(userId: string): Promise<LandingPage | undefined> {
     const [page] = await db.select().from(landingPages).where(eq(landingPages.userId, userId));
     return page;
+  }
+
+  async getAllPublishedLandingPages(): Promise<LandingPage[]> {
+    return db.select().from(landingPages).where(eq(landingPages.isPublished, true)).orderBy(desc(landingPages.updatedAt));
   }
 
   async createLandingPage(page: InsertLandingPage): Promise<LandingPage> {

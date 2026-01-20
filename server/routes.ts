@@ -82,6 +82,51 @@ export async function registerRoutes(
   // Register analytics routes (Epic 10)
   registerAnalyticsRoutes(app);
 
+  // SEO routes
+  app.get("/robots.txt", (_req: Request, res: Response) => {
+    const robotsTxt = `User-agent: *
+Allow: /artist/
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /admin
+
+Sitemap: ${getBaseUrl(_req)}/sitemap.xml
+`;
+    res.type('text/plain').send(robotsTxt);
+  });
+
+  app.get("/sitemap.xml", async (req: Request, res: Response) => {
+    try {
+      const baseUrl = getBaseUrl(req);
+      const publishedPages = await storage.getAllPublishedLandingPages();
+
+      const urls = publishedPages.map(page => {
+        const lastmod = page.updatedAt ? new Date(page.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        return `  <url>
+    <loc>${baseUrl}/artist/${page.slug}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+      }).join('\n');
+
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+${urls}
+</urlset>`;
+
+      res.type('application/xml').send(sitemap);
+    } catch (error) {
+      console.error('[SEO] Sitemap generation error:', error);
+      res.status(500).type('text/plain').send('Error generating sitemap');
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
