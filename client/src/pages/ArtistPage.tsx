@@ -128,6 +128,16 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
   }
 }
 
+// Parse video background value JSON
+function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; duration?: number } | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 // Generate background style
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
@@ -152,6 +162,9 @@ function getBackgroundStyle(
             backgroundRepeat: 'no-repeat',
           }
         : { backgroundColor: fallbackColor };
+    case 'video':
+      // Video background uses a separate element, return fallback color
+      return { backgroundColor: fallbackColor };
     case 'solid':
     default:
       return { backgroundColor: backgroundValue || fallbackColor };
@@ -434,6 +447,9 @@ export default function ArtistPage() {
   const backgroundStyle = getBackgroundStyle(backgroundType, backgroundValue, primaryColor, bgPosition);
   const overlayClass = getOverlayClass(backgroundOverlay);
 
+  // Parse video background data
+  const videoData = backgroundType === 'video' ? parseVideoBackground(backgroundValue) : null;
+
   return (
     <div
       className={`min-h-screen relative ${overlayClass} grain-overlay`}
@@ -442,6 +458,27 @@ export default function ArtistPage() {
         fontFamily: `"${bodyFont}", system-ui, sans-serif`,
       }}
     >
+      {/* Video Background (Spotify Canvas Style) */}
+      {backgroundType === 'video' && videoData && (
+        <div className="fixed inset-0 overflow-hidden -z-10">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute min-w-full min-h-full w-auto h-auto top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
+            poster=""
+          >
+            {videoData.webm && (
+              <source src={videoData.webm} type="video/webm" />
+            )}
+            {videoData.mp4 && (
+              <source src={videoData.mp4} type="video/mp4" />
+            )}
+          </video>
+        </div>
+      )}
+
       {/* Atmospheric Floating Orbs - Creates depth */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <motion.div

@@ -209,3 +209,63 @@ export const PROPOSAL_CONTRACT_CONSTANTS = {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE
 };
+
+// ============================================
+// VIDEO UPLOAD (Spotify Canvas Style Feature)
+// ============================================
+
+const ALLOWED_VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm'];
+const ALLOWED_VIDEO_MIMES = [
+  'video/mp4',
+  'video/quicktime',  // MOV
+  'video/webm',
+];
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+
+export const videoUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_VIDEO_SIZE
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_VIDEO_EXTENSIONS.join(', ')}`));
+    }
+    if (!ALLOWED_VIDEO_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Accepted: mp4, mov, webm`));
+    }
+    cb(null, true);
+  }
+});
+
+// Verify video file content using magic bytes
+export async function verifyVideoType(buffer: Buffer): Promise<FileVerificationResult> {
+  const detected = await fileTypeFromBuffer(buffer);
+
+  if (!detected) {
+    return { valid: false, type: null, error: 'Could not determine video file type' };
+  }
+
+  // MP4 / MOV detection
+  if (detected.mime === 'video/mp4' || detected.mime === 'video/quicktime') {
+    return { valid: true, type: detected.mime === 'video/quicktime' ? 'mov' : 'mp4' };
+  }
+
+  // WebM detection
+  if (detected.mime === 'video/webm') {
+    return { valid: true, type: 'webm' };
+  }
+
+  return {
+    valid: false,
+    type: null,
+    error: `Invalid video file type: ${detected.mime}. Accepted: MP4, MOV, WebM`
+  };
+}
+
+export const VIDEO_UPLOAD_CONSTANTS = {
+  ALLOWED_VIDEO_EXTENSIONS,
+  ALLOWED_VIDEO_MIMES,
+  MAX_VIDEO_SIZE
+};

@@ -321,3 +321,90 @@ export async function deleteProposalContract(path: string): Promise<void> {
     throw new Error(`Failed to delete proposal contract: ${result.error.message}`);
   }
 }
+
+// ============================================
+// VIDEO BACKGROUND STORAGE (Spotify Canvas Style)
+// ============================================
+
+/**
+ * Upload video background (WebM format - primary)
+ */
+export async function uploadBackgroundVideo(
+  userId: string,
+  landingPageId: string,
+  buffer: Buffer,
+  format: 'webm' | 'mp4'
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `landing-pages/${userId}/${landingPageId}/background-video-${timestamp}.${format}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Upload video fallback (MP4 format for browser compatibility)
+ */
+export async function uploadBackgroundVideoFallback(
+  userId: string,
+  landingPageId: string,
+  buffer: Buffer
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `landing-pages/${userId}/${landingPageId}/background-video-fallback-${timestamp}.mp4`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Download video background file
+ */
+export async function downloadBackgroundVideo(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download video background: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+/**
+ * Delete video background files (both WebM and MP4 fallback)
+ */
+export async function deleteBackgroundVideoFiles(userId: string, landingPageId: string): Promise<void> {
+  const basePath = `landing-pages/${userId}/${landingPageId}`;
+
+  // List and delete any video files
+  try {
+    const listResult = await getStorage().list({ prefix: `${basePath}/background-video` });
+    if (!listResult.error && listResult.value) {
+      for (const item of listResult.value) {
+        await getStorage().delete(item.name);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
+/**
+ * Get video content type from format
+ */
+export function getVideoContentType(format: string): string {
+  const types: Record<string, string> = {
+    webm: 'video/webm',
+    mp4: 'video/mp4',
+    mov: 'video/quicktime'
+  };
+  return types[format.toLowerCase()] || 'video/mp4';
+}

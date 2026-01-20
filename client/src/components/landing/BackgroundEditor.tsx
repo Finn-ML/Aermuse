@@ -3,6 +3,7 @@ import type { BackgroundType, BackgroundOverlay, GradientConfig, GradientDirecti
 import { GRADIENT_DIRECTIONS, generateGradientCSS, parseGradientCSS } from "@shared/themes";
 import { ColorPicker } from "./ColorPicker";
 import { ImageCropModal } from "@/components/ImageCropModal";
+import { Play, Film, Loader2 } from "lucide-react";
 
 interface BackgroundEditorProps {
   backgroundType: BackgroundType;
@@ -15,12 +16,24 @@ interface BackgroundEditorProps {
   onBackgroundPositionChange?: (position: 'cover' | 'contain') => void;
   onImageUpload?: (file: File) => Promise<string>;
   onImageRemove?: () => void;
+  onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
+  onVideoRemove?: () => void;
+}
+
+// Parse video background value JSON
+function parseVideoBackground(value: string): { webm?: string; mp4?: string; duration?: number } | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 const BACKGROUND_TYPES: { id: BackgroundType; name: string; description: string }[] = [
   { id: 'solid', name: 'Solid Color', description: 'Single color background' },
   { id: 'gradient', name: 'Gradient', description: 'Two-color gradient' },
   { id: 'image', name: 'Image', description: 'Custom background image' },
+  { id: 'video', name: 'Video', description: 'Looping video background' },
 ];
 
 const OVERLAY_OPTIONS: { id: BackgroundOverlay; name: string; description: string }[] = [
@@ -45,6 +58,8 @@ export function BackgroundEditor({
   onBackgroundPositionChange,
   onImageUpload,
   onImageRemove,
+  onVideoUpload,
+  onVideoRemove,
 }: BackgroundEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -52,7 +67,12 @@ export function BackgroundEditor({
   const [showCropModal, setShowCropModal] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [originalFileName, setOriginalFileName] = useState<string>('');
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Parse gradient from backgroundValue if it's a gradient type
   const gradientConfig = backgroundType === 'gradient'
@@ -136,6 +156,60 @@ export function BackgroundEditor({
     setShowCropModal(false);
     setImageToCrop(null);
   };
+
+  // Video upload handler
+  const handleVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+    if (!allowedTypes.includes(file.type)) {
+      setVideoUploadError('Invalid file type. Please upload an MP4, MOV, or WebM video.');
+      return;
+    }
+
+    // Validate file size (50MB max)
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setVideoUploadError('File too large. Maximum size is 50MB.');
+      return;
+    }
+
+    setVideoUploadError(null);
+    setIsVideoUploading(true);
+    setVideoUploadProgress('Preparing video...');
+
+    // Show preview immediately
+    const previewDataUrl = URL.createObjectURL(file);
+    setVideoPreviewUrl(previewDataUrl);
+
+    try {
+      if (onVideoUpload) {
+        setVideoUploadProgress('Converting to web format...');
+        const result = await onVideoUpload(file);
+        setVideoPreviewUrl(null); // Clear preview, use uploaded URL
+        setVideoUploadProgress('');
+      }
+    } catch {
+      setVideoUploadError('Failed to upload video. Please try again.');
+      setVideoPreviewUrl(null);
+    } finally {
+      setIsVideoUploading(false);
+      // Clean up the object URL
+      URL.revokeObjectURL(previewDataUrl);
+    }
+
+    // Reset file input
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+  };
+
+  // Parse video background data if type is video
+  const videoData = backgroundType === 'video' && backgroundValue
+    ? parseVideoBackground(backgroundValue)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -336,6 +410,112 @@ export function BackgroundEditor({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Video Upload */}
+      {backgroundType === 'video' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-2">
+              Background Video
+            </label>
+            <p className="text-xs text-[rgba(102,0,51,0.5)] mb-3">
+              Upload a short looping video (max 30 seconds, 50MB). Spotify Canvas style!
+            </p>
+
+            {/* Video Preview */}
+            {(videoPreviewUrl || videoData?.webm) && (
+              <div className="mb-4">
+                <div className="relative w-full h-40 rounded-lg overflow-hidden border border-[rgba(102,0,51,0.2)] bg-black">
+                  <video
+                    src={videoPreviewUrl || videoData?.webm}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                  {isVideoUploading && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
+                      <p className="text-xs text-white">{videoUploadProgress}</p>
+                    </div>
+                  )}
+                </div>
+                {videoData?.duration && (
+                  <p className="text-xs text-[rgba(102,0,51,0.5)] mt-1">
+                    Duration: {videoData.duration}s
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Upload Button */}
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
+              onChange={handleVideoSelect}
+              className="hidden"
+              id="background-video-upload"
+            />
+            <label
+              htmlFor="background-video-upload"
+              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                isVideoUploading
+                  ? 'border-[rgba(102,0,51,0.3)] bg-[rgba(102,0,51,0.02)]'
+                  : 'border-[rgba(102,0,51,0.2)] hover:border-[rgba(102,0,51,0.4)] hover:bg-[rgba(102,0,51,0.02)]'
+              }`}
+            >
+              {isVideoUploading ? (
+                <>
+                  <Loader2 className="w-5 h-5 text-[rgba(102,0,51,0.6)] animate-spin" />
+                  <span className="text-sm text-[rgba(102,0,51,0.6)]">Processing video...</span>
+                </>
+              ) : (
+                <>
+                  <Film className="w-5 h-5 text-[rgba(102,0,51,0.6)]" />
+                  <span className="text-sm text-[rgba(102,0,51,0.6)]">
+                    Click to upload video (MP4, MOV, WebM)
+                  </span>
+                </>
+              )}
+            </label>
+
+            {/* Error Message */}
+            {videoUploadError && (
+              <p className="mt-2 text-sm text-red-600">{videoUploadError}</p>
+            )}
+
+            {/* Remove Button */}
+            {videoData && onVideoRemove && (
+              <button
+                type="button"
+                onClick={() => {
+                  onVideoRemove();
+                  onBackgroundTypeChange('solid');
+                  onBackgroundValueChange('#660033');
+                }}
+                className="mt-2 px-3 py-1.5 text-xs font-semibold text-[#dc3545] bg-[rgba(220,53,69,0.1)] rounded-lg hover:bg-[rgba(220,53,69,0.2)] transition-colors"
+              >
+                Remove Background Video
+              </button>
+            )}
+          </div>
+
+          {/* Video Tips */}
+          <div className="p-3 bg-[rgba(102,0,51,0.05)] rounded-lg">
+            <p className="text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-1">
+              Tips for great video backgrounds:
+            </p>
+            <ul className="text-xs text-[rgba(102,0,51,0.5)] space-y-0.5">
+              <li>- Use portrait (9:16) or square (1:1) videos</li>
+              <li>- Keep movement subtle for a smooth loop</li>
+              <li>- Avoid text or important details at edges</li>
+              <li>- Videos are automatically muted</li>
+            </ul>
+          </div>
         </div>
       )}
 

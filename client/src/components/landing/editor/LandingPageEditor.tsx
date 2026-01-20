@@ -90,6 +90,8 @@ interface LandingPageEditorProps {
   onAvatarUpload: (file: File) => Promise<string>;
   onAvatarRemove: () => void;
   onBackgroundRemove?: () => void; // Story 9.13
+  onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>; // Video Canvas
+  onVideoRemove?: () => void; // Video Canvas
   onNavigateToUpgrade: () => void;
   // Music tab props
   tracks?: Track[];
@@ -116,6 +118,8 @@ export function LandingPageEditor({
   onAvatarUpload,
   onAvatarRemove,
   onBackgroundRemove,
+  onVideoUpload,
+  onVideoRemove,
   onNavigateToUpgrade,
   tracks = [],
   isLoadingTracks = false,
@@ -233,6 +237,8 @@ export function LandingPageEditor({
               onAvatarUpload={onAvatarUpload}
               onAvatarRemove={onAvatarRemove}
               onBackgroundRemove={onBackgroundRemove}
+              onVideoUpload={onVideoUpload}
+              onVideoRemove={onVideoRemove}
             />
           )}
           {activeTab === 'links' && (
