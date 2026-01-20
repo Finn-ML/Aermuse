@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     question: 'Is there a free trial?',
-    answer: 'We offer a free tier that lets you try AERMUSE with up to 3 contracts. This lets you experience the platform before committing to Premium.',
+    answer: 'We offer a free tier that lets you try AERMUSE with up to 10 contracts. This lets you experience the platform before committing to Premium.',
   },
   {
     question: 'What happens to my contracts if I cancel?',

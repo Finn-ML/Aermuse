@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { LayoutSelector, type Layout, type LinkWidth } from '@/components/landing/LayoutSelector';
+import { ShareSection } from './ShareSection';
 
 interface SettingsTabProps {
   landingPageData: {
@@ -134,6 +135,11 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
           </a>
         )}
       </div>
+
+      {/* Share Section */}
+      {landingPageData.slug && (
+        <ShareSection slug={landingPageData.slug} />
+      )}
     </div>
   );
 }
