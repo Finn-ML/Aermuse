@@ -2100,15 +2100,43 @@ ${urls}
       }
 
       // Parse metadata from request body
-      const { title, artistName, description, priceInCents, currency = 'gbp' } = req.body;
+      const {
+        title,
+        artistName,
+        description,
+        priceInCents,
+        currency = 'gbp',
+        pricingType = 'fixed', // 'fixed' | 'pwyw'
+        minimumPriceInCents = 0,
+        suggestedPriceInCents,
+        allowFreeStreaming = false
+      } = req.body;
 
-      if (!title || !priceInCents) {
-        return res.status(400).json({ error: "Title and price are required" });
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
       }
 
+      // Validate pricing based on type
       const price = parseInt(priceInCents, 10);
-      if (isNaN(price) || price < 50) {
-        return res.status(400).json({ error: "Price must be at least 50 pence" });
+      const minPrice = parseInt(minimumPriceInCents, 10) || 0;
+      const suggestedPrice = suggestedPriceInCents ? parseInt(suggestedPriceInCents, 10) : null;
+      const isFreeStreaming = allowFreeStreaming === 'true' || allowFreeStreaming === true;
+
+      if (pricingType === 'fixed') {
+        if (isNaN(price) || price < 50) {
+          return res.status(400).json({ error: "Price must be at least 50 pence for fixed pricing" });
+        }
+      } else if (pricingType === 'pwyw') {
+        // For PWYW, minimum can be 0 (free with optional tip)
+        if (minPrice < 0) {
+          return res.status(400).json({ error: "Minimum price cannot be negative" });
+        }
+        // If minimum is set, it must be at least 50p due to Stripe minimums
+        if (minPrice > 0 && minPrice < 50) {
+          return res.status(400).json({ error: "Minimum price must be at least 50 pence or free (0)" });
+        }
+      } else {
+        return res.status(400).json({ error: "Invalid pricing type. Must be 'fixed' or 'pwyw'" });
       }
 
       // Verify file type
@@ -2171,8 +2199,12 @@ ${urls}
         title,
         artistName: artistName || null,
         description: description || null,
-        priceInCents: price,
+        priceInCents: pricingType === 'pwyw' ? (suggestedPrice || minPrice || 0) : price,
         currency,
+        pricingType: pricingType as 'fixed' | 'pwyw',
+        minimumPriceInCents: minPrice,
+        suggestedPriceInCents: suggestedPrice,
+        allowFreeStreaming: isFreeStreaming,
         originalFilePath: uploadResult.path,
         previewFilePath: previewPath || null,
         coverArtPath: null,
@@ -2388,6 +2420,41 @@ ${urls}
     }
   });
 
+  // Stream full track (public - only for tracks with allowFreeStreaming enabled)
+  app.get("/api/tracks/:id/stream", async (req: Request, res: Response) => {
+    try {
+      const track = await storage.getTrack(req.params.id);
+      if (!track) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Only serve published tracks publicly
+      const userId = (req.session as any).userId;
+      if (!track.isPublished && track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Check if free streaming is enabled for this track
+      if (!track.allowFreeStreaming) {
+        return res.status(403).json({ error: "Free streaming is not enabled for this track" });
+      }
+
+      // Stream the full original file
+      const buffer = await downloadTrackFile(track.originalFilePath);
+
+      // Increment play count
+      await storage.incrementTrackPlayCount(track.id);
+
+      res.set('Content-Type', getAudioContentType(track.fileFormat));
+      res.set('Content-Length', buffer.length.toString());
+      res.set('Accept-Ranges', 'bytes');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Full track stream error:", error);
+      res.status(500).json({ error: "Failed to stream track" });
+    }
+  });
+
   // Get published tracks for an artist page (public)
   app.get("/api/artist/:slug/tracks", async (req: Request, res: Response) => {
     try {
@@ -2412,14 +2479,76 @@ ${urls}
         return res.status(404).json({ error: "Track not found" });
       }
 
-      if (!track.stripePriceId) {
-        return res.status(400).json({ error: "Track is not available for purchase" });
-      }
-
       // Get landing page for slug
       const landingPage = await storage.getLandingPage(track.landingPageId);
       if (!landingPage) {
         return res.status(404).json({ error: "Artist page not found" });
+      }
+
+      const { buyerEmail, customAmount } = req.body;
+
+      // Determine the amount to charge
+      let amountInCents: number;
+      const isPWYW = track.pricingType === 'pwyw';
+
+      if (isPWYW) {
+        // For PWYW, use custom amount from buyer
+        if (customAmount !== undefined) {
+          amountInCents = parseInt(customAmount, 10);
+          if (isNaN(amountInCents) || amountInCents < 0) {
+            return res.status(400).json({ error: "Invalid amount" });
+          }
+          // Validate against minimum (but allow 0 if minimum is 0)
+          const minPrice = track.minimumPriceInCents || 0;
+          if (amountInCents < minPrice) {
+            return res.status(400).json({ error: `Amount must be at least ${minPrice} pence` });
+          }
+          // If paying, must be at least 50p (Stripe minimum)
+          if (amountInCents > 0 && amountInCents < 50) {
+            return res.status(400).json({ error: "If paying, minimum is 50 pence" });
+          }
+        } else {
+          // Use suggested price or minimum as default
+          amountInCents = track.suggestedPriceInCents || track.minimumPriceInCents || 0;
+        }
+
+        // If amount is 0, handle free download (no Stripe needed)
+        if (amountInCents === 0) {
+          // Generate download token directly
+          const downloadToken = crypto.randomBytes(32).toString('hex');
+          const downloadExpires = new Date();
+          downloadExpires.setDate(downloadExpires.getDate() + 30);
+
+          await storage.createTrackPurchase({
+            trackId: track.id,
+            buyerEmail: buyerEmail || 'free@download.local',
+            buyerName: null,
+            stripePaymentIntentId: null,
+            stripeCheckoutSessionId: null,
+            amountPaidCents: 0,
+            currency: track.currency || 'gbp',
+            downloadToken,
+            downloadCount: 0,
+            maxDownloads: 5,
+            downloadExpiresAt: downloadExpires,
+            status: 'completed',
+          });
+
+          // Increment purchase count
+          await storage.incrementTrackPurchaseCount(track.id);
+
+          return res.json({
+            free: true,
+            downloadToken,
+            trackId: track.id,
+          });
+        }
+      } else {
+        // Fixed pricing - must have Stripe price
+        if (!track.stripePriceId) {
+          return res.status(400).json({ error: "Track is not available for purchase" });
+        }
+        amountInCents = track.priceInCents;
       }
 
       // Get track owner's Stripe Connect account for payout
@@ -2428,27 +2557,28 @@ ${urls}
       let applicationFeeAmount = 0;
 
       if (trackOwner?.stripeConnectAccountId && trackOwner?.stripeConnectOnboardingComplete) {
-        // Check if the account is ready to receive payments
         try {
           const isReady = await isAccountReady(trackOwner.stripeConnectAccountId);
           if (isReady) {
             connectedAccountId = trackOwner.stripeConnectAccountId;
-            applicationFeeAmount = calculatePlatformFee(track.priceInCents);
+            applicationFeeAmount = calculatePlatformFee(amountInCents);
           }
         } catch (err) {
           console.warn("[CHECKOUT] Failed to check Connect account status:", err);
         }
       }
 
-      const { buyerEmail } = req.body;
-
+      // For PWYW with custom amount, we need to create a checkout with custom price
       const session = await createTrackCheckoutSession({
         trackId: track.id,
-        priceId: track.stripePriceId,
+        priceId: isPWYW ? undefined : (track.stripePriceId || undefined),
+        customAmountCents: isPWYW ? amountInCents : undefined,
         trackTitle: track.title,
         artistName: track.artistName || landingPage.artistName,
+        productId: track.stripeProductId || undefined,
         buyerEmail,
         landingPageSlug: landingPage.slug,
+        currency: track.currency || 'gbp',
         connectedAccountId,
         applicationFeeAmount,
       });

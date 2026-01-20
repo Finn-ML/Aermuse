@@ -160,14 +160,54 @@ export default function ArtistPage() {
     const purchaseStatus = urlParams.get('purchase');
     const sessionId = urlParams.get('session_id');
     const trackId = urlParams.get('track');
+    const downloadToken = urlParams.get('download_token'); // For free PWYW downloads
 
-    // Only process if purchase=success and we have a session ID
-    if (purchaseStatus !== 'success' || !sessionId || purchaseVerifiedRef.current) {
+    // Only process if purchase=success
+    if (purchaseStatus !== 'success' || purchaseVerifiedRef.current) {
       return;
     }
 
     // Mark as processing to prevent duplicate calls
     purchaseVerifiedRef.current = true;
+
+    // Handle free downloads (PWYW with 0 amount) - direct download token
+    if (downloadToken && trackId && !sessionId) {
+      const handleFreeDownload = async () => {
+        let trackTitle = 'Your Track';
+        let artistName = page?.artistName;
+
+        try {
+          const trackResponse = await fetch(`/api/tracks/${trackId}`);
+          if (trackResponse.ok) {
+            const trackData = await trackResponse.json();
+            trackTitle = trackData.title || trackTitle;
+            artistName = trackData.artistName || artistName;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch track details:', err);
+        }
+
+        setPurchaseData({
+          downloadToken,
+          trackId,
+          trackTitle,
+          artistName,
+        });
+        setShowPurchaseModal(true);
+
+        // Clean up URL params without reloading
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      };
+
+      handleFreeDownload();
+      return;
+    }
+
+    // Handle paid purchases - verify with Stripe session
+    if (!sessionId) {
+      return;
+    }
 
     // Verify the purchase with the server
     const verifyPurchase = async () => {

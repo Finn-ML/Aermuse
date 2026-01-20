@@ -133,18 +133,47 @@ function PlaylistItem({
       <div
         className="flex-shrink-0 text-right"
       >
-        <span
-          className="text-sm md:text-base font-semibold"
-          style={{ color: secondaryColor }}
-        >
-          {formatPrice(track.priceInCents, track.currency || 'gbp')}
-        </span>
-        <p
-          className="text-[10px] opacity-50"
-          style={{ color: textColor }}
-        >
-          + VAT
-        </p>
+        {track.pricingType === 'pwyw' ? (
+          <>
+            <span
+              className="text-sm md:text-base font-semibold"
+              style={{ color: secondaryColor }}
+            >
+              {track.minimumPriceInCents === 0
+                ? 'Name Your Price'
+                : `From ${formatPrice(track.minimumPriceInCents || 0, track.currency || 'gbp')}`}
+            </span>
+            <p
+              className="text-[10px] opacity-50"
+              style={{ color: textColor }}
+            >
+              PWYW
+            </p>
+          </>
+        ) : (
+          <>
+            <span
+              className="text-sm md:text-base font-semibold"
+              style={{ color: secondaryColor }}
+            >
+              {formatPrice(track.priceInCents, track.currency || 'gbp')}
+            </span>
+            <p
+              className="text-[10px] opacity-50"
+              style={{ color: textColor }}
+            >
+              + VAT
+            </p>
+          </>
+        )}
+        {track.allowFreeStreaming && (
+          <p
+            className="text-[10px] font-medium"
+            style={{ color: secondaryColor }}
+          >
+            Free Stream
+          </p>
+        )}
       </div>
     </motion.div>
   );
@@ -172,8 +201,12 @@ export function PlaylistSection({
     enabled: !!artistSlug,
   });
 
+  // Determine audio source: full stream if track allows free streaming, otherwise preview
+  const playingTrack = tracks?.find(t => t.id === playingTrackId);
   const previewUrl = playingTrackId
-    ? `/api/tracks/${playingTrackId}/preview`
+    ? playingTrack?.allowFreeStreaming
+      ? `/api/tracks/${playingTrackId}/stream`
+      : `/api/tracks/${playingTrackId}/preview`
     : undefined;
 
   const {
@@ -201,20 +234,31 @@ export function PlaylistSection({
     setPlayingTrackId(null);
   };
 
-  const handlePurchase = async (trackId: string) => {
+  const handlePurchase = async (trackId: string, customAmount?: number) => {
     try {
       const response = await fetch(`/api/tracks/${trackId}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customAmount: customAmount !== undefined ? customAmount : undefined,
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to create checkout session');
       }
 
-      const { checkoutUrl } = await response.json();
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+      const data = await response.json();
+
+      // Handle free downloads (PWYW with 0 amount)
+      if (data.free && data.downloadToken) {
+        // Show success modal with download link
+        window.location.href = `?purchase=success&track=${trackId}&download_token=${data.downloadToken}`;
+        return;
+      }
+
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
       }
     } catch (err) {
       console.error('Purchase error:', err);
