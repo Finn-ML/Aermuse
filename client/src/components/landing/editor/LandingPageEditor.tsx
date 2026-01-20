@@ -71,6 +71,11 @@ interface Track {
   isPublished: boolean;
   playCount: number;
   purchaseCount: number;
+  // Split-related fields
+  splitsConfigured?: boolean;
+  splitsVerified?: boolean;
+  ownerSplitPercentage?: number;
+  autoPublishAt?: string | null;
 }
 
 interface LandingPageEditorProps {
@@ -93,6 +98,7 @@ interface LandingPageEditorProps {
   onUpdateTrack?: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
   onDeleteTrack?: (id: string) => Promise<void>;
   onUploadTrackCover?: (trackId: string, file: File) => Promise<void>;
+  onOpenSplits?: (track: Track) => void;
   // Tab state controlled by parent
   activeTab?: TabId;
   onTabChange?: (tab: TabId) => void;
@@ -117,6 +123,7 @@ export function LandingPageEditor({
   onUpdateTrack,
   onDeleteTrack,
   onUploadTrackCover,
+  onOpenSplits,
   activeTab: controlledActiveTab,
   onTabChange,
 }: LandingPageEditorProps) {
@@ -247,6 +254,7 @@ export function LandingPageEditor({
                 onUpdateTrack={onUpdateTrack}
                 onDeleteTrack={onDeleteTrack}
                 onUploadCover={onUploadTrackCover}
+                onOpenSplits={onOpenSplits}
               />
             ) : (
               <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">

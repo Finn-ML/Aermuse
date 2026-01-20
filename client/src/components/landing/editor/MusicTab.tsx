@@ -2,9 +2,15 @@
 // Music selling feature with spinning disc player
 
 import { useState, useRef } from 'react';
-import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X } from 'lucide-react';
+import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X, Users, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '@/hooks/useAudioPlayer';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface Track {
   id: string;
@@ -16,6 +22,11 @@ interface Track {
   isPublished: boolean;
   playCount: number;
   purchaseCount: number;
+  // Split-related fields
+  splitsConfigured?: boolean;
+  splitsVerified?: boolean;
+  ownerSplitPercentage?: number;
+  autoPublishAt?: string | null;
 }
 
 interface MusicTabProps {
@@ -25,6 +36,7 @@ interface MusicTabProps {
   onUpdateTrack: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
   onDeleteTrack: (id: string) => Promise<void>;
   onUploadCover: (trackId: string, file: File) => Promise<void>;
+  onOpenSplits?: (track: Track) => void;
 }
 
 export function MusicTab({
@@ -34,6 +46,7 @@ export function MusicTab({
   onUpdateTrack,
   onDeleteTrack,
   onUploadCover,
+  onOpenSplits,
 }: MusicTabProps) {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadingTrack, setUploadingTrack] = useState(false);
@@ -451,18 +464,91 @@ export function MusicTab({
               {/* Actions */}
               {editingTrack !== track.id && (
                 <div className="flex items-center gap-2">
+                  {/* Split Status Indicator */}
+                  {track.splitsConfigured && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                            track.splitsVerified
+                              ? 'bg-[rgba(40,167,69,0.1)] text-[#28a745]'
+                              : 'bg-[rgba(255,193,7,0.15)] text-[#B8860B]'
+                          }`}>
+                            {track.splitsVerified ? (
+                              <>
+                                <CheckCircle2 size={12} />
+                                <span>Verified</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={12} />
+                                <span>Pending</span>
+                              </>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {track.splitsVerified
+                            ? 'All collaborators have verified their splits'
+                            : 'Waiting for collaborators to verify their splits'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+
+                  {/* Configure Splits Button */}
+                  {onOpenSplits && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => onOpenSplits(track)}
+                            className="p-2 rounded-lg text-[rgba(102,0,51,0.6)] hover:text-[#660033] hover:bg-[rgba(102,0,51,0.1)] transition-colors"
+                          >
+                            <Users size={16} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {track.splitsConfigured ? 'Manage collaborator splits' : 'Add collaborators'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+
                   {/* Publish Toggle */}
-                  <button
-                    onClick={() => onUpdateTrack(track.id, { isPublished: !track.isPublished })}
-                    className={`p-2 rounded-lg transition-colors ${
-                      track.isPublished
-                        ? 'text-[#28a745] bg-[rgba(40,167,69,0.1)] hover:bg-[rgba(40,167,69,0.2)]'
-                        : 'text-[rgba(102,0,51,0.4)] bg-[rgba(102,0,51,0.05)] hover:bg-[rgba(102,0,51,0.1)]'
-                    }`}
-                    title={track.isPublished ? 'Click to unpublish' : 'Click to publish'}
-                  >
-                    {track.isPublished ? <Eye size={16} /> : <EyeOff size={16} />}
-                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            // Block publishing if splits are configured but not verified
+                            if (!track.isPublished && track.splitsConfigured && !track.splitsVerified) {
+                              alert('Cannot publish until all collaborators verify their splits. Check back after the verification deadline.');
+                              return;
+                            }
+                            onUpdateTrack(track.id, { isPublished: !track.isPublished });
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
+                            track.isPublished
+                              ? 'text-[#28a745] bg-[rgba(40,167,69,0.1)] hover:bg-[rgba(40,167,69,0.2)]'
+                              : track.splitsConfigured && !track.splitsVerified
+                                ? 'text-[rgba(102,0,51,0.25)] bg-[rgba(102,0,51,0.02)] cursor-not-allowed'
+                                : 'text-[rgba(102,0,51,0.4)] bg-[rgba(102,0,51,0.05)] hover:bg-[rgba(102,0,51,0.1)]'
+                          }`}
+                          title={track.isPublished ? 'Click to unpublish' : 'Click to publish'}
+                        >
+                          {track.isPublished ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {track.isPublished
+                          ? 'Click to unpublish'
+                          : track.splitsConfigured && !track.splitsVerified
+                            ? 'Waiting for collaborator verification'
+                            : 'Click to publish'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
 
                   {/* Delete */}
                   <button
@@ -491,6 +577,7 @@ export function MusicTab({
           <li>A 30-second preview is generated automatically</li>
           <li>Fans can preview and purchase tracks on your artist page</li>
           <li>Click on cover art to add album artwork</li>
+          <li>Add collaborators with the <Users size={10} className="inline" /> icon to share royalty splits</li>
         </ul>
       </div>
     </div>

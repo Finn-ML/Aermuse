@@ -914,3 +914,374 @@ Keep creating amazing music!
     return { success: false, error: String(error) };
   }
 }
+
+// ============================================
+// COLLABORATION SPLIT VERIFICATION EMAILS
+// ============================================
+
+interface SplitVerificationEmailParams {
+  to: string;
+  collaboratorName: string;
+  artistName: string;
+  trackTitle: string;
+  splitPercentage: number;
+  verificationToken: string;
+  deadline: Date;
+  isExistingUser: boolean;
+}
+
+/**
+ * Send split verification email to collaborator
+ */
+export async function sendSplitVerificationEmail(
+  params: SplitVerificationEmailParams
+): Promise<EmailResult> {
+  const {
+    to,
+    collaboratorName,
+    artistName,
+    trackTitle,
+    splitPercentage,
+    verificationToken,
+    deadline,
+    isExistingUser,
+  } = params;
+
+  const baseUrl = process.env.APP_URL || 'https://aermuse.com';
+  const verifyUrl = `${baseUrl}/verify-split/${verificationToken}`;
+
+  const formattedDeadline = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(deadline);
+
+  if (!client) {
+    console.log('[EMAIL] Split verification email (dev mode):');
+    console.log(`  To: ${to}`);
+    console.log(`  Collaborator: ${collaboratorName}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Track: ${trackTitle}`);
+    console.log(`  Split: ${splitPercentage}%`);
+    console.log(`  Deadline: ${formattedDeadline}`);
+    console.log(`  Verify URL: ${verifyUrl}`);
+    console.log(`  Existing user: ${isExistingUser}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const accountAction = isExistingUser
+      ? `<p style="margin-top: 16px; font-size: 14px; color: ${COLORS.textMuted};">Log in to verify your split and start receiving royalties.</p>`
+      : `<p style="margin-top: 16px; font-size: 14px; color: ${COLORS.textMuted};">You'll need to create a free Aermuse account to receive your royalties. It only takes a minute!</p>`;
+
+    const splitDetails = `
+      <div style="background-color: ${COLORS.cream}; border-radius: 16px; padding: 24px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0 0 8px 0; font-size: 14px; color: ${COLORS.textMuted};">Your split</p>
+        <span style="display: inline-block; background: linear-gradient(135deg, ${COLORS.burgundy} 0%, ${COLORS.burgundyLight} 100%); color: ${COLORS.champagne}; font-size: 36px; font-weight: 700; padding: 16px 32px; border-radius: 12px;">
+          ${splitPercentage}%
+        </span>
+        <p style="margin: 16px 0 0 0; font-size: 14px; color: ${COLORS.text};">of royalties from "${trackTitle}"</p>
+      </div>
+    `;
+
+    const deadlineWarning = `
+      <div style="background-color: ${COLORS.champagneLight}; border-left: 4px solid ${COLORS.warning}; border-radius: 12px; padding: 16px 20px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 14px; color: ${COLORS.text};">
+          <strong>Action required by ${formattedDeadline}</strong><br>
+          If you don't verify by this date, the track may be published without your share being reserved.
+        </p>
+      </div>
+    `;
+
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: to,
+      Subject: `${artistName} added you as a collaborator on "${trackTitle}"`,
+      HtmlBody: emailTemplate({
+        title: 'You\'ve Been Added as a Collaborator!',
+        preheader: `${artistName} wants to share royalties with you`,
+        greeting: `Hi ${collaboratorName},`,
+        content: `<strong>${artistName}</strong> has added you as a collaborator on their track and wants to share the royalties with you!
+          ${infoBox(trackTitle, 'Track')}
+          ${splitDetails}
+          ${deadlineWarning}
+          ${accountAction}`,
+        buttonText: 'Verify Your Split',
+        buttonUrl: verifyUrl,
+        footerNote: 'Once verified, you\'ll receive your share of royalties directly whenever the track is purchased. You can also set up Stripe Connect to receive instant payouts.',
+      }),
+      TextBody: `Hi ${collaboratorName},
+
+${artistName} has added you as a collaborator on their track "${trackTitle}" and wants to share the royalties with you!
+
+YOUR SPLIT: ${splitPercentage}%
+
+Please verify your split by ${formattedDeadline}.
+
+Verify here: ${verifyUrl}
+
+${isExistingUser ? 'Log in to verify and start receiving royalties.' : 'You\'ll need to create a free Aermuse account to receive your royalties.'}
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Split verification email sent to ${to}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send split verification email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+interface SplitVerifiedNotificationParams {
+  to: string;
+  artistName: string;
+  trackTitle: string;
+  collaboratorName: string;
+}
+
+/**
+ * Send notification to artist when a collaborator verifies their split
+ */
+export async function sendSplitVerifiedNotificationEmail(
+  params: SplitVerifiedNotificationParams
+): Promise<EmailResult> {
+  const { to, artistName, trackTitle, collaboratorName } = params;
+
+  if (!client) {
+    console.log('[EMAIL] Split verified notification email (dev mode):');
+    console.log(`  To: ${to}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Track: ${trackTitle}`);
+    console.log(`  Collaborator: ${collaboratorName}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: to,
+      Subject: `${collaboratorName} verified their split on "${trackTitle}"`,
+      HtmlBody: emailTemplate({
+        title: 'Split Verified!',
+        preheader: `${collaboratorName} confirmed their collaboration`,
+        greeting: `Hi ${artistName},`,
+        content: `${successBox(`${collaboratorName} has verified their split!`)}
+          ${infoBox(trackTitle, 'Track')}
+          <p style="margin: 20px 0; font-size: 15px; color: ${COLORS.text};">
+            Your collaborator has confirmed their participation. Once all collaborators verify (or the deadline passes), you can publish your track.
+          </p>`,
+        footerNote: 'Check your dashboard to see the status of all splits.',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${artistName},
+
+${collaboratorName} has verified their split on "${trackTitle}"!
+
+Once all collaborators verify (or the deadline passes), you can publish your track.
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Split verified notification email sent to ${to}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send split verified notification email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+interface SplitRejectedNotificationParams {
+  to: string;
+  artistName: string;
+  trackTitle: string;
+  collaboratorName: string;
+  reason: string;
+}
+
+/**
+ * Send notification to artist when a collaborator rejects their split
+ */
+export async function sendSplitRejectedNotificationEmail(
+  params: SplitRejectedNotificationParams
+): Promise<EmailResult> {
+  const { to, artistName, trackTitle, collaboratorName, reason } = params;
+
+  if (!client) {
+    console.log('[EMAIL] Split rejected notification email (dev mode):');
+    console.log(`  To: ${to}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Track: ${trackTitle}`);
+    console.log(`  Collaborator: ${collaboratorName}`);
+    console.log(`  Reason: ${reason}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: to,
+      Subject: `${collaboratorName} declined their split on "${trackTitle}"`,
+      HtmlBody: emailTemplate({
+        title: 'Split Declined',
+        preheader: `${collaboratorName} declined their collaboration split`,
+        greeting: `Hi ${artistName},`,
+        content: `<p style="margin: 0 0 20px 0; font-size: 16px; color: ${COLORS.text};">
+            Unfortunately, <strong>${collaboratorName}</strong> has declined their split on your track.
+          </p>
+          ${infoBox(trackTitle, 'Track')}
+          ${infoBox(reason, 'Reason')}
+          <p style="margin: 20px 0; font-size: 15px; color: ${COLORS.text};">
+            You'll need to either update the split arrangement and resend, or remove this collaborator before publishing.
+          </p>`,
+        footerNote: 'We recommend reaching out to discuss and resolve any concerns.',
+        accentColor: COLORS.warning,
+      }),
+      TextBody: `Hi ${artistName},
+
+${collaboratorName} has declined their split on "${trackTitle}".
+
+Reason: ${reason}
+
+You'll need to either update the split arrangement and resend, or remove this collaborator before publishing.
+
+We recommend reaching out to discuss and resolve any concerns.
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Split rejected notification email sent to ${to}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send split rejected notification email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+interface AllSplitsVerifiedParams {
+  to: string;
+  artistName: string;
+  trackTitle: string;
+}
+
+/**
+ * Send notification to artist when all splits are verified
+ */
+export async function sendAllSplitsVerifiedEmail(
+  params: AllSplitsVerifiedParams
+): Promise<EmailResult> {
+  const { to, artistName, trackTitle } = params;
+  const baseUrl = process.env.APP_URL || 'https://aermuse.com';
+  const dashboardUrl = `${baseUrl}/dashboard?tab=music`;
+
+  if (!client) {
+    console.log('[EMAIL] All splits verified email (dev mode):');
+    console.log(`  To: ${to}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Track: ${trackTitle}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: to,
+      Subject: `All splits verified - "${trackTitle}" is ready to publish!`,
+      HtmlBody: emailTemplate({
+        title: 'Ready to Publish!',
+        preheader: 'All collaborators have verified their splits',
+        greeting: `Hi ${artistName},`,
+        content: `${successBox('All collaborators verified!')}
+          ${infoBox(trackTitle, 'Track')}
+          <p style="margin: 20px 0; font-size: 16px; color: ${COLORS.text}; text-align: center;">
+            Great news! All your collaborators have confirmed their splits. Your track is now ready to be published and sold.
+          </p>`,
+        buttonText: 'Publish Your Track',
+        buttonUrl: dashboardUrl,
+        footerNote: 'Once published, royalties will be automatically distributed according to the verified splits.',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${artistName},
+
+Great news! All collaborators have verified their splits on "${trackTitle}".
+
+Your track is now ready to be published and sold!
+
+Publish here: ${dashboardUrl}
+
+Once published, royalties will be automatically distributed according to the verified splits.
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] All splits verified email sent to ${to}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send all splits verified email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+interface SplitExpiredParams {
+  to: string;
+  collaboratorName: string;
+  trackTitle: string;
+}
+
+/**
+ * Send notification to collaborator when their verification deadline passes
+ */
+export async function sendSplitExpiredEmail(
+  params: SplitExpiredParams
+): Promise<EmailResult> {
+  const { to, collaboratorName, trackTitle } = params;
+
+  if (!client) {
+    console.log('[EMAIL] Split expired email (dev mode):');
+    console.log(`  To: ${to}`);
+    console.log(`  Collaborator: ${collaboratorName}`);
+    console.log(`  Track: ${trackTitle}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: to,
+      Subject: `Verification deadline passed for "${trackTitle}"`,
+      HtmlBody: emailTemplate({
+        title: 'Verification Deadline Passed',
+        preheader: 'Your split verification has expired',
+        greeting: `Hi ${collaboratorName},`,
+        content: `<p style="margin: 0 0 20px 0; font-size: 16px; color: ${COLORS.text};">
+            The verification deadline for your split on "<strong>${trackTitle}</strong>" has passed.
+          </p>
+          ${infoBox('The track may now be published, and your share will go to the original uploader.', 'What This Means')}
+          <p style="margin: 20px 0; font-size: 15px; color: ${COLORS.textMuted};">
+            If you believe this is an error, please contact the artist directly to discuss updating the split arrangement.
+          </p>`,
+        footerNote: 'For future collaborations, we recommend verifying splits promptly to secure your royalties.',
+        accentColor: COLORS.gray,
+      }),
+      TextBody: `Hi ${collaboratorName},
+
+The verification deadline for your split on "${trackTitle}" has passed.
+
+The track may now be published, and your share will go to the original uploader.
+
+If you believe this is an error, please contact the artist directly to discuss updating the split arrangement.
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Split expired email sent to ${to}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send split expired email:', error);
+    return { success: false, error: String(error) };
+  }
+}

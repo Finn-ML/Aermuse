@@ -16,7 +16,7 @@ import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
-import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails } from "./services/trackStripe";
+import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, generateSpeech, OpenAIError } from "./services/openai";
@@ -2424,11 +2424,20 @@ ${urls}
 
       // Get track owner's Stripe Connect account for payout
       const trackOwner = await storage.getUser(track.userId);
+
+      // Check if track has verified collaborator splits
+      const splits = await storage.getTrackSplitsByTrack(track.id);
+      const verifiedSplits = splits.filter(s => s.status === 'verified' && s.stripeConnectAccountId);
+      const hasSplits = verifiedSplits.length > 0;
+
       let connectedAccountId: string | undefined;
       let applicationFeeAmount = 0;
 
-      if (trackOwner?.stripeConnectAccountId && trackOwner?.stripeConnectOnboardingComplete) {
-        // Check if the account is ready to receive payments
+      // For tracks with splits, we use "separate charges and transfers" pattern
+      // Payment goes to platform first, then we create transfers after success
+      // For tracks without splits, we use direct transfer to owner
+      if (!hasSplits && trackOwner?.stripeConnectAccountId && trackOwner?.stripeConnectOnboardingComplete) {
+        // No splits - direct transfer to track owner
         try {
           const isReady = await isAccountReady(trackOwner.stripeConnectAccountId);
           if (isReady) {
@@ -2438,6 +2447,10 @@ ${urls}
         } catch (err) {
           console.warn("[CHECKOUT] Failed to check Connect account status:", err);
         }
+      } else if (hasSplits) {
+        // Has splits - payment goes to platform, transfers happen after payment
+        console.log(`[CHECKOUT] Track ${track.id} has ${verifiedSplits.length} verified splits - using separate transfers`);
+        // No connectedAccountId means payment goes to platform
       }
 
       const { buyerEmail } = req.body;
@@ -2516,6 +2529,61 @@ ${urls}
       const track = await storage.getTrack(details.trackId);
       const baseUrl = getBaseUrl(req);
 
+      // Process split transfers if track has verified collaborators
+      if (track && details.paymentIntentId) {
+        const splits = await storage.getTrackSplitsByTrack(details.trackId);
+        const verifiedSplits = splits.filter(s => s.status === 'verified' && s.stripeConnectAccountId);
+
+        if (verifiedSplits.length > 0) {
+          // Calculate net amount after platform fee
+          const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || '0', 10);
+          const platformFee = Math.round((details.amountPaid * platformFeePercent) / 100);
+          const netAmount = details.amountPaid - platformFee;
+
+          // Calculate each collaborator's share
+          const splitTransfers = verifiedSplits.map(split => ({
+            collaboratorName: split.collaboratorName,
+            collaboratorEmail: split.collaboratorEmail,
+            stripeConnectAccountId: split.stripeConnectAccountId!,
+            amountCents: Math.round((netAmount * split.splitPercentage) / 100),
+          }));
+
+          // Create transfers to collaborators
+          console.log('[PURCHASE] Processing split transfers for', verifiedSplits.length, 'collaborators');
+          createSplitTransfers({
+            paymentIntentId: details.paymentIntentId,
+            splits: splitTransfers,
+            trackId: details.trackId,
+            trackTitle: track.title,
+            currency: details.currency,
+          }).then(transfers => {
+            console.log('[PURCHASE] Split transfers completed:', transfers.length);
+          }).catch(err => {
+            console.error('[PURCHASE] Failed to process split transfers:', err);
+          });
+
+          // Calculate owner's remaining share for notification
+          const ownerPercentage = track.ownerSplitPercentage || (100 - verifiedSplits.reduce((sum, s) => sum + s.splitPercentage, 0));
+          const ownerEarnings = Math.round((netAmount * ownerPercentage) / 100);
+
+          // Update the artist earnings for notification
+          const artist = await storage.getUser(track.userId);
+          if (artist?.email) {
+            console.log('[PURCHASE] Sending artist notification with split earnings to:', artist.email);
+            sendTrackSoldNotificationEmail(
+              artist.email,
+              artist.name,
+              track.title,
+              details.buyerName || details.buyerEmail,
+              ownerEarnings,
+              details.currency
+            ).then(result => {
+              console.log('[PURCHASE] Artist notification result:', result);
+            }).catch(err => console.error('[PURCHASE] Failed to send artist notification:', err));
+          }
+        }
+      }
+
       // Send purchase receipt email to buyer (async, don't block response)
       if (track) {
         const landingPage = await storage.getLandingPage(track.landingPageId);
@@ -2539,26 +2607,33 @@ ${urls}
           console.log('[PURCHASE] Receipt email result:', result);
         }).catch(err => console.error('[PURCHASE] Failed to send receipt email:', err));
 
-        // Notify the artist about the sale
-        const artist = await storage.getUser(track.userId);
-        if (artist?.email) {
-          // Calculate artist's earnings (amount minus platform fee)
-          const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || '0', 10);
-          const platformFee = Math.round((details.amountPaid * platformFeePercent) / 100);
-          const artistEarnings = details.amountPaid - platformFee;
+        // Only send standard artist notification if there are no split transfers
+        // (split transfers have their own notification with adjusted earnings)
+        const existingSplits = await storage.getTrackSplitsByTrack(track.id);
+        const hasSplitTransfers = existingSplits.some(s => s.status === 'verified' && s.stripeConnectAccountId);
 
-          console.log('[PURCHASE] Sending artist notification to:', artist.email);
+        if (!hasSplitTransfers) {
+          // Notify the artist about the sale (full earnings)
+          const artist = await storage.getUser(track.userId);
+          if (artist?.email) {
+            // Calculate artist's earnings (amount minus platform fee)
+            const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || '0', 10);
+            const platformFee = Math.round((details.amountPaid * platformFeePercent) / 100);
+            const artistEarnings = details.amountPaid - platformFee;
 
-          sendTrackSoldNotificationEmail(
-            artist.email,
-            artist.name,
-            track.title,
-            details.buyerName || details.buyerEmail,
-            artistEarnings,
-            details.currency
-          ).then(result => {
-            console.log('[PURCHASE] Artist notification result:', result);
-          }).catch(err => console.error('[PURCHASE] Failed to send artist notification:', err));
+            console.log('[PURCHASE] Sending artist notification to:', artist.email);
+
+            sendTrackSoldNotificationEmail(
+              artist.email,
+              artist.name,
+              track.title,
+              details.buyerName || details.buyerEmail,
+              artistEarnings,
+              details.currency
+            ).then(result => {
+              console.log('[PURCHASE] Artist notification result:', result);
+            }).catch(err => console.error('[PURCHASE] Failed to send artist notification:', err));
+          }
         }
       }
 
@@ -2683,6 +2758,492 @@ ${urls}
     } catch (error) {
       console.error("Get purchases error:", error);
       res.status(500).json({ error: "Failed to get purchases" });
+    }
+  });
+
+  // ============================================
+  // TRACK SPLITS ROUTES (Collaboration Verification)
+  // ============================================
+
+  // Get splits for a track (owner only)
+  app.get("/api/tracks/:trackId/splits", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.trackId);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const splits = await storage.getTrackSplitsByTrack(track.id);
+      res.json({
+        trackId: track.id,
+        splits,
+        ownerSplitPercentage: track.ownerSplitPercentage || 100,
+        splitsConfigured: track.splitsConfigured || false,
+        splitsVerified: track.splitsVerified || false,
+        autoPublishAt: track.autoPublishAt,
+      });
+    } catch (error) {
+      console.error("Get track splits error:", error);
+      res.status(500).json({ error: "Failed to get track splits" });
+    }
+  });
+
+  // Create/update splits for a track
+  app.post("/api/tracks/:trackId/splits", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.trackId);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const { splits, ownerSplitPercentage } = req.body as {
+        splits: Array<{
+          collaboratorName: string;
+          collaboratorEmail: string;
+          collaboratorRole?: string;
+          splitPercentage: number;
+        }>;
+        ownerSplitPercentage: number;
+      };
+
+      // Validate splits
+      if (!Array.isArray(splits)) {
+        return res.status(400).json({ error: "Splits must be an array" });
+      }
+
+      // Validate percentages add up to 100
+      const totalCollaboratorPercentage = splits.reduce((sum, s) => sum + s.splitPercentage, 0);
+      const totalPercentage = ownerSplitPercentage + totalCollaboratorPercentage;
+
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        return res.status(400).json({
+          error: `Split percentages must add up to 100%. Currently: ${totalPercentage.toFixed(2)}%`
+        });
+      }
+
+      // Validate each split
+      for (const split of splits) {
+        if (!split.collaboratorName || !split.collaboratorEmail || !split.splitPercentage) {
+          return res.status(400).json({ error: "Each split must have name, email, and percentage" });
+        }
+        if (split.splitPercentage <= 0 || split.splitPercentage > 100) {
+          return res.status(400).json({ error: "Split percentage must be between 0 and 100" });
+        }
+      }
+
+      // Delete existing splits for this track
+      await storage.deleteTrackSplitsByTrack(track.id);
+
+      // Create new splits
+      const now = new Date();
+      const deadline = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 2 weeks
+      const createdSplits = [];
+
+      for (const split of splits) {
+        // Check if collaborator is already registered
+        const existingUser = await storage.getUserByEmail(split.collaboratorEmail.toLowerCase());
+
+        // Generate verification token
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+
+        const newSplit = await storage.createTrackSplit({
+          trackId: track.id,
+          collaboratorName: split.collaboratorName,
+          collaboratorEmail: split.collaboratorEmail,
+          collaboratorRole: split.collaboratorRole || 'artist',
+          splitPercentage: split.splitPercentage,
+          collaboratorUserId: existingUser?.id || null,
+          stripeConnectAccountId: existingUser?.stripeConnectAccountId || null,
+          status: 'pending',
+          verificationToken,
+          verificationSentAt: now,
+          verificationDeadline: deadline,
+        });
+
+        createdSplits.push(newSplit);
+
+        // Send verification email
+        try {
+          const user = await storage.getUser(userId);
+          const { sendSplitVerificationEmail } = await import("./services/postmark");
+          await sendSplitVerificationEmail({
+            to: split.collaboratorEmail,
+            collaboratorName: split.collaboratorName,
+            artistName: user?.name || track.artistName || 'An artist',
+            trackTitle: track.title,
+            splitPercentage: split.splitPercentage,
+            verificationToken,
+            deadline,
+            isExistingUser: !!existingUser,
+          });
+        } catch (emailError) {
+          console.error("Failed to send split verification email:", emailError);
+        }
+      }
+
+      // Update track with split info
+      await storage.updateTrack(track.id, {
+        splitsConfigured: true,
+        splitsVerified: false,
+        ownerSplitPercentage,
+        splitsSubmittedAt: now,
+        autoPublishAt: deadline,
+      });
+
+      res.json({
+        trackId: track.id,
+        splits: createdSplits,
+        ownerSplitPercentage,
+        splitsConfigured: true,
+        splitsVerified: false,
+        autoPublishAt: deadline,
+      });
+    } catch (error) {
+      console.error("Create track splits error:", error);
+      res.status(500).json({ error: "Failed to create track splits" });
+    }
+  });
+
+  // Delete a specific split
+  app.delete("/api/tracks/:trackId/splits/:splitId", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.trackId);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const split = await storage.getTrackSplit(req.params.splitId);
+      if (!split || split.trackId !== track.id) {
+        return res.status(404).json({ error: "Split not found" });
+      }
+
+      await storage.deleteTrackSplit(split.id);
+
+      // Recalculate verification status
+      const allVerified = await storage.checkAllSplitsVerifiedOrExpired(track.id);
+      await storage.updateTrack(track.id, { splitsVerified: allVerified });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete track split error:", error);
+      res.status(500).json({ error: "Failed to delete split" });
+    }
+  });
+
+  // Resend verification email for a split
+  app.post("/api/tracks/:trackId/splits/:splitId/resend", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.trackId);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const split = await storage.getTrackSplit(req.params.splitId);
+      if (!split || split.trackId !== track.id) {
+        return res.status(404).json({ error: "Split not found" });
+      }
+
+      if (split.status !== 'pending') {
+        return res.status(400).json({ error: "Can only resend for pending splits" });
+      }
+
+      // Send verification email
+      const user = await storage.getUser(userId);
+      const existingUser = await storage.getUserByEmail(split.collaboratorEmail);
+      const { sendSplitVerificationEmail } = await import("./services/postmark");
+
+      await sendSplitVerificationEmail({
+        to: split.collaboratorEmail,
+        collaboratorName: split.collaboratorName,
+        artistName: user?.name || track.artistName || 'An artist',
+        trackTitle: track.title,
+        splitPercentage: split.splitPercentage,
+        verificationToken: split.verificationToken!,
+        deadline: split.verificationDeadline!,
+        isExistingUser: !!existingUser,
+      });
+
+      // Update reminder count
+      await storage.updateTrackSplit(split.id, {
+        reminderSentCount: (split.reminderSentCount || 0) + 1,
+        lastReminderSentAt: new Date(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Resend split verification error:", error);
+      res.status(500).json({ error: "Failed to resend verification" });
+    }
+  });
+
+  // Get split verification details (public - for verification page)
+  app.get("/api/splits/verify/:token", async (req: Request, res: Response) => {
+    try {
+      const split = await storage.getTrackSplitByToken(req.params.token);
+      if (!split) {
+        return res.status(404).json({ error: "Invalid or expired verification link" });
+      }
+
+      const track = await storage.getTrack(split.trackId);
+      if (!track) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const trackOwner = await storage.getUser(track.userId);
+      const existingUser = split.collaboratorUserId
+        ? await storage.getUser(split.collaboratorUserId)
+        : await storage.getUserByEmail(split.collaboratorEmail);
+
+      res.json({
+        id: split.id,
+        trackTitle: track.title,
+        artistName: trackOwner?.name || track.artistName || 'Unknown Artist',
+        collaboratorName: split.collaboratorName,
+        collaboratorEmail: split.collaboratorEmail,
+        collaboratorRole: split.collaboratorRole,
+        splitPercentage: split.splitPercentage,
+        deadline: split.verificationDeadline,
+        status: split.status,
+        isExistingUser: !!existingUser,
+        hasStripeConnect: !!(existingUser?.stripeConnectAccountId && existingUser?.stripeConnectOnboardingComplete),
+      });
+    } catch (error) {
+      console.error("Get split verification error:", error);
+      res.status(500).json({ error: "Failed to get verification details" });
+    }
+  });
+
+  // Accept a split (can be authenticated or create account)
+  app.post("/api/splits/verify/:token/accept", async (req: Request, res: Response) => {
+    try {
+      const split = await storage.getTrackSplitByToken(req.params.token);
+      if (!split) {
+        return res.status(404).json({ error: "Invalid or expired verification link" });
+      }
+
+      if (split.status !== 'pending') {
+        return res.status(400).json({ error: `Split has already been ${split.status}` });
+      }
+
+      // Check if deadline passed
+      if (split.verificationDeadline && new Date() > new Date(split.verificationDeadline)) {
+        await storage.updateTrackSplit(split.id, { status: 'expired' });
+        return res.status(400).json({ error: "Verification deadline has passed" });
+      }
+
+      const userId = (req.session as any).userId;
+      let collaboratorUser = userId ? await storage.getUser(userId) : null;
+
+      // If not logged in, check if user with this email exists
+      if (!collaboratorUser) {
+        collaboratorUser = await storage.getUserByEmail(split.collaboratorEmail);
+      }
+
+      // Handle account creation if needed
+      if (!collaboratorUser && req.body.createAccount) {
+        const { name, password } = req.body.createAccount;
+        if (!name || !password) {
+          return res.status(400).json({ error: "Name and password required to create account" });
+        }
+
+        const hashedPassword = await hashPassword(password);
+
+        collaboratorUser = await storage.createUser({
+          email: split.collaboratorEmail,
+          name,
+          password: hashedPassword,
+          emailVerified: true, // Auto-verify since they clicked the email link
+        });
+      }
+
+      if (!collaboratorUser) {
+        return res.status(400).json({
+          error: "Please log in or create an account to accept this split",
+          requiresAuth: true,
+        });
+      }
+
+      // Verify the logged-in user's email matches the split
+      if (collaboratorUser.email.toLowerCase() !== split.collaboratorEmail.toLowerCase()) {
+        return res.status(403).json({
+          error: "This split is for a different email address",
+        });
+      }
+
+      // Update split as verified
+      await storage.updateTrackSplit(split.id, {
+        status: 'verified',
+        verifiedAt: new Date(),
+        collaboratorUserId: collaboratorUser.id,
+        stripeConnectAccountId: collaboratorUser.stripeConnectAccountId || null,
+      });
+
+      // Check if all splits are now verified/expired
+      const track = await storage.getTrack(split.trackId);
+      if (track) {
+        const allVerified = await storage.checkAllSplitsVerifiedOrExpired(track.id);
+        if (allVerified) {
+          await storage.updateTrack(track.id, { splitsVerified: true });
+
+          // Notify track owner that all splits are verified
+          const trackOwner = await storage.getUser(track.userId);
+          if (trackOwner) {
+            try {
+              const { sendAllSplitsVerifiedEmail } = await import("./services/postmark");
+              await sendAllSplitsVerifiedEmail({
+                to: trackOwner.email,
+                artistName: trackOwner.name,
+                trackTitle: track.title,
+              });
+            } catch (emailError) {
+              console.error("Failed to send all splits verified email:", emailError);
+            }
+          }
+        } else {
+          // Notify track owner about this verification
+          const trackOwner = await storage.getUser(track.userId);
+          if (trackOwner) {
+            try {
+              const { sendSplitVerifiedNotificationEmail } = await import("./services/postmark");
+              await sendSplitVerifiedNotificationEmail({
+                to: trackOwner.email,
+                artistName: trackOwner.name,
+                trackTitle: track.title,
+                collaboratorName: split.collaboratorName,
+              });
+            } catch (emailError) {
+              console.error("Failed to send split verified notification:", emailError);
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        needsStripeConnect: !collaboratorUser.stripeConnectAccountId || !collaboratorUser.stripeConnectOnboardingComplete,
+      });
+    } catch (error) {
+      console.error("Accept split error:", error);
+      res.status(500).json({ error: "Failed to accept split" });
+    }
+  });
+
+  // Reject a split
+  app.post("/api/splits/verify/:token/reject", async (req: Request, res: Response) => {
+    try {
+      const split = await storage.getTrackSplitByToken(req.params.token);
+      if (!split) {
+        return res.status(404).json({ error: "Invalid or expired verification link" });
+      }
+
+      if (split.status !== 'pending') {
+        return res.status(400).json({ error: `Split has already been ${split.status}` });
+      }
+
+      const { reason } = req.body;
+
+      // Update split as rejected
+      await storage.updateTrackSplit(split.id, {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason || null,
+      });
+
+      // Notify track owner
+      const track = await storage.getTrack(split.trackId);
+      if (track) {
+        const trackOwner = await storage.getUser(track.userId);
+        if (trackOwner) {
+          try {
+            const { sendSplitRejectedNotificationEmail } = await import("./services/postmark");
+            await sendSplitRejectedNotificationEmail({
+              to: trackOwner.email,
+              artistName: trackOwner.name,
+              trackTitle: track.title,
+              collaboratorName: split.collaboratorName,
+              reason: reason || 'No reason provided',
+            });
+          } catch (emailError) {
+            console.error("Failed to send split rejected notification:", emailError);
+          }
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Reject split error:", error);
+      res.status(500).json({ error: "Failed to reject split" });
+    }
+  });
+
+  // Process expired split deadlines (internal/cron endpoint)
+  app.post("/api/internal/splits/process-deadlines", async (req: Request, res: Response) => {
+    try {
+      // This could be protected by an API key in production
+      const apiKey = req.headers['x-api-key'];
+      if (process.env.INTERNAL_API_KEY && apiKey !== process.env.INTERNAL_API_KEY) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const now = new Date();
+      const expiredSplits = await storage.getPendingSplitsByDeadline(now);
+
+      let processed = 0;
+      const trackUpdates = new Set<string>();
+
+      for (const split of expiredSplits) {
+        await storage.updateTrackSplit(split.id, { status: 'expired' });
+        trackUpdates.add(split.trackId);
+        processed++;
+
+        // Send expiration notification to collaborator
+        try {
+          const track = await storage.getTrack(split.trackId);
+          if (track) {
+            const { sendSplitExpiredEmail } = await import("./services/postmark");
+            await sendSplitExpiredEmail({
+              to: split.collaboratorEmail,
+              collaboratorName: split.collaboratorName,
+              trackTitle: track.title,
+            });
+          }
+        } catch (emailError) {
+          console.error("Failed to send split expired email:", emailError);
+        }
+      }
+
+      // Update track verification status for affected tracks
+      for (const trackId of Array.from(trackUpdates)) {
+        const allVerified = await storage.checkAllSplitsVerifiedOrExpired(trackId);
+        if (allVerified) {
+          await storage.updateTrack(trackId, { splitsVerified: true });
+        }
+      }
+
+      res.json({ success: true, processed });
+    } catch (error) {
+      console.error("Process deadlines error:", error);
+      res.status(500).json({ error: "Failed to process deadlines" });
     }
   });
 

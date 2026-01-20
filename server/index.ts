@@ -127,6 +127,50 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Start background job scheduler
+      startScheduledJobs();
     },
   );
 })();
+
+/**
+ * Background job scheduler for periodic tasks
+ */
+function startScheduledJobs() {
+  const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-api-key';
+  const APP_URL = `http://localhost:${process.env.PORT || 5000}`;
+
+  // Process split deadlines every hour
+  const DEADLINE_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+
+  const processSplitDeadlines = async () => {
+    try {
+      log('Running split deadline processor...', 'scheduler');
+      const response = await fetch(`${APP_URL}/api/internal/splits/process-deadlines`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-api-key': INTERNAL_API_KEY,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        log(`Split deadline processor completed: ${result.processed} processed`, 'scheduler');
+      } else {
+        log(`Split deadline processor failed: ${response.status}`, 'scheduler');
+      }
+    } catch (error) {
+      log(`Split deadline processor error: ${error}`, 'scheduler');
+    }
+  };
+
+  // Run immediately on startup (after a short delay to ensure routes are ready)
+  setTimeout(processSplitDeadlines, 10000); // 10 second delay
+
+  // Then run every hour
+  setInterval(processSplitDeadlines, DEADLINE_CHECK_INTERVAL);
+
+  log('Background job scheduler started', 'scheduler');
+}

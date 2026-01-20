@@ -19,6 +19,7 @@ import Checkout from "@/pages/Checkout";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import ArtistPage from "@/pages/ArtistPage";
 import MyPurchases from "@/pages/MyPurchases";
+import SplitVerificationPage from "@/pages/SplitVerificationPage";
 // Admin pages
 import {
   AdminOverview,
@@ -49,6 +50,8 @@ function Router() {
       <Route path="/checkout/success" component={CheckoutSuccess} />
       {/* Buyer purchases history */}
       <Route path="/my-purchases" component={MyPurchases} />
+      {/* Split verification for collaborators */}
+      <Route path="/verify-split/:token" component={SplitVerificationPage} />
       {/* Admin routes */}
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/users" component={AdminUsers} />

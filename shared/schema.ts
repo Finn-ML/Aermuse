@@ -566,6 +566,13 @@ export const tracks = pgTable("tracks", {
   displayOrder: integer("display_order").default(0),
   isPublished: boolean("is_published").default(false),
 
+  // Collaboration splits verification
+  splitsConfigured: boolean("splits_configured").default(false), // Has artist set up splits?
+  splitsVerified: boolean("splits_verified").default(false), // Are all splits verified/expired?
+  ownerSplitPercentage: real("owner_split_percentage").default(100), // Artist's own percentage (0-100)
+  splitsSubmittedAt: timestamp("splits_submitted_at", { withTimezone: true }), // When splits were first submitted
+  autoPublishAt: timestamp("auto_publish_at", { withTimezone: true }), // 2 weeks after splits submitted
+
   // Analytics
   playCount: integer("play_count").default(0),
   purchaseCount: integer("purchase_count").default(0),
@@ -576,6 +583,7 @@ export const tracks = pgTable("tracks", {
   landingPageIdx: index('idx_tracks_landing_page').on(table.landingPageId),
   userIdIdx: index('idx_tracks_user_id').on(table.userId),
   publishedIdx: index('idx_tracks_published').on(table.isPublished),
+  autoPublishIdx: index('idx_tracks_auto_publish').on(table.autoPublishAt),
 }));
 
 export const insertTrackSchema = createInsertSchema(tracks).omit({
@@ -648,6 +656,7 @@ export const tracksRelations = relations(tracks, ({ one, many }) => ({
     references: [users.id],
   }),
   purchases: many(trackPurchases),
+  splits: many(trackSplits),
 }));
 
 export const trackPurchasesRelations = relations(trackPurchases, ({ one }) => ({
@@ -657,6 +666,82 @@ export const trackPurchasesRelations = relations(trackPurchases, ({ one }) => ({
   }),
   buyer: one(users, {
     fields: [trackPurchases.buyerUserId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================
+// TRACK SPLITS TABLE (Collaboration Verification)
+// ============================================
+
+// Split status type
+export type TrackSplitStatus = 'pending' | 'verified' | 'rejected' | 'expired';
+
+// Collaborator role type
+export const COLLABORATOR_ROLES = ['artist', 'producer', 'writer', 'composer', 'performer', 'label', 'other'] as const;
+export type CollaboratorRole = typeof COLLABORATOR_ROLES[number];
+
+export const trackSplits = pgTable("track_splits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trackId: varchar("track_id").notNull().references(() => tracks.id, { onDelete: 'cascade' }),
+
+  // Collaborator info
+  collaboratorName: text("collaborator_name").notNull(),
+  collaboratorEmail: text("collaborator_email").notNull(),
+  collaboratorRole: text("collaborator_role").default("artist").$type<CollaboratorRole>(),
+
+  // Split percentage (0-100)
+  splitPercentage: real("split_percentage").notNull(),
+
+  // Linked user (if registered on Aermuse)
+  collaboratorUserId: varchar("collaborator_user_id").references(() => users.id),
+
+  // Stripe payout destination
+  stripeConnectAccountId: varchar("stripe_connect_account_id", { length: 50 }),
+
+  // Verification status
+  status: text("status").notNull().default("pending").$type<TrackSplitStatus>(),
+  verificationToken: varchar("verification_token", { length: 64 }).unique(),
+  verificationSentAt: timestamp("verification_sent_at", { withTimezone: true }),
+  verificationDeadline: timestamp("verification_deadline", { withTimezone: true }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+
+  // Reminder tracking
+  reminderSentCount: integer("reminder_sent_count").default(0),
+  lastReminderSentAt: timestamp("last_reminder_sent_at", { withTimezone: true }),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  trackIdIdx: index('idx_track_splits_track_id').on(table.trackId),
+  collaboratorEmailIdx: index('idx_track_splits_collaborator_email').on(table.collaboratorEmail),
+  statusIdx: index('idx_track_splits_status').on(table.status),
+  verificationTokenIdx: index('idx_track_splits_verification_token').on(table.verificationToken),
+  deadlineIdx: index('idx_track_splits_deadline').on(table.verificationDeadline),
+}));
+
+export const insertTrackSplitSchema = createInsertSchema(trackSplits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTrackSplit = z.infer<typeof insertTrackSplitSchema>;
+export type TrackSplit = typeof trackSplits.$inferSelect;
+
+// ============================================
+// TRACK SPLITS RELATIONS
+// ============================================
+
+export const trackSplitsRelations = relations(trackSplits, ({ one }) => ({
+  track: one(tracks, {
+    fields: [trackSplits.trackId],
+    references: [tracks.id],
+  }),
+  collaboratorUser: one(users, {
+    fields: [trackSplits.collaboratorUserId],
     references: [users.id],
   }),
 }));

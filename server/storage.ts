@@ -8,7 +8,8 @@ import {
   type ContractTemplate,
   type Track, type InsertTrack,
   type TrackPurchase, type InsertTrackPurchase,
-  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases
+  type TrackSplit, type InsertTrackSplit, type TrackSplitStatus,
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
@@ -117,6 +118,19 @@ export interface IStorage {
   getTrackPurchasesByEmail(email: string): Promise<TrackPurchase[]>;
   createTrackPurchase(purchase: InsertTrackPurchase): Promise<TrackPurchase>;
   incrementDownloadCount(purchaseId: string): Promise<void>;
+
+  // Track Splits (Collaboration Verification)
+  getTrackSplit(id: string): Promise<TrackSplit | undefined>;
+  getTrackSplitByToken(token: string): Promise<TrackSplit | undefined>;
+  getTrackSplitsByTrack(trackId: string): Promise<TrackSplit[]>;
+  getTrackSplitsByCollaboratorEmail(email: string): Promise<TrackSplit[]>;
+  getPendingSplitsByDeadline(deadline: Date): Promise<TrackSplit[]>;
+  getPendingSplitsNeedingReminder(daysRemaining: number): Promise<TrackSplit[]>;
+  createTrackSplit(split: InsertTrackSplit): Promise<TrackSplit>;
+  updateTrackSplit(id: string, data: Partial<InsertTrackSplit>): Promise<TrackSplit | undefined>;
+  deleteTrackSplit(id: string): Promise<boolean>;
+  deleteTrackSplitsByTrack(trackId: string): Promise<boolean>;
+  checkAllSplitsVerifiedOrExpired(trackId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -674,6 +688,110 @@ export class DatabaseStorage implements IStorage {
     await db.execute(
       `UPDATE track_purchases SET download_count = COALESCE(download_count, 0) + 1 WHERE id = '${purchaseId}'`
     );
+  }
+
+  // ============================================
+  // TRACK SPLITS (Collaboration Verification)
+  // ============================================
+
+  async getTrackSplit(id: string): Promise<TrackSplit | undefined> {
+    const [split] = await db.select().from(trackSplits).where(eq(trackSplits.id, id));
+    return split;
+  }
+
+  async getTrackSplitByToken(token: string): Promise<TrackSplit | undefined> {
+    const [split] = await db.select().from(trackSplits).where(eq(trackSplits.verificationToken, token));
+    return split;
+  }
+
+  async getTrackSplitsByTrack(trackId: string): Promise<TrackSplit[]> {
+    return db.select()
+      .from(trackSplits)
+      .where(eq(trackSplits.trackId, trackId))
+      .orderBy(desc(trackSplits.createdAt));
+  }
+
+  async getTrackSplitsByCollaboratorEmail(email: string): Promise<TrackSplit[]> {
+    return db.select()
+      .from(trackSplits)
+      .where(eq(trackSplits.collaboratorEmail, email.toLowerCase()))
+      .orderBy(desc(trackSplits.createdAt));
+  }
+
+  async getPendingSplitsByDeadline(deadline: Date): Promise<TrackSplit[]> {
+    return db.select()
+      .from(trackSplits)
+      .where(and(
+        eq(trackSplits.status, 'pending'),
+        lte(trackSplits.verificationDeadline, deadline)
+      ));
+  }
+
+  async getPendingSplitsNeedingReminder(daysRemaining: number): Promise<TrackSplit[]> {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + daysRemaining);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return db.select()
+      .from(trackSplits)
+      .where(and(
+        eq(trackSplits.status, 'pending'),
+        gte(trackSplits.verificationDeadline, startOfDay),
+        lte(trackSplits.verificationDeadline, endOfDay)
+      ));
+  }
+
+  async createTrackSplit(split: InsertTrackSplit): Promise<TrackSplit> {
+    const insertData: Record<string, unknown> = {
+      ...split,
+      collaboratorEmail: split.collaboratorEmail.toLowerCase(),
+      status: (split.status || 'pending') as TrackSplitStatus,
+    };
+    // Ensure collaboratorRole is a valid role or null
+    if (split.collaboratorRole) {
+      insertData.collaboratorRole = split.collaboratorRole as 'artist' | 'producer' | 'writer' | 'composer' | 'performer' | 'label' | 'other';
+    }
+    const [newSplit] = await db.insert(trackSplits).values(insertData as typeof trackSplits.$inferInsert).returning();
+    return newSplit;
+  }
+
+  async updateTrackSplit(id: string, data: Partial<InsertTrackSplit>): Promise<TrackSplit | undefined> {
+    const updateData: Record<string, unknown> = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    if (data.collaboratorEmail) {
+      updateData.collaboratorEmail = data.collaboratorEmail.toLowerCase();
+    }
+    if (data.status) {
+      updateData.status = data.status as TrackSplitStatus;
+    }
+    const [split] = await db.update(trackSplits)
+      .set(updateData)
+      .where(eq(trackSplits.id, id))
+      .returning();
+    return split;
+  }
+
+  async deleteTrackSplit(id: string): Promise<boolean> {
+    const result = await db.delete(trackSplits).where(eq(trackSplits.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deleteTrackSplitsByTrack(trackId: string): Promise<boolean> {
+    await db.delete(trackSplits).where(eq(trackSplits.trackId, trackId));
+    return true;
+  }
+
+  async checkAllSplitsVerifiedOrExpired(trackId: string): Promise<boolean> {
+    const splits = await this.getTrackSplitsByTrack(trackId);
+    if (splits.length === 0) {
+      return true; // No splits means verified by default
+    }
+    return splits.every(split => split.status === 'verified' || split.status === 'expired');
   }
 }
 

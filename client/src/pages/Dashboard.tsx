@@ -21,6 +21,8 @@ import { AwaitingSignatureList } from '@/components/signatures';
 import { ProposalCard, ProposalDetail } from '@/components/proposals';
 import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
+import { SplitRegistrationForm } from '@/components/music/SplitRegistrationForm';
+import { SplitVerificationStatus } from '@/components/music/SplitVerificationStatus';
 import { ContractLimitPrompt } from '@/components/UpgradePrompt';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { PremiumFeatureGate, PremiumBadge } from '@/components/PremiumFeatureGate';
@@ -125,6 +127,8 @@ export default function Dashboard() {
     proposalId: string;
     initialData: Record<string, string | number | Date | null>;
   } | null>(null);
+  // Track splits management modal state
+  const [splitsModalTrack, setSplitsModalTrack] = useState<Track | null>(null);
 
   // Configure drag sensor with activation constraint to prevent accidental drags
   const sensors = useSensors(
@@ -280,6 +284,11 @@ export default function Dashboard() {
     isPublished: boolean;
     playCount: number;
     purchaseCount: number;
+    // Split-related fields
+    splitsConfigured?: boolean;
+    splitsVerified?: boolean;
+    ownerSplitPercentage?: number;
+    autoPublishAt?: string | null;
   }
   const { data: tracksData, isLoading: tracksLoading } = useQuery<Track[]>({
     queryKey: ['/api/landing-page/tracks'],
@@ -291,6 +300,29 @@ export default function Dashboard() {
     enabled: !!user && activeNav === 'landing',
   });
   const tracks = tracksData || [];
+
+  // Fetch track splits when modal is open
+  interface TrackSplit {
+    id: string;
+    trackId: string;
+    collaboratorName: string;
+    collaboratorEmail: string;
+    collaboratorRole: string;
+    splitPercentage: number;
+    status: 'pending' | 'verified' | 'rejected' | 'expired';
+    verificationDeadline?: string;
+    rejectionReason?: string;
+  }
+  const { data: trackSplitsData, isLoading: trackSplitsLoading } = useQuery<TrackSplit[]>({
+    queryKey: ['/api/tracks', splitsModalTrack?.id, 'splits'],
+    queryFn: async () => {
+      const res = await fetch(`/api/tracks/${splitsModalTrack!.id}/splits`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch splits');
+      return res.json();
+    },
+    enabled: !!splitsModalTrack,
+  });
+  const trackSplits = trackSplitsData || [];
 
   // Fetch Stripe Connect status for payment settings
   interface StripeConnectStatus {
@@ -1675,6 +1707,7 @@ export default function Dashboard() {
                     onUpdateTrack={updateTrack}
                     onDeleteTrack={deleteTrack}
                     onUploadTrackCover={uploadTrackCover}
+                    onOpenSplits={(track) => setSplitsModalTrack(track)}
                     activeTab={editorTab}
                     onTabChange={setEditorTab}
                   />
@@ -2119,6 +2152,68 @@ export default function Dashboard() {
               isOpen={showUpgradeModal}
               onClose={() => setShowUpgradeModal(false)}
             />
+          )}
+
+          {/* Split Management Modal */}
+          {splitsModalTrack && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-[rgba(102,0,51,0.1)] flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#660033]">
+                      Collaborator Splits
+                    </h2>
+                    <p className="text-sm text-[rgba(102,0,51,0.6)]">
+                      "{splitsModalTrack.title}"
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSplitsModalTrack(null)}
+                    className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.1)] transition-colors"
+                  >
+                    <X size={20} className="text-[rgba(102,0,51,0.6)]" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {trackSplitsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="animate-spin text-[#660033]" size={32} />
+                    </div>
+                  ) : trackSplits.length > 0 ? (
+                    <div className="space-y-6">
+                      {/* Show verification status */}
+                      <SplitVerificationStatus
+                        track={splitsModalTrack}
+                        splits={trackSplits}
+                        ownerSplitPercentage={splitsModalTrack.ownerSplitPercentage || 100}
+                        autoPublishAt={splitsModalTrack.autoPublishAt}
+                        onEditSplits={() => {
+                          // Switch to edit mode - handled by toggling state
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* No splits yet - show registration form */}
+                      <SplitRegistrationForm
+                        track={splitsModalTrack}
+                        existingSplits={[]}
+                        onSuccess={() => {
+                          // Refresh tracks list and close modal
+                          queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/tracks', splitsModalTrack.id, 'splits'] });
+                          setSplitsModalTrack(null);
+                        }}
+                        onCancel={() => setSplitsModalTrack(null)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </main>
       </div>

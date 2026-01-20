@@ -233,6 +233,67 @@ export async function verifyPaymentIntent(
 }
 
 // ============================================
+// COLLABORATOR SPLIT TRANSFERS
+// ============================================
+
+export interface SplitTransferParams {
+  paymentIntentId: string;
+  splits: Array<{
+    collaboratorName: string;
+    collaboratorEmail: string;
+    stripeConnectAccountId: string;
+    amountCents: number;
+  }>;
+  trackId: string;
+  trackTitle: string;
+  currency?: string;
+}
+
+/**
+ * Create Stripe transfers to collaborators after a successful payment
+ * This is used when a track has verified collaborators with connected accounts
+ */
+export async function createSplitTransfers(
+  params: SplitTransferParams
+): Promise<Stripe.Transfer[]> {
+  const { paymentIntentId, splits, trackId, trackTitle, currency = 'gbp' } = params;
+
+  console.log(`[TRACK-STRIPE] Creating ${splits.length} split transfers for track ${trackId}`);
+
+  const transfers: Stripe.Transfer[] = [];
+
+  for (const split of splits) {
+    try {
+      console.log(`[TRACK-STRIPE] Transferring ${split.amountCents} ${currency} to ${split.collaboratorName} (${split.stripeConnectAccountId})`);
+
+      const transfer = await stripe.transfers.create({
+        amount: split.amountCents,
+        currency,
+        destination: split.stripeConnectAccountId,
+        source_transaction: paymentIntentId, // Links transfer to the original charge
+        description: `Split payout for "${trackTitle}"`,
+        metadata: {
+          trackId,
+          trackTitle,
+          collaboratorName: split.collaboratorName,
+          collaboratorEmail: split.collaboratorEmail,
+          type: 'track_split_payout',
+        },
+      });
+
+      transfers.push(transfer);
+      console.log(`[TRACK-STRIPE] Transfer created: ${transfer.id}`);
+    } catch (err) {
+      console.error(`[TRACK-STRIPE] Failed to create transfer for ${split.collaboratorName}:`, err);
+      // Continue with other transfers even if one fails
+    }
+  }
+
+  console.log(`[TRACK-STRIPE] Successfully created ${transfers.length}/${splits.length} transfers`);
+  return transfers;
+}
+
+// ============================================
 // WEBHOOK EVENT HANDLING
 // ============================================
 
