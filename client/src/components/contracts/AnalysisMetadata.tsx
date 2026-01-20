@@ -1,11 +1,8 @@
-import { Clock, RefreshCw, Sparkles } from 'lucide-react';
+import { Clock, RefreshCw } from 'lucide-react';
 
 interface Props {
   analyzedAt: string;
   version: number;
-  modelVersion?: string;
-  processingTime?: number;
-  tokenCount?: number;
   truncated?: boolean;
 }
 
@@ -40,9 +37,6 @@ function formatTimeAgo(dateString: string): string {
 export function AnalysisMetadata({
   analyzedAt,
   version,
-  modelVersion,
-  processingTime,
-  tokenCount,
   truncated,
 }: Props) {
   const timeAgo = formatTimeAgo(analyzedAt);
@@ -58,23 +52,6 @@ export function AnalysisMetadata({
         <RefreshCw className="h-4 w-4" />
         <span>Version {version}</span>
       </div>
-
-      {modelVersion && (
-        <div className="flex items-center gap-1">
-          <Sparkles className="h-4 w-4" />
-          <span>{modelVersion}</span>
-        </div>
-      )}
-
-      {processingTime && (
-        <span className="text-gray-400">
-          {(processingTime / 1000).toFixed(1)}s
-        </span>
-      )}
-
-      {tokenCount && (
-        <span className="text-gray-400">{tokenCount.toLocaleString()} tokens</span>
-      )}
 
       {truncated && (
         <span className="text-amber-600 text-xs">(truncated)</span>

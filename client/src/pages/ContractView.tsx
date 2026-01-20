@@ -490,9 +490,6 @@ export default function ContractView() {
               <AnalysisMetadata
                 analyzedAt={displayAnalysis.metadata.analyzedAt}
                 version={contract.analysisVersion || 1}
-                modelVersion={displayAnalysis.metadata.modelVersion}
-                processingTime={displayAnalysis.metadata.processingTime}
-                tokenCount={displayAnalysis.metadata.tokenCount}
                 truncated={displayAnalysis.metadata.truncated}
               />
             </div>
