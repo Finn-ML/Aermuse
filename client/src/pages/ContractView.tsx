@@ -11,6 +11,7 @@ import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
 import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
 import { ContractEditor } from '../components/contracts/ContractEditor';
+import { ConvertedContractForm } from '../components/contracts/ConvertedContractForm';
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { UpgradePrompt } from '../components/UpgradePrompt';
 import { BlurredUpgradeOverlay } from '../components/BlurredUpgradeOverlay';
@@ -573,6 +574,45 @@ export default function ContractView() {
             style={{ transitionDelay: '300ms' }}
           >
             <LegalDisclaimer />
+          </div>
+        )}
+
+        {/* PDF Conversion Redesign: Field Review Form */}
+        {contract.status === 'pending_review' && contract.templateData && !contract.renderedContent && (
+          <div
+            className={`mb-6 transition-all duration-500 ${
+              isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+            style={{ transitionDelay: '350ms' }}
+          >
+            <div
+              className="rounded-[20px] overflow-hidden"
+              style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+            >
+              <div className="p-4 sm:p-6 border-b border-[rgba(102,0,51,0.08)]">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
+                  >
+                    <Sparkles size={20} className="text-[#F7E6CA]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-[#660033]">Review Extracted Fields</h2>
+                    <p className="text-sm text-[rgba(102,0,51,0.5)]">
+                      AI has extracted contract details. Review and edit before generating.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <ConvertedContractForm
+                  contractId={id!}
+                  initialData={contract.templateData as any}
+                  onGenerate={fetchContract}
+                />
+              </div>
+            </div>
           </div>
         )}
 

@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { X, Plus, GripVertical, Trash2, Send, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus, GripVertical, Trash2, Send, AlertCircle, Loader2, User } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Contract } from '../../types';
+import { useAuth } from '../../lib/auth';
 
 interface Signatory {
   id: string;
   name: string;
   email: string;
+  isSelf?: boolean; // Flag to mark self-signatory (read-only)
 }
 
 interface Props {
@@ -17,13 +19,42 @@ interface Props {
 }
 
 export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Props) {
+  const { user } = useAuth();
   const [signatories, setSignatories] = useState<Signatory[]>([
     { id: crypto.randomUUID(), name: '', email: '' },
   ]);
+  const [includeSelf, setIncludeSelf] = useState(false);
   const [message, setMessage] = useState('');
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle includeSelf toggle
+  const handleIncludeSelfChange = (checked: boolean) => {
+    setIncludeSelf(checked);
+    if (checked && user) {
+      // Add self as first signatory
+      const selfSignatory: Signatory = {
+        id: 'self-signatory',
+        name: user.name || user.email.split('@')[0],
+        email: user.email,
+        isSelf: true,
+      };
+      // Remove any existing self signatory and add at beginning
+      const filtered = signatories.filter(s => !s.isSelf);
+      setSignatories([selfSignatory, ...filtered]);
+    } else {
+      // Remove self signatory
+      setSignatories(signatories.filter(s => !s.isSelf));
+    }
+  };
+
+  // Reset includeSelf when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIncludeSelf(false);
+    }
+  }, [isOpen]);
 
   const addSignatory = () => {
     if (signatories.length >= 10) return;
@@ -34,7 +65,13 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
   };
 
   const removeSignatory = (id: string) => {
-    if (signatories.length <= 1) return;
+    // Don't remove self signatory or if only one non-self signatory
+    const signatory = signatories.find(s => s.id === id);
+    if (signatory?.isSelf) return;
+
+    const nonSelfSignatories = signatories.filter(s => !s.isSelf);
+    if (nonSelfSignatories.length <= 1) return;
+
     setSignatories(signatories.filter(s => s.id !== id));
   };
 
@@ -48,6 +85,14 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
     if (!result.destination) return;
 
     const items = Array.from(signatories);
+    const draggedItem = items[result.source.index];
+
+    // Don't allow reordering self-signatory
+    if (draggedItem.isSelf) return;
+
+    // Don't allow placing items before self-signatory
+    if (includeSelf && result.destination.index === 0) return;
+
     const [reordered] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reordered);
 
@@ -133,6 +178,7 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
     if (isSubmitting) return;
     // Reset state on close
     setSignatories([{ id: crypto.randomUUID(), name: '', email: '' }]);
+    setIncludeSelf(false);
     setMessage('');
     setExpiresInDays(30);
     setError(null);
@@ -176,6 +222,26 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
             </div>
           )}
 
+          {/* Self-signing checkbox */}
+          {user && (
+            <div className="p-4 rounded-xl bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)]">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeSelf}
+                  onChange={(e) => handleIncludeSelfChange(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-[rgba(102,0,51,0.3)] text-[#660033] focus:ring-[#660033]"
+                />
+                <div>
+                  <span className="font-semibold text-[#660033]">I need to sign this contract myself</span>
+                  <p className="text-sm text-[rgba(102,0,51,0.6)] mt-0.5">
+                    You'll receive a signing request at {user.email}
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
+
           {/* Signatories */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -204,20 +270,25 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
                         key={signatory.id}
                         draggableId={signatory.id}
                         index={index}
+                        isDragDisabled={signatory.isSelf}
                       >
                         {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`flex items-center gap-2 p-3 bg-[rgba(102,0,51,0.03)] rounded-xl transition-shadow ${
+                            className={`flex items-center gap-2 p-3 rounded-xl transition-shadow ${
                               snapshot.isDragging ? 'shadow-lg' : ''
-                            }`}
+                            } ${signatory.isSelf ? 'bg-[rgba(102,0,51,0.08)] border border-[rgba(102,0,51,0.15)]' : 'bg-[rgba(102,0,51,0.03)]'}`}
                           >
                             <div
                               {...provided.dragHandleProps}
-                              className="cursor-grab active:cursor-grabbing"
+                              className={signatory.isSelf ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}
                             >
-                              <GripVertical className="h-5 w-5 text-[rgba(102,0,51,0.3)]" />
+                              {signatory.isSelf ? (
+                                <User className="h-5 w-5 text-[#660033]" />
+                              ) : (
+                                <GripVertical className="h-5 w-5 text-[rgba(102,0,51,0.3)]" />
+                              )}
                             </div>
 
                             <div
@@ -227,26 +298,38 @@ export function AddSignatoriesModal({ contract, isOpen, onClose, onSuccess }: Pr
                               {index + 1}
                             </div>
 
-                            <div className="flex-1 grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                value={signatory.name}
-                                onChange={(e) => updateSignatory(signatory.id, 'name', e.target.value)}
-                                placeholder="Full Name"
-                                className="px-3 py-2 border border-[rgba(102,0,51,0.15)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#660033] focus:border-transparent bg-white text-[#660033] placeholder:text-[rgba(102,0,51,0.4)]"
-                              />
-                              <input
-                                type="email"
-                                value={signatory.email}
-                                onChange={(e) => updateSignatory(signatory.id, 'email', e.target.value)}
-                                placeholder="Email"
-                                className="px-3 py-2 border border-[rgba(102,0,51,0.15)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#660033] focus:border-transparent bg-white text-[#660033] placeholder:text-[rgba(102,0,51,0.4)]"
-                              />
-                            </div>
+                            {signatory.isSelf ? (
+                              <div className="flex-1 grid grid-cols-2 gap-2">
+                                <div className="px-3 py-2 bg-[rgba(255,255,255,0.8)] border border-[rgba(102,0,51,0.1)] rounded-lg text-[#660033]">
+                                  {signatory.name}
+                                  <span className="ml-2 text-xs text-[rgba(102,0,51,0.5)]">(You)</span>
+                                </div>
+                                <div className="px-3 py-2 bg-[rgba(255,255,255,0.8)] border border-[rgba(102,0,51,0.1)] rounded-lg text-[#660033] truncate">
+                                  {signatory.email}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex-1 grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={signatory.name}
+                                  onChange={(e) => updateSignatory(signatory.id, 'name', e.target.value)}
+                                  placeholder="Full Name"
+                                  className="px-3 py-2 border border-[rgba(102,0,51,0.15)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#660033] focus:border-transparent bg-white text-[#660033] placeholder:text-[rgba(102,0,51,0.4)]"
+                                />
+                                <input
+                                  type="email"
+                                  value={signatory.email}
+                                  onChange={(e) => updateSignatory(signatory.id, 'email', e.target.value)}
+                                  placeholder="Email"
+                                  className="px-3 py-2 border border-[rgba(102,0,51,0.15)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#660033] focus:border-transparent bg-white text-[#660033] placeholder:text-[rgba(102,0,51,0.4)]"
+                                />
+                              </div>
+                            )}
 
                             <button
                               onClick={() => removeSignatory(signatory.id)}
-                              disabled={signatories.length <= 1}
+                              disabled={signatory.isSelf || signatories.filter(s => !s.isSelf).length <= 1}
                               className="p-2 hover:bg-[rgba(102,0,51,0.08)] rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <Trash2 className="h-4 w-4 text-[rgba(102,0,51,0.5)]" />

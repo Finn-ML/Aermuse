@@ -19,7 +19,8 @@ import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { extractText, truncateForAI } from "./services/extraction";
-import { analyzeContract, generateSpeech, OpenAIError } from "./services/openai";
+import { analyzeContract, generateSpeech, OpenAIError, parseContractFields, type ParsedContractFields } from "./services/openai";
+import { generateAermuseContract } from "./services/contractGenerator";
 import { getUserSubscription, canCreateContract } from "./services/subscription";
 import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
@@ -6320,6 +6321,7 @@ Sent at: ${new Date().toISOString()}
   });
 
   // POST /api/proposals/:id/convert-contract - Convert uploaded PDF to editable contract (Epic 13)
+  // Redesigned: Now uses AI to parse fields and returns structured data for form review
   app.post("/api/proposals/:id/convert-contract", requireAuth, requirePremium, async (req: Request, res: Response) => {
     try {
       const userId = req.session?.userId;
@@ -6359,6 +6361,19 @@ Sent at: ${new Date().toISOString()}
 
       console.log(`[PROPOSALS] Extracted ${extraction.charCount} chars from proposal ${id} contract`);
 
+      // Use AI to parse contract fields (NEW: intelligent parsing)
+      let parsedFields: ParsedContractFields | null = null;
+      if (extraction.text && extraction.charCount > 100) {
+        try {
+          const truncated = truncateForAI(extraction.text);
+          parsedFields = await parseContractFields(truncated.text);
+          console.log(`[PROPOSALS] AI extracted fields with ${parsedFields.confidence}% confidence`);
+        } catch (aiError) {
+          console.error('[PROPOSALS] AI field extraction failed, continuing without:', aiError);
+          // Continue without AI extraction - user can fill in manually
+        }
+      }
+
       // Map proposal type to contract type
       const contractTypeMap: Record<string, string> = {
         collaboration: 'artist',
@@ -6369,24 +6384,30 @@ Sent at: ${new Date().toISOString()}
         other: 'other'
       };
 
-      // Create contract record
-      const contractName = proposal.contractFileName
-        ? proposal.contractFileName.replace(/\.[^/.]+$/, '') // Remove extension
-        : `Contract from ${proposal.senderName}`;
+      // Determine contract type - prefer AI-detected type
+      const contractType = parsedFields?.contractType
+        ? mapParsedTypeToContractType(parsedFields.contractType)
+        : (contractTypeMap[proposal.proposalType] || 'other');
+
+      // Create contract record with parsed fields
+      const contractName = parsedFields?.title ||
+        (proposal.contractFileName ? proposal.contractFileName.replace(/\.[^/.]+$/, '') : `Contract from ${proposal.senderName}`);
 
       const contract = await storage.createContract({
         userId,
         name: contractName,
-        type: contractTypeMap[proposal.proposalType] || 'other',
-        status: 'pending',
+        type: contractType,
+        status: 'pending_review', // NEW: Status indicates fields need review before generating
         partnerName: proposal.senderName,
         fileName: proposal.contractFileName,
         filePath: proposal.contractFilePath,
         fileSize: proposal.contractFileSize,
         fileType: proposal.contractFileType,
         extractedText: extraction.text || '',
-        // Store rendered HTML for editing
-        renderedContent: formatExtractedTextToHtml(extraction.text || ''),
+        // Store parsed fields in templateData for form editing
+        templateData: parsedFields as any,
+        // Don't generate renderedContent yet - user reviews fields first
+        renderedContent: null,
       });
 
       // Link contract to proposal and update status
@@ -6400,12 +6421,7 @@ Sent at: ${new Date().toISOString()}
         })
         .where(eq(proposals.id, id));
 
-      console.log(`[PROPOSALS] Converted proposal ${id} to contract ${contract.id}`);
-
-      // Trigger async AI analysis (non-blocking)
-      if (extraction.text && extraction.charCount > 100) {
-        analyzeContractAsync(contract.id, extraction.text, contractTypeMap[proposal.proposalType] || 'other');
-      }
+      console.log(`[PROPOSALS] Converted proposal ${id} to contract ${contract.id} (pending field review)`);
 
       res.status(201).json({
         success: true,
@@ -6413,11 +6429,82 @@ Sent at: ${new Date().toISOString()}
         extraction: {
           success: extraction.success,
           charCount: extraction.charCount,
-        }
+        },
+        parsedFields: parsedFields, // Include parsed fields in response
       });
     } catch (error) {
       console.error('[PROPOSALS] Convert contract error:', error);
       res.status(500).json({ error: 'Failed to convert contract' });
+    }
+  });
+
+  // POST /api/contracts/:id/generate - Generate Aermuse-styled contract from field data
+  app.post("/api/contracts/:id/generate", requireAuth, requirePremium, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { id } = req.params;
+      const { fields } = req.body; // Updated field data from the form
+
+      // Fetch contract
+      const contract = await storage.getContract(id);
+      if (!contract || contract.userId !== userId) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Validate the contract is in the right state
+      if (contract.status !== 'pending_review' && contract.status !== 'pending') {
+        return res.status(400).json({
+          error: 'Contract is not in a state that allows generation',
+          currentStatus: contract.status
+        });
+      }
+
+      // Merge existing templateData with user updates
+      const existingData = (contract.templateData as unknown as ParsedContractFields) || {};
+      const mergedFields: ParsedContractFields = {
+        ...existingData,
+        ...fields,
+        // Ensure required fields
+        contractType: fields.contractType || existingData.contractType || 'other',
+        title: fields.title || existingData.title || contract.name,
+        parties: fields.parties || existingData.parties || [],
+        projectDetails: fields.projectDetails || existingData.projectDetails || {},
+        dates: fields.dates || existingData.dates || {},
+        financialTerms: fields.financialTerms || existingData.financialTerms || {},
+        confidence: existingData.confidence || 100, // User-reviewed, so confidence is high
+      };
+
+      // Generate the Aermuse-styled HTML contract
+      const renderedContent = generateAermuseContract(mergedFields);
+
+      // Update contract with generated content
+      await storage.updateContract(id, {
+        templateData: mergedFields as any,
+        renderedContent,
+        status: 'pending', // Ready for signatures
+        name: mergedFields.title || contract.name,
+        type: mapParsedTypeToContractType(mergedFields.contractType),
+      });
+
+      console.log(`[CONTRACTS] Generated Aermuse contract for ${id}`);
+
+      // Trigger async AI analysis for risk assessment
+      if (contract.extractedText) {
+        analyzeContractAsync(id, contract.extractedText, mergedFields.contractType);
+      }
+
+      res.json({
+        success: true,
+        contractId: id,
+        renderedContent,
+      });
+    } catch (error) {
+      console.error('[CONTRACTS] Generate contract error:', error);
+      res.status(500).json({ error: 'Failed to generate contract' });
     }
   });
 
@@ -6454,6 +6541,21 @@ function formatExtractedTextToHtml(text: string): string {
     })
     .filter(Boolean)
     .join('\n');
+}
+
+// Helper function to map parsed contract type to internal contract type
+function mapParsedTypeToContractType(parsedType: string): string {
+  const typeMap: Record<string, string> = {
+    collaboration: 'artist',
+    licensing: 'licensing',
+    touring: 'touring',
+    production: 'production',
+    business: 'business',
+    management: 'management',
+    publishing: 'publishing',
+    other: 'other'
+  };
+  return typeMap[parsedType] || 'other';
 }
 
 // Async helper to analyze contract without blocking the response
