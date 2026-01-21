@@ -906,12 +906,13 @@ ${urls}
       const riskScore = overallScore >= 80 ? "low" : overallScore >= 60 ? "medium" : "high";
 
       // Save analysis to contract
+      // Don't overwrite 'pending_review' status - those contracts need field review first
       const updatedContract = await storage.updateContract(contract.id, {
         aiAnalysis: analysis,
         aiRiskScore: riskScore,
         analyzedAt: new Date(),
         analysisVersion: (contract.analysisVersion || 0) + 1,
-        status: 'analyzed'
+        ...(contract.status !== 'pending_review' ? { status: 'analyzed' } : {}),
       });
 
       // Track usage after successful analysis
@@ -6365,13 +6366,23 @@ Sent at: ${new Date().toISOString()}
       let parsedFields: ParsedContractFields | null = null;
       if (extraction.text && extraction.charCount > 100) {
         try {
-          const truncated = truncateForAI(extraction.text);
+          const truncated = truncateForAI(extraction.text, 30000); // 30k chars max for speed
           parsedFields = await parseContractFields(truncated.text);
           console.log(`[PROPOSALS] AI extracted fields with ${parsedFields.confidence}% confidence`);
+          console.log(`[PROPOSALS] Parsed fields summary:`, JSON.stringify({
+            contractType: parsedFields.contractType,
+            title: parsedFields.title,
+            partiesCount: parsedFields.parties?.length,
+            termsCount: parsedFields.termsAndConditions?.length,
+            hasFillableFields: !!parsedFields.fillableFields?.length,
+            hasFinancialTerms: !!parsedFields.financialTerms?.fees?.length,
+          }));
         } catch (aiError) {
           console.error('[PROPOSALS] AI field extraction failed, continuing without:', aiError);
           // Continue without AI extraction - user can fill in manually
         }
+      } else {
+        console.log(`[PROPOSALS] Skipping AI extraction - text too short (${extraction.charCount} chars)`);
       }
 
       // Map proposal type to contract type
@@ -6422,6 +6433,7 @@ Sent at: ${new Date().toISOString()}
         .where(eq(proposals.id, id));
 
       console.log(`[PROPOSALS] Converted proposal ${id} to contract ${contract.id} (pending field review)`);
+      console.log(`[PROPOSALS] Contract templateData saved:`, contract.templateData ? 'yes' : 'no', typeof contract.templateData);
 
       res.status(201).json({
         success: true,
@@ -6505,6 +6517,81 @@ Sent at: ${new Date().toISOString()}
     } catch (error) {
       console.error('[CONTRACTS] Generate contract error:', error);
       res.status(500).json({ error: 'Failed to generate contract' });
+    }
+  });
+
+  // POST /api/contracts/:id/reparse - Re-parse contract extracted text with AI
+  // Used when existing contracts need field extraction or re-extraction
+  app.post("/api/contracts/:id/reparse", requireAuth, requirePremium, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    console.log(`[CONTRACTS] Reparse request for contract ${id}`);
+
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        console.log(`[CONTRACTS] Reparse failed: not authenticated`);
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      // Fetch contract
+      const contract = await storage.getContract(id);
+      if (!contract || contract.userId !== userId) {
+        console.log(`[CONTRACTS] Reparse failed: contract not found or not owned`);
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Need extracted text to parse
+      if (!contract.extractedText || contract.extractedText.length < 100) {
+        console.log(`[CONTRACTS] Reparse failed: no extracted text (${contract.extractedText?.length || 0} chars)`);
+        return res.status(400).json({
+          error: 'No extracted text available. Please upload a contract file first.',
+        });
+      }
+
+      // Parse fields with AI - use smaller limit for faster extraction
+      console.log(`[CONTRACTS] Re-parsing contract ${id} extracted text (${contract.extractedText.length} chars)`);
+      const truncated = truncateForAI(contract.extractedText, 30000); // 30k chars max for speed
+      console.log(`[CONTRACTS] Truncated text: ${truncated.text.length} chars, truncated: ${truncated.truncated}`);
+
+      const parsedFields = await parseContractFields(truncated.text);
+
+      console.log(`[CONTRACTS] Re-parsed fields with ${parsedFields.confidence}% confidence`);
+      console.log(`[CONTRACTS] Parsed fields summary:`, JSON.stringify({
+        contractType: parsedFields.contractType,
+        title: parsedFields.title,
+        partiesCount: parsedFields.parties?.length,
+        termsCount: parsedFields.termsAndConditions?.length,
+        hasFillableFields: !!parsedFields.fillableFields?.length,
+        hasFinancialTerms: !!parsedFields.financialTerms?.fees?.length,
+      }));
+
+      // Update contract with new templateData
+      await storage.updateContract(id, {
+        templateData: parsedFields as any,
+        status: 'pending_review', // Reset to field review state
+        renderedContent: null, // Clear any existing rendered content
+      });
+
+      console.log(`[CONTRACTS] Reparse complete for contract ${id}`);
+
+      res.json({
+        success: true,
+        contractId: id,
+        parsedFields,
+      });
+    } catch (error: any) {
+      console.error('[CONTRACTS] Re-parse error:', error?.message || error);
+      console.error('[CONTRACTS] Re-parse error stack:', error?.stack);
+
+      if (error instanceof OpenAIError) {
+        return res.status(503).json({ error: error.message, code: error.code });
+      }
+
+      // Ensure we always send a JSON response
+      res.status(500).json({
+        error: error?.message || 'Failed to re-parse contract',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      });
     }
   });
 

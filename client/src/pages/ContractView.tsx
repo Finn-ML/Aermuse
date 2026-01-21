@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock, Volume2, VolumeX, Loader2, Edit3, X } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
 import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
@@ -10,7 +10,6 @@ import { AnalyzingState } from '../components/contracts/AnalyzingState';
 import { LegalDisclaimer } from '../components/contracts/LegalDisclaimer';
 import { AnalysisMetadata } from '../components/contracts/AnalysisMetadata';
 import { VersionHistoryModal } from '../components/contracts/VersionHistoryModal';
-import { ContractEditor } from '../components/contracts/ContractEditor';
 import { ConvertedContractForm } from '../components/contracts/ConvertedContractForm';
 import { AddSignatoriesModal, SignatureStatusPanel } from '../components/signatures';
 import { UpgradePrompt } from '../components/UpgradePrompt';
@@ -37,6 +36,7 @@ export default function ContractView() {
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [viewingVersion, setViewingVersion] = useState<ContractVersion | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isEditingContract, setIsEditingContract] = useState(false);
   const { analyze, isAnalyzing, error: analysisError, analysis } = useContractAnalysis();
   const { toast } = useToast();
   const { isPremium, canAccess } = usePremium();
@@ -96,12 +96,23 @@ export default function ContractView() {
 
       const data = await response.json();
 
+      // Debug: Log contract data to see what we're getting
+      console.log('[ContractView] Contract data:', {
+        id: data.contract?.id,
+        status: data.contract?.status,
+        hasTemplateData: !!data.contract?.templateData,
+        templateData: data.contract?.templateData, // Full templateData for debugging
+        hasRenderedContent: !!data.contract?.renderedContent,
+        renderedContentLength: data.contract?.renderedContent?.length || 0,
+      });
+
       if (!isMountedRef.current) return;
 
       setContract(data.contract);
 
-      // Only auto-analyze for premium users
-      if (data.contract.extractedText && !data.contract.aiAnalysis && isPremium) {
+      // Only auto-analyze for premium users - but NOT for contracts pending field review
+      // (pending_review contracts need user to fill in fields first before generating)
+      if (data.contract.extractedText && !data.contract.aiAnalysis && isPremium && data.contract.status !== 'pending_review') {
         analyze(id);
       }
     } catch (err) {
@@ -577,8 +588,8 @@ export default function ContractView() {
           </div>
         )}
 
-        {/* PDF Conversion Redesign: Field Review Form */}
-        {contract.status === 'pending_review' && contract.templateData && !contract.renderedContent && (
+        {/* Contract Preview with Edit Fields option */}
+        {contract.renderedContent && !isEditingContract && (
           <div
             className={`mb-6 transition-all duration-500 ${
               isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -587,37 +598,62 @@ export default function ContractView() {
           >
             <div
               className="rounded-[20px] overflow-hidden"
-              style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+              style={{ background: 'rgba(255, 255, 255, 0.95)' }}
             >
-              <div className="p-4 sm:p-6 border-b border-[rgba(102,0,51,0.08)]">
+              {/* Header with Edit Fields button */}
+              <div className="p-4 sm:p-6 border-b border-[rgba(102,0,51,0.08)] flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                   >
-                    <Sparkles size={20} className="text-[#F7E6CA]" />
+                    <FileText size={20} className="text-[#F7E6CA]" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-[#660033]">Review Extracted Fields</h2>
+                    <h2 className="text-lg font-bold text-[#660033]">Contract Preview</h2>
                     <p className="text-sm text-[rgba(102,0,51,0.5)]">
-                      AI has extracted contract details. Review and edit before generating.
+                      This is how your contract will appear when signed.
                     </p>
                   </div>
                 </div>
+                <button
+                  onClick={() => setIsEditingContract(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all bg-[rgba(102,0,51,0.08)] text-[#660033] hover:bg-[rgba(102,0,51,0.15)]"
+                >
+                  <Edit3 size={18} />
+                  <span className="hidden sm:inline">Edit Fields</span>
+                </button>
               </div>
-              <div className="p-6">
-                <ConvertedContractForm
-                  contractId={id!}
-                  initialData={contract.templateData as any}
-                  onGenerate={fetchContract}
-                />
+
+              {/* PDF-like Preview */}
+              <div className="p-6 sm:p-10">
+                <div
+                  className="max-w-[800px] mx-auto bg-white rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-gray-100"
+                  style={{ minHeight: '600px' }}
+                >
+                  {/* Contract Document */}
+                  <div
+                    className="p-8 sm:p-12 prose prose-sm sm:prose max-w-none
+                      prose-headings:text-[#660033] prose-headings:font-bold
+                      prose-h1:text-2xl prose-h1:mb-6 prose-h1:pb-4 prose-h1:border-b prose-h1:border-[rgba(102,0,51,0.1)]
+                      prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
+                      prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
+                      prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4
+                      prose-li:text-gray-700 prose-li:my-1
+                      prose-strong:text-[#660033]
+                      prose-table:border-collapse prose-table:w-full
+                      prose-th:bg-[rgba(102,0,51,0.05)] prose-th:text-[#660033] prose-th:p-3 prose-th:text-left prose-th:border prose-th:border-[rgba(102,0,51,0.1)]
+                      prose-td:p-3 prose-td:border prose-td:border-[rgba(102,0,51,0.1)]"
+                    dangerouslySetInnerHTML={{ __html: contract.renderedContent }}
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Epic 13: Editable Contract Content */}
-        {contract.renderedContent && (
+        {/* Edit Fields Form - shown when editing or when no rendered content yet */}
+        {(isEditingContract || (contract.status === 'pending_review' && !contract.renderedContent)) && (
           <div
             className={`mb-6 transition-all duration-500 ${
               isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -635,32 +671,40 @@ export default function ContractView() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
                       style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                     >
-                      <FileText size={20} className="text-[#F7E6CA]" />
+                      <Sparkles size={20} className="text-[#F7E6CA]" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-[#660033]">Contract Content</h2>
+                      <h2 className="text-lg font-bold text-[#660033]">
+                        {contract.templateData ? 'Edit Contract Fields' : 'Enter Contract Details'}
+                      </h2>
                       <p className="text-sm text-[rgba(102,0,51,0.5)]">
-                        Edit and review the contract before sending for signatures
+                        {contract.templateData
+                          ? 'Update the fields below and regenerate your contract.'
+                          : 'Enter the contract details to generate your Aermuse contract.'}
                       </p>
                     </div>
                   </div>
+                  {isEditingContract && contract.renderedContent && (
+                    <button
+                      onClick={() => setIsEditingContract(false)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    >
+                      <X size={18} />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </button>
+                  )}
                 </div>
               </div>
-              <ContractEditor
-                contractId={id!}
-                initialContent={contract.renderedContent}
-                onSave={async (content) => {
-                  const response = await fetch(`/api/contracts/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ renderedContent: content }),
-                  });
-                  if (!response.ok) throw new Error('Failed to save');
-                  // Refresh contract
-                  fetchContract();
-                }}
-              />
+              <div className="p-6">
+                <ConvertedContractForm
+                  contractId={id!}
+                  initialData={contract.templateData as any}
+                  onGenerate={() => {
+                    setIsEditingContract(false);
+                    fetchContract();
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

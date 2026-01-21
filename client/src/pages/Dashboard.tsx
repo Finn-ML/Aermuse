@@ -722,10 +722,8 @@ export default function Dashboard() {
   };
 
   const handleViewContractFromProposal = (contractId: string) => {
-    // Navigate to contracts section
-    setActiveNav('contracts');
-    setSelectedProposalId(null);
-    // Ideally we'd select the contract, but for now just navigate to contracts
+    // Navigate to the specific contract page
+    setLocation(`/contracts/${contractId}`);
   };
 
   const handleLogout = async () => {

@@ -23,7 +23,7 @@ const CONFIG = {
   model: 'gpt-4o-mini',
   maxTokens: 4000,
   temperature: 0.3,  // Lower for consistent analysis
-  timeout: 45000,    // 45 second timeout
+  timeout: 90000,    // 90 second timeout (increased for large contracts)
   maxRetries: 3,
   retryBaseDelay: 1000  // 1 second base delay
 };
@@ -335,185 +335,226 @@ export async function generateSpeech(text: string): Promise<Buffer> {
 
 /**
  * Structured data types for parsed contract fields
+ * Flexible structure that adapts to any contract type
  */
 export interface ParsedContractParty {
   name: string;
-  role: 'artist' | 'label' | 'producer' | 'brand' | 'manager' | 'publisher' | 'other';
+  role: string; // Flexible - can be any role
   email?: string;
+  phone?: string;
   address?: string;
+  postcode?: string;
   company?: string;
+  vatNumber?: string;
+  otherFields?: Record<string, string>;
+}
+
+export interface ParsedFillableField {
+  section: string;
+  label: string;
+  type: 'text' | 'date' | 'time' | 'currency' | 'number' | 'yes_no' | 'select' | 'textarea';
+  value?: string | number | boolean | null;
+  options?: string[];
+  required?: boolean;
 }
 
 export interface ParsedContractDates {
   effectiveDate?: string;
   endDate?: string;
-  deliveryDate?: string;
-  milestones?: Array<{ description: string; date: string }>;
-}
-
-export interface ParsedRoyaltySplit {
-  party: string;
-  percentage: number;
-  type?: string;
+  otherDates?: Array<{ label: string; value: string }>;
 }
 
 export interface ParsedFee {
-  description: string;
+  label: string;
   amount: number;
   currency?: string;
 }
 
+export interface ParsedExpense {
+  type: string;
+  covered: boolean;
+  details?: string;
+}
+
+export interface ParsedRoyalty {
+  party: string;
+  percentage: number;
+}
+
 export interface ParsedFinancialTerms {
-  advanceAmount?: number;
-  currency?: string;
-  royaltySplits?: ParsedRoyaltySplit[];
   fees?: ParsedFee[];
-  paymentSchedule?: string;
+  expenses?: ParsedExpense[];
+  paymentTerms?: string;
+  latePaymentTerms?: string;
+  royalties?: ParsedRoyalty[];
 }
 
-export interface ParsedExclusivity {
-  isExclusive: boolean;
-  period?: string;
-  scope?: string;
+export interface ParsedCancellationTier {
+  notice: string;
+  refundPercent: number;
 }
 
-export interface ParsedTermination {
-  noticePeriod?: string;
-  conditions?: string[];
+export interface ParsedCancellationPolicy {
+  description?: string;
+  tiers?: ParsedCancellationTier[];
 }
 
-export interface ParsedAdditionalClause {
+export interface ParsedTermCondition {
+  number: string;
   title: string;
   content: string;
 }
 
 export interface ParsedContractFields {
-  contractType: 'collaboration' | 'licensing' | 'touring' | 'production' | 'business' | 'management' | 'publishing' | 'other';
+  contractType: string; // Flexible - any contract type description
   title: string;
+  isTemplate?: boolean;
   parties: ParsedContractParty[];
-  projectDetails: {
+  fillableFields?: ParsedFillableField[];
+  dates: ParsedContractDates;
+  financialTerms: ParsedFinancialTerms;
+  cancellationPolicy?: ParsedCancellationPolicy;
+  termsAndConditions?: ParsedTermCondition[];
+  additionalSections?: Record<string, any>;
+  confidence: number; // 0-100 indicating how confident the extraction is
+  // Legacy fields for backwards compatibility
+  projectDetails?: {
     title?: string;
     description?: string;
     deliverables?: string[];
   };
-  dates: ParsedContractDates;
-  financialTerms: ParsedFinancialTerms;
   territory?: string;
-  exclusivity?: ParsedExclusivity;
-  termination?: ParsedTermination;
-  additionalClauses?: ParsedAdditionalClause[];
-  confidence: number; // 0-100 indicating how confident the extraction is
+  exclusivity?: {
+    isExclusive: boolean;
+    period?: string;
+    scope?: string;
+  };
+  termination?: {
+    noticePeriod?: string;
+    conditions?: string[];
+  };
+  additionalClauses?: Array<{ title: string; content: string }>;
 }
 
 /**
  * System prompt for extracting structured fields from contract text
  */
 const CONTRACT_FIELD_EXTRACTION_PROMPT = `
-You are parsing a music industry contract to extract ALL information into structured fields.
-Your goal is to extract every detail from the contract text into a clean, structured format.
+You are an expert contract parser. Your job is to extract EVERY field and piece of information from ANY type of contract into a structured format.
 
-Extract the following information:
+CRITICAL RULES:
+1. Extract EVERY field that appears in the contract - don't skip anything
+2. For BLANK TEMPLATES (contracts with empty fields to fill in), identify ALL the fields that need to be completed
+3. Preserve the exact structure and terminology used in the original contract
+4. Don't force contracts into predefined categories - adapt to whatever the contract contains
 
-1. CONTRACT TYPE: Determine the contract type (collaboration, licensing, touring, production, business, management, publishing, or other)
+WHAT TO EXTRACT:
 
-2. PARTIES: Extract all parties mentioned with:
-   - Name (person or company name)
-   - Role (artist, label, producer, brand, manager, publisher, or other)
-   - Email (if mentioned)
-   - Address (if mentioned)
-   - Company (if the party represents a company)
+1. CONTRACT TYPE & TITLE
+   - Identify what type of contract this is (performance, licensing, collaboration, etc.)
+   - Extract the title or generate one from context
 
-3. PROJECT DETAILS:
-   - Title (project/album/song name)
-   - Description (what the contract is about)
-   - Deliverables (list of what must be delivered)
+2. PARTIES - Extract ALL parties with ALL their details:
+   - Names (or placeholders like "The Artist", "The Promoter", "Party A")
+   - Roles/titles
+   - Contact info: email, phone, address, postcode
+   - Business info: company name, VAT number, registration number
+   - Any other identifiers
 
-4. DATES:
-   - Effective date (when contract starts) - use YYYY-MM-DD format
-   - End date (when contract ends) - use YYYY-MM-DD format
-   - Delivery date (when deliverables are due) - use YYYY-MM-DD format
-   - Milestones (key dates with descriptions)
+3. FILLABLE FIELDS - For blank templates, list every field that needs to be filled:
+   - Field label (e.g., "Performance Date", "Fee Amount", "Venue Address")
+   - Field type (text, date, currency, yes/no, etc.)
+   - Which section it belongs to
+   - Any instructions or options provided
 
-5. FINANCIAL TERMS:
-   - Advance amount (upfront payment)
-   - Currency (USD, GBP, EUR, etc.)
-   - Royalty splits (who gets what percentage)
-   - Fees (any other fees with descriptions and amounts)
-   - Payment schedule (when payments are made)
+4. DATES & SCHEDULE - Extract ALL date-related fields:
+   - Contract dates (effective, end, signing)
+   - Event dates (performance, rehearsal, delivery)
+   - Deadline dates (payment due, notice periods)
+   - Include times where specified
 
-6. TERRITORY & RIGHTS:
-   - Territory (geographic scope: worldwide, specific countries, etc.)
+5. FINANCIAL TERMS - Extract ALL money-related fields:
+   - Fees (any type: performance, rehearsal, licensing, advance, etc.)
+   - Payment terms and schedules
+   - Expenses (itemize each: travel, accommodation, meals, equipment, etc.)
+   - Royalties and splits
+   - Currency and VAT/tax handling
+   - Late payment penalties
 
-7. EXCLUSIVITY:
-   - Is it exclusive?
-   - Exclusivity period
-   - Scope of exclusivity
+6. TERMS & CONDITIONS - Extract ALL clauses:
+   - Numbered terms (preserve the numbering)
+   - Cancellation/termination policies (with all tiers and percentages)
+   - Rights and restrictions
+   - Insurance and liability
+   - Any special provisions
 
-8. TERMINATION:
-   - Notice period required
-   - Termination conditions
-
-9. ADDITIONAL CLAUSES:
-   - Any special terms, NDAs, non-competes, or unique provisions
-
-Return your response as valid JSON matching this exact schema:
+Return JSON with this flexible structure:
 {
-  "contractType": "collaboration|licensing|touring|production|business|management|publishing|other",
-  "title": "Contract title (generate from context if not explicit)",
+  "contractType": "best description of contract type",
+  "title": "Contract title",
+  "isTemplate": true/false,
   "parties": [
     {
-      "name": "Party name",
-      "role": "artist|label|producer|brand|manager|publisher|other",
-      "email": "email@example.com or null",
-      "address": "Address or null",
-      "company": "Company name or null"
+      "name": "Name or placeholder",
+      "role": "Role description",
+      "email": "...",
+      "phone": "...",
+      "address": "...",
+      "postcode": "...",
+      "company": "...",
+      "vatNumber": "...",
+      "otherFields": { "any": "other party fields" }
     }
   ],
-  "projectDetails": {
-    "title": "Project title or null",
-    "description": "Brief description of the project",
-    "deliverables": ["List", "of", "deliverables"]
-  },
+  "fillableFields": [
+    {
+      "section": "Section name (e.g., 'Parties', 'Fees', 'Performance')",
+      "label": "Field label as shown in contract",
+      "type": "text|date|time|currency|number|yes_no|select",
+      "value": "Current value if filled, null if blank",
+      "options": ["For select fields, list options"],
+      "required": true/false
+    }
+  ],
   "dates": {
-    "effectiveDate": "YYYY-MM-DD or null",
-    "endDate": "YYYY-MM-DD or null",
-    "deliveryDate": "YYYY-MM-DD or null",
-    "milestones": [{ "description": "...", "date": "YYYY-MM-DD" }]
+    "effectiveDate": "...",
+    "endDate": "...",
+    "otherDates": [{ "label": "Date label", "value": "..." }]
   },
   "financialTerms": {
-    "advanceAmount": 0,
-    "currency": "USD",
-    "royaltySplits": [{ "party": "...", "percentage": 50, "type": "net/gross" }],
-    "fees": [{ "description": "...", "amount": 0, "currency": "USD" }],
-    "paymentSchedule": "Description of payment schedule"
+    "fees": [{ "label": "Fee description", "amount": 0, "currency": "GBP" }],
+    "expenses": [{ "type": "travel|accommodation|subsistence|equipment|other", "covered": true/false, "details": "..." }],
+    "paymentTerms": "...",
+    "latePaymentTerms": "...",
+    "royalties": [{ "party": "...", "percentage": 0 }]
   },
-  "territory": "Worldwide or specific regions",
-  "exclusivity": {
-    "isExclusive": true,
-    "period": "Duration of exclusivity",
-    "scope": "What the exclusivity covers"
+  "cancellationPolicy": {
+    "description": "Full cancellation terms",
+    "tiers": [{ "notice": "...", "refundPercent": 100 }]
   },
-  "termination": {
-    "noticePeriod": "30 days, etc.",
-    "conditions": ["List of termination conditions"]
-  },
-  "additionalClauses": [
+  "termsAndConditions": [
     {
-      "title": "Clause title",
-      "content": "Summary of the clause"
+      "number": "1",
+      "title": "Short title for the term",
+      "content": "Full text of the term/condition"
     }
   ],
-  "confidence": 85
+  "additionalSections": {
+    "sectionName": { "any": "additional structured data" }
+  },
+  "confidence": 0-100
 }
 
-Important notes:
-- Extract actual values from the text, don't make up information
-- Use null for fields that aren't mentioned in the contract
-- Set confidence (0-100) based on how complete the extraction is
-- For dates, always use YYYY-MM-DD format
-- For monetary values, extract just the number (no currency symbols)
-- If a party role isn't clear, use "other"
-- Generate a reasonable title from parties/project if not explicitly stated
+IMPORTANT - READ CAREFULLY:
+- ALWAYS extract the contract title from the document header/title
+- ALWAYS extract ALL terms and conditions VERBATIM - these contain critical legal content that must be preserved
+- ALWAYS extract party role names (e.g., "The Promoter", "The Artist") even if contact details are blank
+- For BLANK TEMPLATES: Also populate "fillableFields" to list every field that needs to be completed
+- For FILLED CONTRACTS: Extract actual values into the appropriate fields
+- Preserve original terminology exactly (e.g., if contract says "The Promoter", use that exact term)
+- Extract cancellation policies with ALL tiers and percentages
+- Extract financial terms even if amounts are blank (e.g., "Performance Fee: £_____" → fee with label "Performance Fee", amount 0)
+- Set confidence: 30-50 for blank templates, 70-95 for filled contracts based on extraction completeness
 `;
 
 /**
@@ -600,118 +641,204 @@ export async function parseContractFields(contractText: string): Promise<ParsedC
 
 /**
  * Normalize and validate extracted contract fields
+ * Supports flexible structure for any contract type
  */
 function normalizeContractFields(fields: any): ParsedContractFields {
-  // Ensure required fields have defaults
   const normalized: ParsedContractFields = {
-    contractType: validateContractType(fields.contractType) || 'other',
+    // Core fields - flexible type, not restricted to predefined list
+    contractType: fields.contractType || 'Contract',
     title: fields.title || 'Untitled Contract',
+    isTemplate: Boolean(fields.isTemplate),
+
+    // Parties with flexible roles
     parties: normalizeParties(fields.parties),
-    projectDetails: {
-      title: fields.projectDetails?.title || null,
-      description: fields.projectDetails?.description || null,
-      deliverables: Array.isArray(fields.projectDetails?.deliverables)
+
+    // Fillable fields for templates
+    fillableFields: normalizeFillableFields(fields.fillableFields),
+
+    // Dates
+    dates: normalizeDates(fields.dates),
+
+    // Financial terms
+    financialTerms: normalizeFinancialTerms(fields.financialTerms),
+
+    // Cancellation policy
+    cancellationPolicy: normalizeCancellationPolicy(fields.cancellationPolicy),
+
+    // Terms and conditions
+    termsAndConditions: normalizeTermsAndConditions(fields.termsAndConditions),
+
+    // Additional sections (any extra structured data)
+    additionalSections: fields.additionalSections || undefined,
+
+    // Confidence score
+    confidence: typeof fields.confidence === 'number'
+      ? Math.min(100, Math.max(0, fields.confidence))
+      : 50,
+
+    // Legacy fields for backwards compatibility
+    projectDetails: fields.projectDetails ? {
+      title: fields.projectDetails.title || undefined,
+      description: fields.projectDetails.description || undefined,
+      deliverables: Array.isArray(fields.projectDetails.deliverables)
         ? fields.projectDetails.deliverables
         : [],
-    },
-    dates: normalizeDates(fields.dates),
-    financialTerms: normalizeFinancialTerms(fields.financialTerms),
-    territory: fields.territory || null,
+    } : undefined,
+    territory: fields.territory || undefined,
     exclusivity: fields.exclusivity ? {
       isExclusive: Boolean(fields.exclusivity.isExclusive),
-      period: fields.exclusivity.period || null,
-      scope: fields.exclusivity.scope || null,
+      period: fields.exclusivity.period || undefined,
+      scope: fields.exclusivity.scope || undefined,
     } : undefined,
     termination: fields.termination ? {
-      noticePeriod: fields.termination.noticePeriod || null,
+      noticePeriod: fields.termination.noticePeriod || undefined,
       conditions: Array.isArray(fields.termination.conditions)
         ? fields.termination.conditions
         : [],
     } : undefined,
     additionalClauses: normalizeAdditionalClauses(fields.additionalClauses),
-    confidence: typeof fields.confidence === 'number'
-      ? Math.min(100, Math.max(0, fields.confidence))
-      : 50,
   };
 
   return normalized;
 }
 
-function validateContractType(type: string): ParsedContractFields['contractType'] | null {
-  const validTypes = ['collaboration', 'licensing', 'touring', 'production', 'business', 'management', 'publishing', 'other'];
-  return validTypes.includes(type) ? type as ParsedContractFields['contractType'] : null;
-}
-
+/**
+ * Normalize parties - flexible roles, not restricted to predefined list
+ */
 function normalizeParties(parties: any[]): ParsedContractParty[] {
   if (!Array.isArray(parties)) return [];
 
   return parties.map(p => ({
     name: p.name || 'Unknown Party',
-    role: validatePartyRole(p.role) || 'other',
+    role: p.role || 'Party', // Keep original role, no restriction
     email: p.email || undefined,
+    phone: p.phone || undefined,
     address: p.address || undefined,
+    postcode: p.postcode || undefined,
     company: p.company || undefined,
+    vatNumber: p.vatNumber || undefined,
+    otherFields: p.otherFields || undefined,
   })).filter(p => p.name !== 'Unknown Party' || p.email || p.company);
 }
 
-function validatePartyRole(role: string): ParsedContractParty['role'] | null {
-  const validRoles = ['artist', 'label', 'producer', 'brand', 'manager', 'publisher', 'other'];
-  return validRoles.includes(role) ? role as ParsedContractParty['role'] : null;
+/**
+ * Normalize fillable fields for template contracts
+ */
+function normalizeFillableFields(fields: any[]): ParsedFillableField[] | undefined {
+  if (!Array.isArray(fields) || fields.length === 0) return undefined;
+
+  const validTypes = ['text', 'date', 'time', 'currency', 'number', 'yes_no', 'select', 'textarea'];
+
+  return fields.map(f => ({
+    section: f.section || 'General',
+    label: f.label || 'Field',
+    type: validTypes.includes(f.type) ? f.type : 'text',
+    value: f.value !== undefined ? f.value : null,
+    options: Array.isArray(f.options) ? f.options : undefined,
+    required: Boolean(f.required),
+  }));
 }
 
+/**
+ * Normalize dates with flexible structure
+ */
 function normalizeDates(dates: any): ParsedContractDates {
   if (!dates) return {};
 
   return {
     effectiveDate: normalizeDate(dates.effectiveDate),
     endDate: normalizeDate(dates.endDate),
-    deliveryDate: normalizeDate(dates.deliveryDate),
-    milestones: Array.isArray(dates.milestones)
-      ? dates.milestones.map((m: any) => ({
-          description: m.description || '',
-          date: normalizeDate(m.date) || '',
-        })).filter((m: any) => m.description && m.date)
+    otherDates: Array.isArray(dates.otherDates)
+      ? dates.otherDates.map((d: any) => ({
+          label: d.label || 'Date',
+          value: d.value || '',
+        })).filter((d: any) => d.label && d.value)
       : undefined,
   };
 }
 
 function normalizeDate(date: any): string | undefined {
   if (!date) return undefined;
+  // If it's already a string and looks like a date placeholder or empty, return as-is
+  if (typeof date === 'string' && (date.includes('__') || date.trim() === '')) {
+    return undefined;
+  }
   // Try to parse and reformat to YYYY-MM-DD
   try {
     const parsed = new Date(date);
-    if (isNaN(parsed.getTime())) return undefined;
+    if (isNaN(parsed.getTime())) return date; // Return original if can't parse
     return parsed.toISOString().split('T')[0];
   } catch {
-    return undefined;
+    return date; // Return original on error
   }
 }
 
+/**
+ * Normalize financial terms with flexible structure
+ */
 function normalizeFinancialTerms(terms: any): ParsedFinancialTerms {
   if (!terms) return {};
 
   return {
-    advanceAmount: typeof terms.advanceAmount === 'number' ? terms.advanceAmount : undefined,
-    currency: terms.currency || 'USD',
-    royaltySplits: Array.isArray(terms.royaltySplits)
-      ? terms.royaltySplits.map((s: any) => ({
-          party: s.party || 'Unknown',
-          percentage: typeof s.percentage === 'number' ? s.percentage : 0,
-          type: s.type || undefined,
-        }))
-      : undefined,
     fees: Array.isArray(terms.fees)
       ? terms.fees.map((f: any) => ({
-          description: f.description || 'Fee',
+          label: f.label || f.description || 'Fee',
           amount: typeof f.amount === 'number' ? f.amount : 0,
-          currency: f.currency || terms.currency || 'USD',
+          currency: f.currency || 'GBP',
         }))
       : undefined,
-    paymentSchedule: terms.paymentSchedule || undefined,
+    expenses: Array.isArray(terms.expenses)
+      ? terms.expenses.map((e: any) => ({
+          type: e.type || 'other',
+          covered: Boolean(e.covered),
+          details: e.details || undefined,
+        }))
+      : undefined,
+    paymentTerms: terms.paymentTerms || terms.paymentSchedule || undefined,
+    latePaymentTerms: terms.latePaymentTerms || undefined,
+    royalties: Array.isArray(terms.royalties || terms.royaltySplits)
+      ? (terms.royalties || terms.royaltySplits).map((r: any) => ({
+          party: r.party || 'Unknown',
+          percentage: typeof r.percentage === 'number' ? r.percentage : 0,
+        }))
+      : undefined,
   };
 }
 
-function normalizeAdditionalClauses(clauses: any[]): ParsedAdditionalClause[] | undefined {
+/**
+ * Normalize cancellation policy
+ */
+function normalizeCancellationPolicy(policy: any): ParsedCancellationPolicy | undefined {
+  if (!policy) return undefined;
+
+  return {
+    description: policy.description || undefined,
+    tiers: Array.isArray(policy.tiers)
+      ? policy.tiers.map((t: any) => ({
+          notice: t.notice || '',
+          refundPercent: typeof t.refundPercent === 'number' ? t.refundPercent : 0,
+        }))
+      : undefined,
+  };
+}
+
+/**
+ * Normalize terms and conditions
+ */
+function normalizeTermsAndConditions(terms: any[]): ParsedTermCondition[] | undefined {
+  if (!Array.isArray(terms) || terms.length === 0) return undefined;
+
+  return terms.map((t, index) => ({
+    number: t.number || String(index + 1),
+    title: t.title || 'Term',
+    content: t.content || '',
+  })).filter(t => t.content);
+}
+
+/**
+ * Normalize additional clauses (legacy support)
+ */
+function normalizeAdditionalClauses(clauses: any[]): Array<{ title: string; content: string }> | undefined {
   if (!Array.isArray(clauses)) return undefined;
 
   const normalized = clauses

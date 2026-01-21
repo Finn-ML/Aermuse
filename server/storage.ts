@@ -9,7 +9,7 @@ import {
   type Track, type InsertTrack,
   type TrackPurchase, type InsertTrackPurchase,
   type TrackSplit, type InsertTrackSplit, type TrackSplitStatus,
-  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
@@ -286,6 +286,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteContract(id: string): Promise<boolean> {
+    // First, clear the contractId reference in any proposals that reference this contract
+    await db.update(proposals)
+      .set({ contractId: null })
+      .where(eq(proposals.contractId, id));
+
+    // Now delete the contract
     const result = await db.delete(contracts).where(eq(contracts.id, id)).returning();
     return result.length > 0;
   }

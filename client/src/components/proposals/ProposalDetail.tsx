@@ -250,9 +250,10 @@ export function ProposalDetail({ proposal, onStatusChange, onDelete, onBack, onC
                         headers: { 'Content-Type': 'application/json' },
                       });
                       const data = await response.json();
-                      if (response.ok && data.contractId) {
+                      // If we have a contractId (either newly created or already exists), navigate to it
+                      if (data.contractId) {
                         onViewContract(data.contractId);
-                      } else {
+                      } else if (!response.ok) {
                         setConvertError(data.error || 'Failed to convert contract');
                       }
                     } catch {
