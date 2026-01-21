@@ -894,6 +894,32 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
                     className="px-3 py-2 rounded-lg border border-[rgba(102,0,51,0.15)] focus:outline-none focus:ring-2 focus:ring-[#660033] bg-white text-[#660033] text-sm"
                   />
                 </div>
+                {/* Render any additional fields from otherFields */}
+                {party.otherFields && Object.keys(party.otherFields).length > 0 && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {Object.entries(party.otherFields).map(([fieldKey, fieldValue]) => (
+                      <div key={fieldKey}>
+                        <label className="block text-xs text-[rgba(102,0,51,0.6)] mb-1">{fieldKey}</label>
+                        <input
+                          type="text"
+                          value={fieldValue || ''}
+                          onChange={(e) => {
+                            setFields(prev => ({
+                              ...prev,
+                              parties: prev.parties.map((p, i) =>
+                                i === index
+                                  ? { ...p, otherFields: { ...p.otherFields, [fieldKey]: e.target.value } }
+                                  : p
+                              ),
+                            }));
+                          }}
+                          placeholder={`Enter ${fieldKey.toLowerCase()}`}
+                          className="w-full px-3 py-2 rounded-lg border border-[rgba(102,0,51,0.15)] focus:outline-none focus:ring-2 focus:ring-[#660033] bg-white text-[#660033] text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {fields.parties.length < 10 && (
