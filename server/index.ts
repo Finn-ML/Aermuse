@@ -18,8 +18,9 @@ declare module "http" {
   }
 }
 
-// Trust proxy - required for secure cookies behind reverse proxies (Replit, Heroku, etc.)
-if (process.env.NODE_ENV === "production") {
+// Trust proxy - required for secure cookies and rate limiting behind reverse proxies (Replit, Heroku, etc.)
+// Always enable on Replit (REPL_ID env var) or in production
+if (process.env.NODE_ENV === "production" || process.env.REPL_ID) {
   app.set("trust proxy", 1);
 }
 
