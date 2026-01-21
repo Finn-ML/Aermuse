@@ -242,10 +242,27 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
     additionalClauses: initialData?.additionalClauses || [],
   }));
 
-  // Group fillable fields by section
+  // Group fillable fields by section, excluding party-related fields (handled in Parties section)
   const fillableFieldsBySection = useMemo(() => {
     const grouped: Record<string, ParsedFillableField[]> = {};
+
+    // Keywords that indicate party-related fields (case-insensitive)
+    const partyKeywords = ['party', 'parties', 'artist', 'promoter', 'client', 'vendor', 'contractor', 'company', 'signatory', 'signatories'];
+
+    const isPartyField = (field: ParsedFillableField): boolean => {
+      const sectionLower = (field.section || '').toLowerCase();
+      const labelLower = (field.label || '').toLowerCase();
+
+      // Check if section or label contains party-related keywords
+      return partyKeywords.some(keyword =>
+        sectionLower.includes(keyword) || labelLower.includes(keyword)
+      );
+    };
+
     (fields.fillableFields || []).forEach(field => {
+      // Skip party-related fields - they're handled in the Parties section
+      if (isPartyField(field)) return;
+
       const section = field.section || 'General';
       if (!grouped[section]) grouped[section] = [];
       grouped[section].push(field);
@@ -675,8 +692,11 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
     </button>
   );
 
-  // Check if this is a template with fillable fields
-  const hasFillableFields = (fields.fillableFields?.length || 0) > 0;
+  // Check if there are non-party fillable fields to display
+  const nonPartyFillableFieldsCount = Object.values(fillableFieldsBySection).reduce(
+    (sum, sectionFields) => sum + sectionFields.length, 0
+  );
+  const hasFillableFields = nonPartyFillableFieldsCount > 0;
 
   return (
     <div className="space-y-6">
@@ -897,7 +917,7 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
             title="Fields to Complete"
             icon={Edit3}
             section="fillableFields"
-            count={fields.fillableFields?.length || 0}
+            count={nonPartyFillableFieldsCount}
           />
           {expandedSections.fillableFields && (
             <div className="p-6 space-y-6">
