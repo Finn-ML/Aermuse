@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { db } from "../db";
 import { pageViews, linkClicks, landingPages, landingPageLinks, tracks, trackPurchases } from "@shared/schema";
-import { eq, and, sql, count, countDistinct, avg, sum, desc, gte } from "drizzle-orm";
+import { eq, and, sql, count, countDistinct, avg, sum, desc, gte, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -297,7 +297,7 @@ export function registerAnalyticsRoutes(app: Express): void {
         .from(trackPurchases)
         .where(
           and(
-            sql`${trackPurchases.trackId} = ANY(${trackIds})`,
+            inArray(trackPurchases.trackId, trackIds),
             eq(trackPurchases.status, 'completed')
           )
         );

@@ -1117,12 +1117,7 @@ export default function Dashboard() {
               </div>
 
               {/* Music Sales Metrics Section */}
-              <div
-                className="rounded-[20px] p-5 sm:p-7 mb-6 sm:mb-8"
-                style={{ background: 'rgba(255, 255, 255, 0.6)' }}
-              >
-                <MusicSalesMetrics />
-              </div>
+              <MusicSalesMetrics />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <div

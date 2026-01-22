@@ -99,7 +99,7 @@ export function MusicSalesMetrics({ className }: MusicSalesMetricsProps) {
   ];
 
   return (
-    <div className={className}>
+    <div className={`rounded-[20px] p-5 sm:p-7 mb-6 sm:mb-8 ${className || ''}`} style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
       {/* Section Header */}
       <div className="flex items-center gap-2 mb-4 sm:mb-6">
         <Music className="w-5 h-5 text-[#660033]" />
