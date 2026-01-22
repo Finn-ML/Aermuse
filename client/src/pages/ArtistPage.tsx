@@ -163,8 +163,8 @@ function getBackgroundStyle(
           }
         : { backgroundColor: fallbackColor };
     case 'video':
-      // Video background uses a separate element, return fallback color
-      return { backgroundColor: fallbackColor };
+      // Video background uses a separate element, return transparent background
+      return { backgroundColor: 'transparent' };
     case 'solid':
     default:
       return { backgroundColor: backgroundValue || fallbackColor };
