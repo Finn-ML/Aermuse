@@ -66,11 +66,13 @@ describe('Subscription Tier Constants', () => {
       });
     });
 
-    it('should restrict e-signing and templates to paid tiers', () => {
-      expect(TIER_FEATURES['e-signing']).not.toContain('free');
+    it('should allow e-signing for all tiers', () => {
+      expect(TIER_FEATURES['e-signing']).toContain('free');
       expect(TIER_FEATURES['e-signing']).toContain('beta');
       expect(TIER_FEATURES['e-signing']).toContain('alpha');
+    });
 
+    it('should restrict templates to paid tiers', () => {
       expect(TIER_FEATURES['templates']).not.toContain('free');
       expect(TIER_FEATURES['templates']).toContain('beta');
       expect(TIER_FEATURES['templates']).toContain('alpha');

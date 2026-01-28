@@ -35,7 +35,7 @@ export const TIER_FEATURES: Record<Feature, SubscriptionTier[]> = {
   'ai-red-flags': ['alpha'],
   'ai-key-terms': ['alpha'],
   'ai-missing-clauses': ['alpha'],
-  'e-signing': ['beta', 'alpha'],
+  'e-signing': ['free', 'beta', 'alpha'],
   'templates': ['beta', 'alpha'],
 } as const;
 

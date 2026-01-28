@@ -4962,8 +4962,8 @@ Sent at: ${new Date().toISOString()}
     signatoryId: z.string().min(1, 'Signatory ID is required'),
   });
 
-  // POST /api/signatures/request - Create signature request (Premium only)
-  app.post("/api/signatures/request", requireAuth, requirePremium, async (req: Request, res: Response) => {
+  // POST /api/signatures/request - Create signature request (all authenticated users)
+  app.post("/api/signatures/request", requireAuth, async (req: Request, res: Response) => {
     try {
       const input = createSignatureRequestSchema.parse(req.body);
       const userId = (req.session as any).userId;

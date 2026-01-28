@@ -80,7 +80,7 @@ export const SUBSCRIPTION_PRICE = {
 export const FREE_TIER_LIMITS = {
   maxContracts: 10,      // Free users can store up to 10 contracts
   aiAnalysis: false,     // Premium only
-  eSigning: false,       // Premium only
+  eSigning: true,        // Available to all users
   templates: true,       // All templates available to free users
   pdfExport: true,       // Available to all
 } as const;

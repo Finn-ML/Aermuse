@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Lock, Volume2, VolumeX, Loader2, Edit3, X } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Volume2, VolumeX, Loader2, Edit3, X } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
 import { KeyTermsCard } from '../components/contracts/KeyTermsCard';
 import { RedFlagsCard } from '../components/contracts/RedFlagsCard';
@@ -466,7 +466,7 @@ export default function ContractView() {
                     </>
                   )}
                 </button>
-              ) : isPremium ? (
+              ) : (
                 <button
                   onClick={() => setShowSignatureModal(true)}
                   className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[#F7E6CA] transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm hover:scale-105"
@@ -475,16 +475,6 @@ export default function ContractView() {
                   <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Request Signatures</span>
                   <span className="sm:hidden">Sign</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setLocation('/pricing')}
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-amber-700 bg-amber-100 transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm hover:bg-amber-200"
-                  title="Upgrade to Premium for e-signing"
-                >
-                  <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">E-Sign (Premium)</span>
-                  <span className="sm:hidden">Premium</span>
                 </button>
               )}
               <button

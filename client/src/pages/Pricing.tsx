@@ -37,7 +37,7 @@ const PRICING_TIERS: PricingTier[] = [
     features: [
       { text: 'Up to 10 contracts', included: true },
       { text: 'Contract templates', included: false },
-      { text: 'E-signing', included: false },
+      { text: 'E-signing', included: true },
       { text: 'AI Summary & Risk Score', included: false },
       { text: 'AI Red Flags Analysis', included: false },
       { text: 'AI Key Terms & Missing Clauses', included: false },
