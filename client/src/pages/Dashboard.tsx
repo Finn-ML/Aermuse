@@ -96,7 +96,7 @@ function DraggableContractCard({ id, children }: { id: string; children: React.R
 export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
-  const [editorTab, setEditorTab] = useState<'design' | 'links' | 'music' | 'social' | 'settings'>('design');
+  const [editorTab, setEditorTab] = useState<'design' | 'links' | 'music' | 'video' | 'social' | 'settings'>('design');
   const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -160,9 +160,19 @@ export default function Dashboard() {
     }
   }, [user, authLoading, setLocation]);
 
-  // Handle Stripe Connect callback
+  // Handle URL query params (tab selection, Stripe Connect callback)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // Handle tab query param for deep linking (e.g., /dashboard?tab=contracts)
+    const tabParam = params.get('tab');
+    if (tabParam && ['dashboard', 'contracts', 'templates', 'proposals', 'landing', 'settings'].includes(tabParam)) {
+      setActiveNav(tabParam as NavId);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // Handle Stripe Connect callback
     const stripeConnect = params.get('stripe_connect');
     if (stripeConnect === 'complete') {
       // User completed onboarding, refetch status and show settings
@@ -306,6 +316,35 @@ export default function Dashboard() {
     enabled: !!user && activeNav === 'landing',
   });
   const tracks = tracksData || [];
+
+  // Fetch videos for video tab
+  interface Video {
+    id: string;
+    title: string;
+    description?: string | null;
+    thumbnailPath?: string | null;
+    durationSeconds?: number | null;
+    fileFormat: string;
+    fileSizeBytes: number;
+    isPaywalled: boolean;
+    priceInCents?: number | null;
+    currency?: string | null;
+    pricingType?: 'fixed' | 'pwyw' | null;
+    minimumPriceInCents?: number | null;
+    isPublished: boolean;
+    viewCount?: number;
+    purchaseCount?: number;
+  }
+  const { data: videosData, isLoading: videosLoading } = useQuery<Video[]>({
+    queryKey: ['/api/landing-page/videos'],
+    queryFn: async () => {
+      const res = await fetch('/api/landing-page/videos', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch videos');
+      return res.json();
+    },
+    enabled: !!user && activeNav === 'landing',
+  });
+  const videos = videosData || [];
 
   // Fetch track splits when modal is open
   interface TrackSplit {
@@ -646,6 +685,121 @@ export default function Dashboard() {
 
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
     toast({ title: 'Cover art updated' });
+  };
+
+  // Video mutations for video tab
+  const uploadVideo = async (options: {
+    file: File;
+    title: string;
+    description?: string;
+    thumbnailFile?: File;
+    isPaywalled: boolean;
+    priceInCents?: number;
+    pricingType?: 'fixed' | 'pwyw';
+    minimumPriceInCents?: number;
+  }): Promise<Video> => {
+    const {
+      file,
+      title,
+      description,
+      thumbnailFile,
+      isPaywalled,
+      priceInCents,
+      pricingType = 'fixed',
+      minimumPriceInCents,
+    } = options;
+
+    const formData = new FormData();
+    formData.append('video', file);
+    formData.append('title', title);
+    if (description) formData.append('description', description);
+    formData.append('isPaywalled', String(isPaywalled));
+    if (isPaywalled) {
+      formData.append('pricingType', pricingType);
+      if (pricingType === 'fixed' && priceInCents !== undefined) {
+        formData.append('priceInCents', priceInCents.toString());
+      }
+      if (pricingType === 'pwyw' && minimumPriceInCents !== undefined) {
+        formData.append('minimumPriceInCents', minimumPriceInCents.toString());
+      }
+    }
+
+    const res = await fetch('/api/landing-page/videos', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const errorMessage = await parseErrorResponse(res, 'Failed to upload video');
+      throw new Error(errorMessage);
+    }
+
+    const video = await res.json();
+
+    // Upload thumbnail if provided
+    if (thumbnailFile && video.id) {
+      try {
+        const thumbFormData = new FormData();
+        thumbFormData.append('image', thumbnailFile);
+        await fetch(`/api/videos/${video.id}/thumbnail`, {
+          method: 'POST',
+          body: thumbFormData,
+          credentials: 'include',
+        });
+      } catch (err) {
+        console.warn('Failed to upload thumbnail:', err);
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/videos'] });
+    toast({ title: 'Video uploaded successfully' });
+
+    return video;
+  };
+
+  const updateVideo = async (id: string, updates: {
+    title?: string;
+    description?: string;
+    isPaywalled?: boolean;
+    priceInCents?: number;
+    isPublished?: boolean;
+  }) => {
+    const res = await apiRequest('PATCH', `/api/videos/${id}`, updates);
+    if (!res.ok) {
+      const errorMessage = await parseErrorResponse(res, 'Failed to update video');
+      throw new Error(errorMessage);
+    }
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/videos'] });
+  };
+
+  const deleteVideo = async (id: string) => {
+    const res = await apiRequest('DELETE', `/api/videos/${id}`, {});
+    if (!res.ok) {
+      const errorMessage = await parseErrorResponse(res, 'Failed to delete video');
+      throw new Error(errorMessage);
+    }
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/videos'] });
+    toast({ title: 'Video deleted' });
+  };
+
+  const uploadVideoThumbnail = async (videoId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const res = await fetch(`/api/videos/${videoId}/thumbnail`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const errorMessage = await parseErrorResponse(res, 'Failed to upload thumbnail');
+      throw new Error(errorMessage);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/videos'] });
+    toast({ title: 'Thumbnail updated' });
   };
 
   // Proposal mutations (Story 7.5)
@@ -1781,6 +1935,12 @@ export default function Dashboard() {
                     onDeleteTrack={deleteTrack}
                     onUploadTrackCover={uploadTrackCover}
                     onOpenSplits={(track) => setSplitsModalTrack(track)}
+                    videos={videos}
+                    isLoadingVideos={videosLoading}
+                    onUploadVideo={uploadVideo}
+                    onUpdateVideo={updateVideo}
+                    onDeleteVideo={deleteVideo}
+                    onUploadVideoThumbnail={uploadVideoThumbnail}
                     activeTab={editorTab}
                     onTabChange={setEditorTab}
                   />
