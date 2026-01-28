@@ -4,7 +4,9 @@ export interface AudioPlayerState {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  buffered: number;
   isLoading: boolean;
+  isSeeking: boolean;
   error: string | null;
 }
 
@@ -14,16 +16,20 @@ export interface UseAudioPlayerReturn extends AudioPlayerState {
   toggle: () => Promise<void>;
   seek: (time: number) => void;
   setSource: (url: string) => void;
+  setIsSeeking: (seeking: boolean) => void;
   audioRef: React.RefObject<HTMLAudioElement>;
 }
 
 export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isSeekingRef = useRef(false);
   const [state, setState] = useState<AudioPlayerState>({
     isPlaying: false,
     currentTime: 0,
     duration: 0,
+    buffered: 0,
     isLoading: false,
+    isSeeking: false,
     error: null,
   });
 
@@ -46,7 +52,17 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
     };
 
     const handleTimeUpdate = () => {
+      // Skip time updates during seeking to prevent jitter
+      if (isSeekingRef.current) return;
       setState(s => ({ ...s, currentTime: audio.currentTime }));
+    };
+
+    const handleProgress = () => {
+      if (audio.buffered.length > 0) {
+        const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+        const bufferedPercent = (bufferedEnd / audio.duration) * 100;
+        setState(s => ({ ...s, buffered: isFinite(bufferedPercent) ? bufferedPercent : 0 }));
+      }
     };
 
     const handleEnded = () => {
@@ -71,6 +87,7 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('progress', handleProgress);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
@@ -87,6 +104,7 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('progress', handleProgress);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', handleCanPlay);
@@ -144,6 +162,11 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
     }
   }, []);
 
+  const setIsSeeking = useCallback((seeking: boolean) => {
+    isSeekingRef.current = seeking;
+    setState(s => ({ ...s, isSeeking: seeking }));
+  }, []);
+
   return {
     ...state,
     play,
@@ -151,6 +174,7 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
     toggle,
     seek,
     setSource,
+    setIsSeeking,
     audioRef: audioRef as React.RefObject<HTMLAudioElement>,
   };
 }
