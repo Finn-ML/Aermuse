@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, Music } from 'lucide-react';
-import { useAudioPlayer, formatTime, formatPrice } from '@/hooks/useAudioPlayer';
+import { useAudioPlayer, formatPrice } from '@/hooks/useAudioPlayer';
+import { AudioProgressBar } from '@/components/music/AudioProgressBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -53,9 +54,11 @@ export function SpinningDiscPlayer({
     isPlaying,
     currentTime,
     duration,
+    buffered,
     isLoading,
     toggle,
     seek,
+    setIsSeeking,
   } = useAudioPlayer(audioUrl);
 
   const [isHovering, setIsHovering] = useState(false);
@@ -65,16 +68,6 @@ export function SpinningDiscPlayer({
   const minPrice = track.minimumPriceInCents || 0;
   const suggestedPrice = track.suggestedPriceInCents || track.priceInCents || 0;
   const [customAmount, setCustomAmount] = useState<number>(suggestedPrice);
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const newTime = percentage * duration;
-    seek(newTime);
-  };
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className={cn('flex flex-col items-center gap-4 p-4', className)}>
@@ -205,28 +198,17 @@ export function SpinningDiscPlayer({
 
       {/* Progress bar */}
       {audioUrl && (
-        <div className="w-full max-w-[200px]">
-          <div
-            className="h-1 rounded-full cursor-pointer overflow-hidden"
-            style={{ backgroundColor: `${primaryColor}20` }}
-            onClick={handleProgressClick}
-          >
-            <motion.div
-              className="h-full rounded-full"
-              style={{ backgroundColor: primaryColor }}
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.1 }}
-            />
-          </div>
-          <div
-            className="flex justify-between text-xs mt-1 opacity-70"
-            style={{ color: primaryColor }}
-          >
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration || track.durationSeconds || 0)}</span>
-          </div>
-        </div>
+        <AudioProgressBar
+          currentTime={currentTime}
+          duration={duration || track.durationSeconds || 0}
+          buffered={buffered}
+          onSeek={seek}
+          onSeekStart={() => setIsSeeking(true)}
+          onSeekEnd={() => setIsSeeking(false)}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          className="w-full max-w-[200px]"
+        />
       )}
 
       {/* Purchase section */}
