@@ -370,26 +370,6 @@ export function PlaylistSection({
               )}
             </AnimatePresence>
 
-            {/* Empty state when no track selected - Desktop only */}
-            {!selectedTrack && (
-              <div className="hidden lg:flex lg:w-80 xl:w-96 items-center justify-center">
-                <div
-                  className="text-center p-8 rounded-2xl border-2 border-dashed opacity-50"
-                  style={{ borderColor: textColor }}
-                >
-                  <Music
-                    className="w-12 h-12 mx-auto mb-3 opacity-50"
-                    style={{ color: textColor }}
-                  />
-                  <p
-                    className="text-sm"
-                    style={{ color: textColor }}
-                  >
-                    Select a track to preview
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
