@@ -9,6 +9,7 @@ import { parseVideoUrl } from '@/lib/video-parser';
 import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
 import { PlaylistSection } from '@/components/music/PlaylistSection';
 import { PurchaseSuccessModal } from '@/components/music/PurchaseSuccessModal';
+import { VideoSection } from '@/components/video/VideoSection';
 import type { LandingPage, LandingPageLink, Track } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
@@ -882,6 +883,19 @@ export default function ArtistPage() {
             })()}
           </div>
         </section>
+      )}
+
+      {/* Video Section - Horizontally Scrollable */}
+      {slug && (
+        <div className="relative">
+          <VideoSection
+            artistSlug={slug}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            textColor={textColor}
+            className="py-8 px-4"
+          />
+        </div>
       )}
 
       {/* Music Section - Playlist Style */}
