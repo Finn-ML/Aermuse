@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
@@ -3103,7 +3103,7 @@ ${urls}
   // Clean up stale uploads (older than 1 hour)
   setInterval(() => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    for (const [uploadId, upload] of chunkedUploads.entries()) {
+    for (const [uploadId, upload] of Array.from(chunkedUploads.entries())) {
       if (upload.createdAt < oneHourAgo) {
         chunkedUploads.delete(uploadId);
         console.log(`[CHUNKED UPLOAD] Cleaned up stale upload: ${uploadId}`);
