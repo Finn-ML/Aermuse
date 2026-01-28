@@ -3593,7 +3593,6 @@ ${urls}
 
   // Stream video preview (public - 10 second preview for paywalled content)
   app.get("/api/videos/:id/preview", async (req: Request, res: Response) => {
-    let tmpFile: string | null = null;
     try {
       const video = await storage.getArtistVideo(req.params.id);
       if (!video) {
@@ -3614,11 +3613,9 @@ ${urls}
         return res.status(404).json({ error: "Video file not available" });
       }
 
-      console.log(`[VIDEO PREVIEW] Downloading video ${video.id} to temp file from: ${filePath}`);
-
+      let buffer: Buffer;
       try {
-        tmpFile = await downloadArtistVideoToFile(filePath);
-        console.log(`[VIDEO PREVIEW] Downloaded to temp file: ${tmpFile}`);
+        buffer = await downloadArtistVideoFile(filePath);
       } catch (downloadError: any) {
         console.error(`[VIDEO PREVIEW] Failed to download: ${filePath}`, downloadError?.message || downloadError);
         return res.status(404).json({ error: "Video file not found in storage" });
@@ -3627,63 +3624,39 @@ ${urls}
       // Increment view count (non-blocking)
       storage.incrementVideoViewCount(video.id).catch(() => {});
 
-      const fs = await import('fs');
-      const stat = fs.default.statSync(tmpFile);
-      const total = stat.size;
       const contentType = getVideoContentType(video.fileFormat);
+      const total = buffer.length;
 
-      // Handle range requests for proper video streaming
+      // Always respond with 206 Partial Content capped at 4MB to stay under
+      // Replit's reverse proxy response size limit
+      const MAX_CHUNK = 4 * 1024 * 1024;
       const range = req.headers.range;
-      if (range) {
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
-        const chunkSize = end - start + 1;
+      const start = range
+        ? parseInt(range.replace(/bytes=/, '').split('-')[0], 10)
+        : 0;
+      const requestedEnd = range
+        ? range.replace(/bytes=/, '').split('-')[1]
+        : '';
+      const end = requestedEnd
+        ? Math.min(parseInt(requestedEnd, 10), start + MAX_CHUNK - 1, total - 1)
+        : Math.min(start + MAX_CHUNK - 1, total - 1);
+      const chunkSize = end - start + 1;
 
-        res.status(206);
-        res.set('Content-Range', `bytes ${start}-${end}/${total}`);
-        res.set('Content-Length', chunkSize.toString());
-        res.set('Content-Type', contentType);
-        res.set('Accept-Ranges', 'bytes');
-        res.set('Cache-Control', 'public, max-age=3600');
-
-        const readStream = fs.default.createReadStream(tmpFile, { start, end });
-        readStream.on('end', () => {
-          // Clean up temp file after streaming
-          try { fs.default.unlinkSync(tmpFile!); } catch {}
-        });
-        readStream.on('error', () => {
-          try { fs.default.unlinkSync(tmpFile!); } catch {}
-        });
-        readStream.pipe(res);
-      } else {
-        res.set('Content-Type', contentType);
-        res.set('Content-Length', total.toString());
-        res.set('Accept-Ranges', 'bytes');
-        res.set('Cache-Control', 'public, max-age=3600');
-
-        const readStream = fs.default.createReadStream(tmpFile);
-        readStream.on('end', () => {
-          try { fs.default.unlinkSync(tmpFile!); } catch {}
-        });
-        readStream.on('error', () => {
-          try { fs.default.unlinkSync(tmpFile!); } catch {}
-        });
-        readStream.pipe(res);
-      }
+      res.status(206);
+      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.set('Content-Length', chunkSize.toString());
+      res.set('Content-Type', contentType);
+      res.set('Accept-Ranges', 'bytes');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(buffer.subarray(start, end + 1));
     } catch (error: any) {
       console.error("[VIDEO PREVIEW] Stream error:", error?.message || error);
-      // Clean up temp file on error
-      if (tmpFile) {
-        try { const fs = await import('fs'); fs.default.unlinkSync(tmpFile); } catch {}
-      }
       res.status(500).json({ error: "Failed to stream preview" });
     }
   });
 
   // Stream full video (requires purchase for paywalled, free for non-paywalled)
   app.get("/api/videos/:id/stream", async (req: Request, res: Response) => {
-    let tmpFile: string | null = null;
     try {
       const video = await storage.getArtistVideo(req.params.id);
       if (!video) {
@@ -3714,52 +3687,41 @@ ${urls}
         return res.status(404).json({ error: "Video file not available" });
       }
 
-      console.log(`[VIDEO STREAM] Downloading video ${video.id} to temp file`);
-
+      let buffer: Buffer;
       try {
-        tmpFile = await downloadArtistVideoToFile(video.originalFilePath);
+        buffer = await downloadArtistVideoFile(video.originalFilePath);
       } catch (downloadError: any) {
         console.error(`[VIDEO STREAM] Failed to download: ${video.originalFilePath}`, downloadError?.message);
         return res.status(404).json({ error: "Video file not found in storage" });
       }
 
-      const fs = await import('fs');
-      const stat = fs.default.statSync(tmpFile);
-      const total = stat.size;
       const contentType = getVideoContentType(video.fileFormat);
+      const total = buffer.length;
 
+      // Always respond with 206 Partial Content capped at 4MB to stay under
+      // Replit's reverse proxy response size limit
+      const MAX_CHUNK = 4 * 1024 * 1024;
       const range = req.headers.range;
-      if (range) {
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
-        const chunkSize = end - start + 1;
+      const start = range
+        ? parseInt(range.replace(/bytes=/, '').split('-')[0], 10)
+        : 0;
+      const requestedEnd = range
+        ? range.replace(/bytes=/, '').split('-')[1]
+        : '';
+      const end = requestedEnd
+        ? Math.min(parseInt(requestedEnd, 10), start + MAX_CHUNK - 1, total - 1)
+        : Math.min(start + MAX_CHUNK - 1, total - 1);
+      const chunkSize = end - start + 1;
 
-        res.status(206);
-        res.set('Content-Range', `bytes ${start}-${end}/${total}`);
-        res.set('Content-Length', chunkSize.toString());
-        res.set('Content-Type', contentType);
-        res.set('Accept-Ranges', 'bytes');
-
-        const readStream = fs.default.createReadStream(tmpFile, { start, end });
-        readStream.on('end', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
-        readStream.on('error', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
-        readStream.pipe(res);
-      } else {
-        res.set('Content-Type', contentType);
-        res.set('Content-Length', total.toString());
-        res.set('Accept-Ranges', 'bytes');
-
-        const readStream = fs.default.createReadStream(tmpFile);
-        readStream.on('end', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
-        readStream.on('error', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
-        readStream.pipe(res);
-      }
+      res.status(206);
+      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.set('Content-Length', chunkSize.toString());
+      res.set('Content-Type', contentType);
+      res.set('Accept-Ranges', 'bytes');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(buffer.subarray(start, end + 1));
     } catch (error: any) {
       console.error("[VIDEO STREAM] Error:", error?.message || error);
-      if (tmpFile) {
-        try { const fs = await import('fs'); fs.default.unlinkSync(tmpFile); } catch {}
-      }
       res.status(500).json({ error: "Failed to stream video" });
     }
   });
