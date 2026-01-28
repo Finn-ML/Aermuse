@@ -9,7 +9,9 @@ import { parseVideoUrl } from '@/lib/video-parser';
 import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
 import { PlaylistSection } from '@/components/music/PlaylistSection';
 import { PurchaseSuccessModal } from '@/components/music/PurchaseSuccessModal';
-import { VideoSection } from '@/components/video/VideoSection';
+import { VideoPlayer } from '@/components/video/VideoPlayer';
+import { VideoPurchaseModal } from '@/components/video/VideoPurchaseModal';
+import { VideoCard, type Video } from '@/components/video/VideoCard';
 import type { LandingPage, LandingPageLink, Track } from '@shared/schema';
 import type { ButtonStyle, BackgroundType, BackgroundOverlay } from '@shared/themes';
 
@@ -414,6 +416,47 @@ export default function ArtistPage() {
     verifyVideoPurchase();
   }, []);
 
+  // Fetch paywalled videos for this artist
+  const { data: paywalledVideos = [] } = useQuery<Video[]>({
+    queryKey: ['artist-videos', slug],
+    queryFn: async () => {
+      const response = await fetch(`/api/artist/${slug}/videos`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!slug,
+  });
+
+  // Video player state
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [showVideoPurchaseModal, setShowVideoPurchaseModal] = useState(false);
+
+  const hasVideoAccess = (video: Video) => {
+    return !video.isPaywalled || video.id in purchasedVideoTokens;
+  };
+
+  const getVideoAccessToken = (video: Video) => {
+    return purchasedVideoTokens[video.id];
+  };
+
+  const handleVideoSelect = (video: Video) => {
+    setSelectedVideo(video);
+  };
+
+  const handleVideoPurchaseClick = () => {
+    setShowVideoPurchaseModal(true);
+  };
+
+  const handleVideoPurchaseSuccess = (accessToken?: string) => {
+    if (accessToken && selectedVideo) {
+      setPurchasedVideoTokens(prev => ({
+        ...prev,
+        [selectedVideo.id]: accessToken,
+      }));
+    }
+    setShowVideoPurchaseModal(false);
+  };
+
   // Track page end on unload/visibility change (AC-5)
   useEffect(() => {
     const handleUnload = () => {
@@ -790,10 +833,32 @@ export default function ArtistPage() {
 
               return (
                 <>
-                  {/* Enhanced Video Embeds Grid with Glass Cards */}
-                  {videoLinks.length > 0 && (
+                  {/* Combined Videos Section - Horizontal Scroll */}
+                  {(videoLinks.length > 0 || paywalledVideos.length > 0) && (
                     <div className="mb-8">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      {/* Section Header */}
+                      <div className="text-center mb-4">
+                        <h2
+                          className="text-lg md:text-xl font-bold mb-2"
+                          style={{ color: textColor }}
+                        >
+                          Videos
+                        </h2>
+                        <div
+                          className="w-10 h-0.5 mx-auto rounded-full"
+                          style={{ backgroundColor: secondaryColor }}
+                        />
+                      </div>
+
+                      {/* Horizontally Scrollable Container */}
+                      <div
+                        className="flex gap-4 overflow-x-auto pb-4 px-2 -mx-2 scrollbar-hide"
+                        style={{
+                          scrollSnapType: 'x mandatory',
+                          WebkitOverflowScrolling: 'touch',
+                        }}
+                      >
+                        {/* Embedded Videos (YouTube, Vimeo, etc.) */}
                         {videoLinks
                           .sort((a, b) => parseInt(a.order || '0') - parseInt(b.order || '0'))
                           .map((link, index) => {
@@ -808,18 +873,19 @@ export default function ArtistPage() {
                                 initial="hidden"
                                 whileInView="visible"
                                 viewport={{ once: true, margin: '-50px' }}
-                                className="rounded-2xl overflow-hidden glass-card p-3 md:p-4"
+                                className="flex-shrink-0 w-72 md:w-80 rounded-2xl overflow-hidden glass-card p-3"
                                 style={{
+                                  scrollSnapAlign: 'start',
                                   boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px ${secondaryColor}10`,
                                 }}
                               >
                                 {link.title && (
                                   <p
-                                    className="text-sm md:text-base font-medium mb-3 flex items-center gap-2"
+                                    className="text-sm font-medium mb-2 truncate flex items-center gap-2"
                                     style={{ color: textColor }}
                                   >
                                     <span
-                                      className="w-1.5 h-1.5 rounded-full"
+                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                       style={{ backgroundColor: accentColor }}
                                     />
                                     {link.title}
@@ -828,7 +894,7 @@ export default function ArtistPage() {
                                 <div
                                   className="relative w-full overflow-hidden rounded-xl"
                                   style={{
-                                    aspectRatio: embed.aspectRatio === '16:9' ? '16 / 9' : '1 / 1',
+                                    aspectRatio: '16 / 9',
                                     boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
                                   }}
                                 >
@@ -844,7 +910,36 @@ export default function ArtistPage() {
                               </motion.div>
                             );
                           })}
+
+                        {/* Paywalled Videos */}
+                        {paywalledVideos.map((video) => (
+                          <div
+                            key={video.id}
+                            className="flex-shrink-0"
+                            style={{ scrollSnapAlign: 'start' }}
+                          >
+                            <VideoCard
+                              video={video}
+                              isSelected={selectedVideo?.id === video.id}
+                              onClick={() => handleVideoSelect(video)}
+                              primaryColor={primaryColor}
+                              secondaryColor={secondaryColor}
+                              textColor={textColor}
+                            />
+                          </div>
+                        ))}
                       </div>
+
+                      {/* Scrollbar hide CSS */}
+                      <style>{`
+                        .scrollbar-hide {
+                          -ms-overflow-style: none;
+                          scrollbar-width: none;
+                        }
+                        .scrollbar-hide::-webkit-scrollbar {
+                          display: none;
+                        }
+                      `}</style>
                     </div>
                   )}
 
@@ -937,21 +1032,31 @@ export default function ArtistPage() {
         </section>
       )}
 
-      {/* Video Section - Horizontally Scrollable */}
-      {slug && (
-        <div className="relative">
-          <VideoSection
-            artistSlug={slug}
+      {/* Video Player Modal */}
+      <AnimatePresence>
+        {selectedVideo && (
+          <VideoPlayer
+            video={selectedVideo}
+            hasAccess={hasVideoAccess(selectedVideo)}
+            accessToken={getVideoAccessToken(selectedVideo)}
+            onClose={() => setSelectedVideo(null)}
+            onPurchaseClick={handleVideoPurchaseClick}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
-            textColor={textColor}
-            className="py-8 px-4"
-            purchasedVideoTokens={purchasedVideoTokens}
-            onVideoPurchased={(videoId, token) => {
-              setPurchasedVideoTokens(prev => ({ ...prev, [videoId]: token }));
-            }}
           />
-        </div>
+        )}
+      </AnimatePresence>
+
+      {/* Video Purchase Modal */}
+      {selectedVideo && (
+        <VideoPurchaseModal
+          isOpen={showVideoPurchaseModal}
+          video={selectedVideo}
+          onClose={() => setShowVideoPurchaseModal(false)}
+          onSuccess={handleVideoPurchaseSuccess}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+        />
       )}
 
       {/* Music Section - Playlist Style */}
