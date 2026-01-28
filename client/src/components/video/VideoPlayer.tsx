@@ -7,6 +7,7 @@ import type { Video } from './VideoCard';
 interface VideoPlayerProps {
   video: Video;
   hasAccess: boolean;
+  accessToken?: string;
   onClose: () => void;
   onPurchaseClick: () => void;
   primaryColor?: string;
@@ -18,6 +19,7 @@ const PREVIEW_DURATION_SECONDS = 10;
 export function VideoPlayer({
   video,
   hasAccess,
+  accessToken,
   onClose,
   onPurchaseClick,
   primaryColor = '#660033',
@@ -33,9 +35,9 @@ export function VideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Video source - full video if has access, otherwise preview or full with time limit
-  const videoSrc = hasAccess
-    ? `/api/videos/${video.id}/stream`
+  // Video source - full video if has access (with token), otherwise preview
+  const videoSrc = hasAccess && accessToken
+    ? `/api/videos/${video.id}/stream?token=${encodeURIComponent(accessToken)}`
     : video.isPaywalled
       ? `/api/videos/${video.id}/preview`
       : `/api/videos/${video.id}/stream`;

@@ -9,7 +9,7 @@ interface VideoPurchaseModalProps {
   isOpen: boolean;
   video: VideoType;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (accessToken?: string) => void;
   primaryColor?: string;
   secondaryColor?: string;
 }
@@ -78,7 +78,7 @@ export function VideoPurchaseModal({
 
       // Handle free PWYW (amount = 0)
       if (data.free && data.accessToken) {
-        onSuccess();
+        onSuccess(data.accessToken);
         return;
       }
 

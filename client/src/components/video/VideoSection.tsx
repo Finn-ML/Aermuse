@@ -13,6 +13,8 @@ interface VideoSectionProps {
   secondaryColor?: string;
   textColor?: string;
   className?: string;
+  purchasedVideoTokens?: Record<string, string>;
+  onVideoPurchased?: (videoId: string, accessToken: string) => void;
 }
 
 export function VideoSection({
@@ -21,11 +23,13 @@ export function VideoSection({
   secondaryColor = '#F7E6CA',
   textColor = '#FFFFFF',
   className,
+  purchasedVideoTokens = {},
+  onVideoPurchased,
 }: VideoSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [purchasedVideoIds, setPurchasedVideoIds] = useState<Set<string>>(new Set());
+  const [localPurchasedTokens, setLocalPurchasedTokens] = useState<Record<string, string>>({});
 
   const { data: videos, isLoading, error } = useQuery<Video[]>({
     queryKey: ['artist-videos', artistSlug],
@@ -63,13 +67,23 @@ export function VideoSection({
     setShowPurchaseModal(true);
   };
 
-  const handlePurchaseSuccess = (videoId: string) => {
-    setPurchasedVideoIds(prev => new Set(Array.from(prev).concat(videoId)));
+  const handlePurchaseSuccess = (videoId: string, accessToken?: string) => {
+    if (accessToken) {
+      setLocalPurchasedTokens(prev => ({ ...prev, [videoId]: accessToken }));
+      onVideoPurchased?.(videoId, accessToken);
+    }
     setShowPurchaseModal(false);
   };
 
+  // Combine parent-provided tokens with local tokens
+  const allPurchasedTokens = { ...purchasedVideoTokens, ...localPurchasedTokens };
+
   const hasAccessToVideo = (video: Video) => {
-    return !video.isPaywalled || purchasedVideoIds.has(video.id);
+    return !video.isPaywalled || video.id in allPurchasedTokens;
+  };
+
+  const getAccessToken = (video: Video) => {
+    return allPurchasedTokens[video.id];
   };
 
   // Don't render if no videos
@@ -182,6 +196,7 @@ export function VideoSection({
           <VideoPlayer
             video={selectedVideo}
             hasAccess={hasAccessToVideo(selectedVideo)}
+            accessToken={getAccessToken(selectedVideo)}
             onClose={handleClosePlayer}
             onPurchaseClick={handlePurchaseClick}
             primaryColor={primaryColor}
@@ -196,7 +211,7 @@ export function VideoSection({
           isOpen={showPurchaseModal}
           video={selectedVideo}
           onClose={() => setShowPurchaseModal(false)}
-          onSuccess={() => handlePurchaseSuccess(selectedVideo.id)}
+          onSuccess={(accessToken) => handlePurchaseSuccess(selectedVideo.id, accessToken)}
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
         />

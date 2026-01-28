@@ -17,7 +17,7 @@ import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, deleteArtistVideoFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
-import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers } from "./services/trackStripe";
+import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, generateSpeech, OpenAIError, parseContractFields, type ParsedContractFields } from "./services/openai";
@@ -3674,6 +3674,179 @@ ${urls}
     } catch (error) {
       console.error("Get artist videos error:", error);
       res.status(500).json({ error: "Failed to get videos" });
+    }
+  });
+
+  // Create checkout session for video purchase
+  app.post("/api/videos/:id/checkout", async (req: Request, res: Response) => {
+    try {
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video || !video.isPublished) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      if (!video.isPaywalled) {
+        return res.status(400).json({ error: "Video is not paywalled" });
+      }
+
+      // Get landing page for slug
+      const landingPage = await storage.getLandingPage(video.landingPageId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Artist page not found" });
+      }
+
+      const { buyerEmail, customAmount } = req.body;
+
+      // Determine the amount to charge
+      let amountInCents: number;
+      const isPWYW = video.pricingType === 'pwyw';
+
+      if (isPWYW) {
+        if (customAmount !== undefined) {
+          amountInCents = parseInt(customAmount, 10);
+          if (isNaN(amountInCents) || amountInCents < 0) {
+            return res.status(400).json({ error: "Invalid amount" });
+          }
+          const minPrice = video.minimumPriceInCents || 0;
+          if (amountInCents < minPrice) {
+            return res.status(400).json({ error: `Amount must be at least ${minPrice} pence` });
+          }
+          if (amountInCents > 0 && amountInCents < 50) {
+            return res.status(400).json({ error: "If paying, minimum is 50 pence" });
+          }
+        } else {
+          amountInCents = video.priceInCents || video.minimumPriceInCents || 0;
+        }
+
+        // Handle free access (PWYW with 0 amount)
+        if (amountInCents === 0) {
+          const accessToken = crypto.randomBytes(32).toString('hex');
+          const accessExpires = new Date();
+          accessExpires.setDate(accessExpires.getDate() + 30);
+
+          await storage.createVideoPurchase({
+            videoId: video.id,
+            buyerEmail: buyerEmail || 'free@download.local',
+            buyerName: null,
+            stripePaymentIntentId: null,
+            stripeCheckoutSessionId: null,
+            amountPaidCents: 0,
+            currency: video.currency || 'gbp',
+            accessToken,
+            accessExpiresAt: accessExpires,
+            status: 'completed',
+          });
+
+          await storage.incrementVideoPurchaseCount(video.id);
+
+          return res.json({
+            free: true,
+            accessToken,
+            videoId: video.id,
+          });
+        }
+      } else {
+        amountInCents = video.priceInCents || 0;
+        if (amountInCents < 50) {
+          return res.status(400).json({ error: "Video price is not set correctly" });
+        }
+      }
+
+      // Get video owner's Stripe Connect account
+      const videoOwner = await storage.getUser(video.userId);
+      let connectedAccountId: string | undefined;
+      let applicationFeeAmount = 0;
+
+      if (videoOwner?.stripeConnectAccountId && videoOwner?.stripeConnectOnboardingComplete) {
+        try {
+          const isReady = await isAccountReady(videoOwner.stripeConnectAccountId);
+          if (isReady) {
+            connectedAccountId = videoOwner.stripeConnectAccountId;
+            applicationFeeAmount = calculatePlatformFee(amountInCents);
+          }
+        } catch (err) {
+          console.warn("[VIDEO CHECKOUT] Failed to check Connect account status:", err);
+        }
+      }
+
+      const session = await createVideoCheckoutSession({
+        videoId: video.id,
+        videoTitle: video.title,
+        artistName: landingPage.artistName,
+        priceInCents: amountInCents,
+        pricingType: isPWYW ? 'pwyw' : 'fixed',
+        customAmountCents: isPWYW ? amountInCents : undefined,
+        buyerEmail,
+        landingPageSlug: landingPage.slug,
+        currency: video.currency || 'gbp',
+        connectedAccountId,
+        applicationFeeAmount,
+      });
+
+      res.json({ checkoutUrl: session.url });
+    } catch (error) {
+      console.error("Video checkout creation error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Verify video purchase and get access token
+  app.get("/api/videos/purchase/verify", async (req: Request, res: Response) => {
+    try {
+      const { session_id } = req.query;
+      if (!session_id || typeof session_id !== 'string') {
+        return res.status(400).json({ error: "Session ID required" });
+      }
+
+      const session = await getCheckoutSessionStripe(session_id);
+
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      // Check if purchase already recorded
+      const existingPurchase = await storage.getVideoPurchaseBySession(session_id);
+      if (existingPurchase) {
+        return res.json({
+          success: true,
+          accessToken: existingPurchase.accessToken,
+          videoId: existingPurchase.videoId,
+        });
+      }
+
+      // Extract details and create purchase record
+      const details = extractVideoPurchaseDetails(session);
+      if (!details.videoId) {
+        return res.status(400).json({ error: "Invalid purchase session" });
+      }
+
+      const accessToken = crypto.randomBytes(32).toString('hex');
+      const accessExpires = new Date();
+      accessExpires.setDate(accessExpires.getDate() + 30);
+
+      const purchase = await storage.createVideoPurchase({
+        videoId: details.videoId,
+        buyerEmail: details.buyerEmail,
+        buyerName: details.buyerName || null,
+        stripePaymentIntentId: details.paymentIntentId || null,
+        stripeCheckoutSessionId: session_id,
+        amountPaidCents: details.amountPaid,
+        currency: details.currency,
+        accessToken,
+        accessExpiresAt: accessExpires,
+        status: 'completed',
+      });
+
+      await storage.incrementVideoPurchaseCount(details.videoId);
+
+      res.json({
+        success: true,
+        accessToken: purchase.accessToken,
+        videoId: purchase.videoId,
+      });
+    } catch (error) {
+      console.error("Video purchase verify error:", error);
+      res.status(500).json({ error: "Failed to verify purchase" });
     }
   });
 

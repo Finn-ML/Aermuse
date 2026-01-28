@@ -377,3 +377,145 @@ export function extractTrackPurchaseDetails(session: Stripe.Checkout.Session) {
     currency: session.currency || 'gbp',
   };
 }
+
+// ============================================
+// VIDEO CHECKOUT (Same pattern as tracks)
+// ============================================
+
+export interface VideoCheckoutParams {
+  videoId: string;
+  videoTitle: string;
+  artistName: string;
+  priceInCents: number;
+  pricingType: 'fixed' | 'pwyw';
+  customAmountCents?: number;
+  buyerEmail?: string;
+  landingPageSlug: string;
+  currency?: string;
+  connectedAccountId?: string;
+  applicationFeeAmount?: number;
+}
+
+/**
+ * Create a Stripe Checkout session for purchasing a video
+ */
+export async function createVideoCheckoutSession(
+  params: VideoCheckoutParams
+): Promise<Stripe.Checkout.Session> {
+  const {
+    videoId,
+    videoTitle,
+    artistName,
+    priceInCents,
+    pricingType,
+    customAmountCents,
+    buyerEmail,
+    landingPageSlug,
+    currency = 'gbp',
+    connectedAccountId,
+    applicationFeeAmount = 0,
+  } = params;
+
+  const isPWYW = pricingType === 'pwyw';
+  const amount = isPWYW && customAmountCents !== undefined ? customAmountCents : priceInCents;
+
+  console.log(`[VIDEO-STRIPE] Creating checkout for video ${videoId}: ${amount} ${currency}`);
+  if (connectedAccountId) {
+    console.log(`[VIDEO-STRIPE] Using connected account: ${connectedAccountId}, fee: ${applicationFeeAmount}`);
+  }
+
+  const successUrl = `${APP_URL}/artist/${landingPageSlug}?video_purchase=success&video=${videoId}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${APP_URL}/artist/${landingPageSlug}?video_purchase=cancelled`;
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    {
+      price_data: {
+        currency,
+        unit_amount: amount,
+        product_data: {
+          name: videoTitle,
+          description: `Video content by ${artistName}${isPWYW ? ' (Pay What You Want)' : ''}`,
+          metadata: {
+            videoId,
+            artistName,
+            type: isPWYW ? 'video_pwyw' : 'video_fixed',
+          },
+        },
+        tax_behavior: 'exclusive',
+      },
+      quantity: 1,
+    },
+  ];
+
+  const sessionOptions: Stripe.Checkout.SessionCreateParams = {
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    customer_email: buyerEmail,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      videoId,
+      videoTitle,
+      artistName,
+      type: 'video_purchase',
+      pricingType: isPWYW ? 'pwyw' : 'fixed',
+    },
+    billing_address_collection: 'required',
+
+    ...(process.env.STRIPE_TAX_ENABLED === 'true' && {
+      automatic_tax: {
+        enabled: true,
+      },
+    }),
+
+    consent_collection: {
+      terms_of_service: 'required',
+    },
+
+    custom_text: {
+      terms_of_service_acceptance: {
+        message: 'I agree that by completing this purchase, I will have immediate access to the video content. I understand that I am waiving my 14-day cancellation right under the Consumer Contracts Regulations 2013.',
+      },
+    },
+  };
+
+  if (connectedAccountId) {
+    sessionOptions.payment_intent_data = {
+      transfer_data: {
+        destination: connectedAccountId,
+      },
+      ...(applicationFeeAmount > 0 && { application_fee_amount: applicationFeeAmount }),
+    };
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionOptions);
+
+  console.log(`[VIDEO-STRIPE] Checkout session created: ${session.id}`);
+  return session;
+}
+
+/**
+ * Check if a checkout session is for a video purchase
+ */
+export function isVideoPurchase(session: Stripe.Checkout.Session): boolean {
+  return session.metadata?.type === 'video_purchase';
+}
+
+/**
+ * Extract video purchase details from checkout session
+ */
+export function extractVideoPurchaseDetails(session: Stripe.Checkout.Session) {
+  return {
+    videoId: session.metadata?.videoId,
+    videoTitle: session.metadata?.videoTitle,
+    artistName: session.metadata?.artistName,
+    buyerEmail: session.customer_email || session.customer_details?.email || '',
+    buyerName: session.customer_details?.name || '',
+    paymentIntentId: typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id,
+    amountPaid: session.amount_total || 0,
+    currency: session.currency || 'gbp',
+  };
+}

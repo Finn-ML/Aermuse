@@ -362,6 +362,58 @@ export default function ArtistPage() {
     verifyPurchase();
   }, [page?.artistName]);
 
+  // Handle video purchase success
+  const [purchasedVideoTokens, setPurchasedVideoTokens] = useState<Record<string, string>>({});
+  const videoPurchaseVerifiedRef = useRef(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoPurchaseStatus = urlParams.get('video_purchase');
+    const sessionId = urlParams.get('session_id');
+    const videoId = urlParams.get('video');
+
+    // Only process video_purchase=success
+    if (videoPurchaseStatus !== 'success' || videoPurchaseVerifiedRef.current) {
+      return;
+    }
+
+    videoPurchaseVerifiedRef.current = true;
+
+    if (!sessionId) {
+      return;
+    }
+
+    const verifyVideoPurchase = async () => {
+      try {
+        const response = await fetch(`/api/videos/purchase/verify?session_id=${encodeURIComponent(sessionId)}`);
+        if (!response.ok) {
+          console.error('Video purchase verification failed');
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success && data.accessToken && data.videoId) {
+          // Store the access token for this video
+          setPurchasedVideoTokens(prev => ({
+            ...prev,
+            [data.videoId]: data.accessToken,
+          }));
+
+          // Show success message (optional toast)
+          console.log('Video purchase successful!', data.videoId);
+
+          // Clean up URL params without reloading
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      } catch (err) {
+        console.error('Error verifying video purchase:', err);
+      }
+    };
+
+    verifyVideoPurchase();
+  }, []);
+
   // Track page end on unload/visibility change (AC-5)
   useEffect(() => {
     const handleUnload = () => {
@@ -894,6 +946,10 @@ export default function ArtistPage() {
             secondaryColor={secondaryColor}
             textColor={textColor}
             className="py-8 px-4"
+            purchasedVideoTokens={purchasedVideoTokens}
+            onVideoPurchased={(videoId, token) => {
+              setPurchasedVideoTokens(prev => ({ ...prev, [videoId]: token }));
+            }}
           />
         </div>
       )}
