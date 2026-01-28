@@ -386,6 +386,20 @@ export function VideoPlayer({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Purchase Button - visible for paywalled content without access */}
+                {!hasAccess && video.isPaywalled && (
+                  <button
+                    onClick={onPurchaseClick}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg font-semibold text-sm transition-transform hover:scale-105"
+                    style={{ backgroundColor: secondaryColor, color: primaryColor }}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    {video.priceInCents !== null
+                      ? `Buy £${((video.priceInCents || 0) / 100).toFixed(2)}`
+                      : 'Purchase'}
+                  </button>
+                )}
+
                 {/* Fullscreen */}
                 <button
                   onClick={toggleFullscreen}
