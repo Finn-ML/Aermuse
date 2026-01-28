@@ -14,7 +14,7 @@ import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, deleteArtistVideoFiles } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
@@ -3320,7 +3320,7 @@ ${urls}
         stripeProductId: null,
         stripePriceId: null,
         displayOrder: 0,
-        isPublished: false,
+        isPublished: true,
       });
 
       // Clean up
@@ -3448,7 +3448,7 @@ ${urls}
         stripeProductId: null,
         stripePriceId: null,
         displayOrder: 0,
-        isPublished: false,
+        isPublished: true,
       });
 
       res.json(video);
@@ -3593,6 +3593,7 @@ ${urls}
 
   // Stream video preview (public - 10 second preview for paywalled content)
   app.get("/api/videos/:id/preview", async (req: Request, res: Response) => {
+    let tmpFile: string | null = null;
     try {
       const video = await storage.getArtistVideo(req.params.id);
       if (!video) {
@@ -3605,38 +3606,84 @@ ${urls}
         return res.status(404).json({ error: "Video not found" });
       }
 
-      // Use preview if available, otherwise serve original (for non-paywalled)
+      // Use preview if available, otherwise serve original
       const filePath = video.previewFilePath || video.originalFilePath;
 
-      // Check if file path exists
       if (!filePath) {
         console.error(`Video ${video.id} has no file path`);
         return res.status(404).json({ error: "Video file not available" });
       }
 
-      let buffer: Buffer;
+      console.log(`[VIDEO PREVIEW] Downloading video ${video.id} to temp file from: ${filePath}`);
+
       try {
-        buffer = await downloadArtistVideoFile(filePath);
-      } catch (downloadError) {
-        console.error(`Failed to download video file: ${filePath}`, downloadError);
+        tmpFile = await downloadArtistVideoToFile(filePath);
+        console.log(`[VIDEO PREVIEW] Downloaded to temp file: ${tmpFile}`);
+      } catch (downloadError: any) {
+        console.error(`[VIDEO PREVIEW] Failed to download: ${filePath}`, downloadError?.message || downloadError);
         return res.status(404).json({ error: "Video file not found in storage" });
       }
 
-      // Increment view count
-      await storage.incrementVideoViewCount(video.id);
+      // Increment view count (non-blocking)
+      storage.incrementVideoViewCount(video.id).catch(() => {});
 
-      res.set('Content-Type', getVideoContentType(video.fileFormat));
-      res.set('Content-Length', buffer.length.toString());
-      res.set('Accept-Ranges', 'bytes');
-      res.send(buffer);
-    } catch (error) {
-      console.error("Video preview stream error:", error);
+      const fs = await import('fs');
+      const stat = fs.default.statSync(tmpFile);
+      const total = stat.size;
+      const contentType = getVideoContentType(video.fileFormat);
+
+      // Handle range requests for proper video streaming
+      const range = req.headers.range;
+      if (range) {
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+        const chunkSize = end - start + 1;
+
+        res.status(206);
+        res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+        res.set('Content-Length', chunkSize.toString());
+        res.set('Content-Type', contentType);
+        res.set('Accept-Ranges', 'bytes');
+        res.set('Cache-Control', 'public, max-age=3600');
+
+        const readStream = fs.default.createReadStream(tmpFile, { start, end });
+        readStream.on('end', () => {
+          // Clean up temp file after streaming
+          try { fs.default.unlinkSync(tmpFile!); } catch {}
+        });
+        readStream.on('error', () => {
+          try { fs.default.unlinkSync(tmpFile!); } catch {}
+        });
+        readStream.pipe(res);
+      } else {
+        res.set('Content-Type', contentType);
+        res.set('Content-Length', total.toString());
+        res.set('Accept-Ranges', 'bytes');
+        res.set('Cache-Control', 'public, max-age=3600');
+
+        const readStream = fs.default.createReadStream(tmpFile);
+        readStream.on('end', () => {
+          try { fs.default.unlinkSync(tmpFile!); } catch {}
+        });
+        readStream.on('error', () => {
+          try { fs.default.unlinkSync(tmpFile!); } catch {}
+        });
+        readStream.pipe(res);
+      }
+    } catch (error: any) {
+      console.error("[VIDEO PREVIEW] Stream error:", error?.message || error);
+      // Clean up temp file on error
+      if (tmpFile) {
+        try { const fs = await import('fs'); fs.default.unlinkSync(tmpFile); } catch {}
+      }
       res.status(500).json({ error: "Failed to stream preview" });
     }
   });
 
   // Stream full video (requires purchase for paywalled, free for non-paywalled)
   app.get("/api/videos/:id/stream", async (req: Request, res: Response) => {
+    let tmpFile: string | null = null;
     try {
       const video = await storage.getArtistVideo(req.params.id);
       if (!video) {
@@ -3662,26 +3709,57 @@ ${urls}
         }
       }
 
-      // Check if file path exists
       if (!video.originalFilePath) {
         console.error(`Video ${video.id} has no original file path`);
         return res.status(404).json({ error: "Video file not available" });
       }
 
-      let buffer: Buffer;
+      console.log(`[VIDEO STREAM] Downloading video ${video.id} to temp file`);
+
       try {
-        buffer = await downloadArtistVideoFile(video.originalFilePath);
-      } catch (downloadError) {
-        console.error(`Failed to download video file: ${video.originalFilePath}`, downloadError);
+        tmpFile = await downloadArtistVideoToFile(video.originalFilePath);
+      } catch (downloadError: any) {
+        console.error(`[VIDEO STREAM] Failed to download: ${video.originalFilePath}`, downloadError?.message);
         return res.status(404).json({ error: "Video file not found in storage" });
       }
 
-      res.set('Content-Type', getVideoContentType(video.fileFormat));
-      res.set('Content-Length', buffer.length.toString());
-      res.set('Accept-Ranges', 'bytes');
-      res.send(buffer);
-    } catch (error) {
-      console.error("Video stream error:", error);
+      const fs = await import('fs');
+      const stat = fs.default.statSync(tmpFile);
+      const total = stat.size;
+      const contentType = getVideoContentType(video.fileFormat);
+
+      const range = req.headers.range;
+      if (range) {
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+        const chunkSize = end - start + 1;
+
+        res.status(206);
+        res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+        res.set('Content-Length', chunkSize.toString());
+        res.set('Content-Type', contentType);
+        res.set('Accept-Ranges', 'bytes');
+
+        const readStream = fs.default.createReadStream(tmpFile, { start, end });
+        readStream.on('end', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
+        readStream.on('error', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
+        readStream.pipe(res);
+      } else {
+        res.set('Content-Type', contentType);
+        res.set('Content-Length', total.toString());
+        res.set('Accept-Ranges', 'bytes');
+
+        const readStream = fs.default.createReadStream(tmpFile);
+        readStream.on('end', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
+        readStream.on('error', () => { try { fs.default.unlinkSync(tmpFile!); } catch {} });
+        readStream.pipe(res);
+      }
+    } catch (error: any) {
+      console.error("[VIDEO STREAM] Error:", error?.message || error);
+      if (tmpFile) {
+        try { const fs = await import('fs'); fs.default.unlinkSync(tmpFile); } catch {}
+      }
       res.status(500).json({ error: "Failed to stream video" });
     }
   });

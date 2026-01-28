@@ -614,6 +614,30 @@ export async function downloadArtistVideoFile(path: string): Promise<Buffer> {
 }
 
 /**
+ * Download artist video file to a temporary file on disk
+ * Returns the temp file path - caller must clean up
+ */
+export async function downloadArtistVideoToFile(storagePath: string): Promise<string> {
+  const os = await import('os');
+  const path = await import('path');
+  const fs = await import('fs');
+
+  const tmpDir = os.default.tmpdir();
+  const ext = storagePath.split('.').pop() || 'mp4';
+  const tmpFile = path.default.join(tmpDir, `video-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
+
+  const result = await getStorage().downloadToFilename(storagePath, tmpFile);
+
+  if (result.error) {
+    // Clean up if file was partially created
+    try { fs.default.unlinkSync(tmpFile); } catch {}
+    throw new Error(`Failed to download video file: ${result.error.message}`);
+  }
+
+  return tmpFile;
+}
+
+/**
  * Delete all files for an artist video
  */
 export async function deleteArtistVideoFiles(userId: string, videoId: string): Promise<void> {

@@ -206,11 +206,15 @@ export function VideoPlayer({
             }}
             onEnded={() => setIsPlaying(false)}
             onClick={togglePlay}
-            onError={() => {
+            onError={(e) => {
+              const mediaError = (e.target as HTMLVideoElement).error;
+              console.error('Video load error:', mediaError?.code, mediaError?.message, 'src:', videoSrc);
               setVideoError('Video could not be loaded. The file may not be available.');
               setIsLoading(false);
             }}
             onLoadStart={() => setIsLoading(true)}
+            onCanPlay={() => setIsLoading(false)}
+            preload="auto"
             playsInline
           />
 
