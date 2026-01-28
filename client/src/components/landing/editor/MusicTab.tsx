@@ -12,6 +12,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+type PricingType = 'fixed' | 'pwyw';
+
 interface Track {
   id: string;
   title: string;
@@ -27,12 +29,29 @@ interface Track {
   splitsVerified?: boolean;
   ownerSplitPercentage?: number;
   autoPublishAt?: string | null;
+  // PWYW and streaming fields
+  pricingType?: PricingType;
+  minimumPriceInCents?: number;
+  suggestedPriceInCents?: number;
+  allowFreeStreaming?: boolean;
+}
+
+interface UploadTrackOptions {
+  file: File;
+  title: string;
+  priceInCents: number;
+  coverFile?: File;
+  pricingType?: PricingType;
+  minimumPriceInCents?: number;
+  suggestedPriceInCents?: number;
+  allowFreeStreaming?: boolean;
+  hasCollaborators?: boolean;
 }
 
 interface MusicTabProps {
   tracks: Track[];
   isLoading: boolean;
-  onUploadTrack: (file: File, title: string, priceInCents: number, coverFile?: File) => Promise<void>;
+  onUploadTrack: (options: UploadTrackOptions) => Promise<Track | void>;
   onUpdateTrack: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
   onDeleteTrack: (id: string) => Promise<void>;
   onUploadCover: (trackId: string, file: File) => Promise<void>;
@@ -59,6 +78,15 @@ export function MusicTab({
   const [editingTrack, setEditingTrack] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editPrice, setEditPrice] = useState('');
+
+  // PWYW and streaming state
+  const [pricingType, setPricingType] = useState<PricingType>('fixed');
+  const [minimumPrice, setMinimumPrice] = useState('0');
+  const [suggestedPrice, setSuggestedPrice] = useState('');
+  const [allowFreeStreaming, setAllowFreeStreaming] = useState(false);
+
+  // Collaborators state
+  const [hasCollaborators, setHasCollaborators] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newCoverInputRef = useRef<HTMLInputElement>(null);
@@ -100,22 +128,60 @@ export function MusicTab({
     if (!selectedFile || !newTrackTitle.trim()) return;
 
     const priceInCents = Math.round(parseFloat(newTrackPrice) * 100);
-    if (isNaN(priceInCents) || priceInCents < 50) {
-      alert('Minimum price is $0.50');
-      return;
+    const minPriceCents = Math.round(parseFloat(minimumPrice || '0') * 100);
+    const suggestedPriceCents = suggestedPrice ? Math.round(parseFloat(suggestedPrice) * 100) : undefined;
+
+    // Validate based on pricing type
+    if (pricingType === 'fixed') {
+      if (isNaN(priceInCents) || priceInCents < 50) {
+        alert('Minimum price is $0.50');
+        return;
+      }
+    } else {
+      // PWYW validation
+      if (minPriceCents > 0 && minPriceCents < 50) {
+        alert('If setting a minimum price, it must be at least $0.50');
+        return;
+      }
+      if (suggestedPriceCents !== undefined && suggestedPriceCents < 50) {
+        alert('If setting a suggested price, it must be at least $0.50');
+        return;
+      }
     }
 
     setUploadingTrack(true);
     try {
-      await onUploadTrack(selectedFile, newTrackTitle.trim(), priceInCents, selectedCoverFile || undefined);
+      const uploadedTrack = await onUploadTrack({
+        file: selectedFile,
+        title: newTrackTitle.trim(),
+        priceInCents: pricingType === 'fixed' ? priceInCents : (minPriceCents || 100),
+        coverFile: selectedCoverFile || undefined,
+        pricingType,
+        minimumPriceInCents: pricingType === 'pwyw' ? minPriceCents : undefined,
+        suggestedPriceInCents: pricingType === 'pwyw' ? suggestedPriceCents : undefined,
+        allowFreeStreaming,
+        hasCollaborators,
+      });
+
+      // Reset form
       setShowUploadForm(false);
       setSelectedFile(null);
       setSelectedCoverFile(null);
       setCoverPreview(null);
       setNewTrackTitle('');
       setNewTrackPrice('4.99');
+      setPricingType('fixed');
+      setMinimumPrice('0');
+      setSuggestedPrice('');
+      setAllowFreeStreaming(false);
+      setHasCollaborators(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (newCoverInputRef.current) newCoverInputRef.current.value = '';
+
+      // If has collaborators, immediately open splits modal
+      if (hasCollaborators && uploadedTrack && onOpenSplits) {
+        onOpenSplits(uploadedTrack);
+      }
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
@@ -289,23 +355,160 @@ export function MusicTab({
             </div>
           </div>
 
-          {/* Price Input */}
+          {/* Pricing Type Selector */}
           <div className="mb-4">
             <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
-              Price (USD)
+              Pricing Model
             </label>
-            <div className="relative">
-              <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]" />
-              <input
-                type="number"
-                min="0.50"
-                step="0.01"
-                value={newTrackPrice}
-                onChange={(e) => setNewTrackPrice(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 rounded-lg border border-[rgba(102,0,51,0.2)] focus:border-[#660033] outline-none text-sm"
-              />
+            <div className="flex rounded-lg border border-[rgba(102,0,51,0.2)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setPricingType('fixed')}
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                  pricingType === 'fixed'
+                    ? 'bg-[#660033] text-white'
+                    : 'bg-white text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.05)]'
+                }`}
+              >
+                Fixed Price
+              </button>
+              <button
+                type="button"
+                onClick={() => setPricingType('pwyw')}
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                  pricingType === 'pwyw'
+                    ? 'bg-[#660033] text-white'
+                    : 'bg-white text-[rgba(102,0,51,0.6)] hover:bg-[rgba(102,0,51,0.05)]'
+                }`}
+              >
+                Pay What You Want
+              </button>
             </div>
-            <p className="text-xs text-[rgba(102,0,51,0.4)] mt-1">Minimum $0.50</p>
+          </div>
+
+          {/* Fixed Price Input */}
+          {pricingType === 'fixed' && (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
+                Price (USD)
+              </label>
+              <div className="relative">
+                <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]" />
+                <input
+                  type="number"
+                  min="0.50"
+                  step="0.01"
+                  value={newTrackPrice}
+                  onChange={(e) => setNewTrackPrice(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-lg border border-[rgba(102,0,51,0.2)] focus:border-[#660033] outline-none text-sm"
+                />
+              </div>
+              <p className="text-xs text-[rgba(102,0,51,0.4)] mt-1">Minimum $0.50</p>
+            </div>
+          )}
+
+          {/* PWYW Pricing Options */}
+          {pricingType === 'pwyw' && (
+            <div className="mb-4 p-3 rounded-lg bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)]">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
+                    Minimum Price
+                  </label>
+                  <div className="relative">
+                    <DollarSign size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={minimumPrice}
+                      onChange={(e) => setMinimumPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-2 py-2 rounded-lg border border-[rgba(102,0,51,0.2)] focus:border-[#660033] outline-none text-sm"
+                    />
+                  </div>
+                  <p className="text-[10px] text-[rgba(102,0,51,0.4)] mt-1">$0 = free with optional tip</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[rgba(102,0,51,0.7)] mb-2">
+                    Suggested Price
+                  </label>
+                  <div className="relative">
+                    <DollarSign size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[rgba(102,0,51,0.4)]" />
+                    <input
+                      type="number"
+                      min="0.50"
+                      step="0.01"
+                      value={suggestedPrice}
+                      onChange={(e) => setSuggestedPrice(e.target.value)}
+                      placeholder="Optional"
+                      className="w-full pl-7 pr-2 py-2 rounded-lg border border-[rgba(102,0,51,0.2)] focus:border-[#660033] outline-none text-sm"
+                    />
+                  </div>
+                  <p className="text-[10px] text-[rgba(102,0,51,0.4)] mt-1">Pre-filled for buyers</p>
+                </div>
+              </div>
+              <p className="text-xs text-[rgba(102,0,51,0.5)]">
+                {parseFloat(minimumPrice) === 0
+                  ? 'Fans can download for free or leave a tip'
+                  : `Fans can pay ${parseFloat(minimumPrice).toFixed(2)} or more`}
+              </p>
+            </div>
+          )}
+
+          {/* Free Streaming Toggle */}
+          <div className="mb-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={allowFreeStreaming}
+                  onChange={(e) => setAllowFreeStreaming(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-[rgba(102,0,51,0.15)] rounded-full peer-checked:bg-[#660033] transition-colors"></div>
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform"></div>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-[#660033]">Allow free streaming</span>
+                <p className="text-xs text-[rgba(102,0,51,0.5)]">
+                  Full track can be streamed (not just 30-sec preview)
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Collaborators Section */}
+          <div className="mb-4 p-3 rounded-lg bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)]">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={hasCollaborators}
+                  onChange={(e) => setHasCollaborators(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-[rgba(102,0,51,0.15)] rounded-full peer-checked:bg-[#660033] transition-colors"></div>
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform"></div>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-[#660033] flex items-center gap-2">
+                  <Users size={14} />
+                  This track has collaborators
+                </span>
+                <p className="text-xs text-[rgba(102,0,51,0.5)]">
+                  Split royalties with producers, writers, or other contributors
+                </p>
+              </div>
+            </label>
+            {hasCollaborators && (
+              <div className="mt-3 pt-3 border-t border-[rgba(102,0,51,0.1)]">
+                <p className="text-xs text-[rgba(102,0,51,0.6)]">
+                  After upload, you'll be prompted to add collaborators and set their split percentages.
+                  Each collaborator will receive an email to verify their split before the track can be published.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -335,6 +538,11 @@ export function MusicTab({
                 setCoverPreview(null);
                 setNewTrackTitle('');
                 setNewTrackPrice('4.99');
+                setPricingType('fixed');
+                setMinimumPrice('0');
+                setSuggestedPrice('');
+                setAllowFreeStreaming(false);
+                setHasCollaborators(false);
               }}
               className="px-4 py-2 text-sm font-semibold text-[#660033] bg-white/60 rounded-lg hover:bg-white/80 transition-colors"
             >
@@ -449,10 +657,28 @@ export function MusicTab({
                     >
                       {track.title}
                     </h5>
-                    <div className="flex items-center gap-3 text-xs text-[rgba(102,0,51,0.5)]">
-                      <span className="font-medium text-[#660033]">
-                        {formatPrice(track.priceInCents, 'usd')}
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-[rgba(102,0,51,0.5)]">
+                      {track.pricingType === 'pwyw' ? (
+                        <span className="font-medium text-[#660033]">
+                          {(track.minimumPriceInCents || 0) === 0
+                            ? 'Name Your Price'
+                            : `From ${formatPrice(track.minimumPriceInCents || 0, 'usd')}`}
+                        </span>
+                      ) : (
+                        <span className="font-medium text-[#660033]">
+                          {formatPrice(track.priceInCents, 'usd')}
+                        </span>
+                      )}
+                      {track.pricingType === 'pwyw' && (
+                        <span className="px-1.5 py-0.5 rounded bg-[rgba(102,0,51,0.08)] text-[#660033] text-[10px] font-medium">
+                          PWYW
+                        </span>
+                      )}
+                      {track.allowFreeStreaming && (
+                        <span className="px-1.5 py-0.5 rounded bg-[rgba(40,167,69,0.1)] text-[#28a745] text-[10px] font-medium">
+                          Free Stream
+                        </span>
+                      )}
                       <span>{track.fileFormat.toUpperCase()}</span>
                       <span>{track.playCount} plays</span>
                       <span>{track.purchaseCount} sales</span>
@@ -578,6 +804,12 @@ export function MusicTab({
           <li>Fans can preview and purchase tracks on your artist page</li>
           <li>Click on cover art to add album artwork</li>
           <li>Add collaborators with the <Users size={10} className="inline" /> icon to share royalty splits</li>
+        </ul>
+        <p className="font-semibold mt-3 mb-1">Pricing options:</p>
+        <ul className="list-disc list-inside space-y-0.5">
+          <li><strong>Fixed Price</strong> - Set a specific price for your track</li>
+          <li><strong>Pay What You Want</strong> - Let fans choose their price (with optional minimum)</li>
+          <li><strong>Free Streaming</strong> - Allow full track streaming instead of 30-sec preview</li>
         </ul>
       </div>
     </div>

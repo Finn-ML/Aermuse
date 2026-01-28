@@ -290,6 +290,11 @@ export default function Dashboard() {
     splitsVerified?: boolean;
     ownerSplitPercentage?: number;
     autoPublishAt?: string | null;
+    // PWYW and streaming fields
+    pricingType?: 'fixed' | 'pwyw';
+    minimumPriceInCents?: number;
+    suggestedPriceInCents?: number;
+    allowFreeStreaming?: boolean;
   }
   const { data: tracksData, isLoading: tracksLoading } = useQuery<Track[]>({
     queryKey: ['/api/landing-page/tracks'],
@@ -535,11 +540,40 @@ export default function Dashboard() {
   };
 
   // Track mutations for music tab
-  const uploadTrack = async (file: File, title: string, priceInCents: number, coverFile?: File) => {
+  const uploadTrack = async (options: {
+    file: File;
+    title: string;
+    priceInCents: number;
+    coverFile?: File;
+    pricingType?: 'fixed' | 'pwyw';
+    minimumPriceInCents?: number;
+    suggestedPriceInCents?: number;
+    allowFreeStreaming?: boolean;
+    hasCollaborators?: boolean;
+  }): Promise<Track> => {
+    const {
+      file,
+      title,
+      priceInCents,
+      coverFile,
+      pricingType = 'fixed',
+      minimumPriceInCents,
+      suggestedPriceInCents,
+      allowFreeStreaming = false,
+    } = options;
+
     const formData = new FormData();
     formData.append('audio', file);
     formData.append('title', title);
     formData.append('priceInCents', priceInCents.toString());
+    formData.append('pricingType', pricingType);
+    if (minimumPriceInCents !== undefined) {
+      formData.append('minimumPriceInCents', minimumPriceInCents.toString());
+    }
+    if (suggestedPriceInCents !== undefined) {
+      formData.append('suggestedPriceInCents', suggestedPriceInCents.toString());
+    }
+    formData.append('allowFreeStreaming', allowFreeStreaming.toString());
 
     const res = await fetch('/api/landing-page/tracks', {
       method: 'POST',
@@ -572,6 +606,8 @@ export default function Dashboard() {
 
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
     toast({ title: 'Track uploaded successfully' });
+
+    return track;
   };
 
   const updateTrack = async (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => {
