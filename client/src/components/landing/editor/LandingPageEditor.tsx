@@ -2,7 +2,7 @@
 // Story 9.10: Landing Page Editor Redesign
 
 import { useState, useEffect, useCallback } from 'react';
-import { Palette, Link, Share2, Settings, Loader2, Save, Music } from 'lucide-react';
+import { Palette, Link, Share2, Settings, Loader2, Save, Music, Video } from 'lucide-react';
 // Note: Using custom buttons instead of Radix Tabs since we render content separately
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DesignTab } from './DesignTab';
@@ -10,6 +10,7 @@ import { LinksTab } from './LinksTab';
 import { SocialTab } from './SocialTab';
 import { SettingsTab } from './SettingsTab';
 import { MusicTab } from './MusicTab';
+import { VideoTab, type VideoItem } from './VideoTab';
 import { EditorPreview } from './EditorPreview';
 import type { SocialIcon } from '@/components/landing/SocialIconsEditor';
 
@@ -17,6 +18,7 @@ const EDITOR_TABS = [
   { id: 'design', label: 'Design', icon: Palette },
   { id: 'links', label: 'Links', icon: Link },
   { id: 'music', label: 'Music', icon: Music },
+  { id: 'video', label: 'Video', icon: Video },
   { id: 'social', label: 'Social', icon: Share2 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -96,11 +98,43 @@ interface LandingPageEditorProps {
   // Music tab props
   tracks?: Track[];
   isLoadingTracks?: boolean;
-  onUploadTrack?: (file: File, title: string, priceInCents: number) => Promise<void>;
+  onUploadTrack?: (options: {
+    file: File;
+    title: string;
+    priceInCents: number;
+    coverFile?: File;
+    pricingType?: 'fixed' | 'pwyw';
+    minimumPriceInCents?: number;
+    suggestedPriceInCents?: number;
+    allowFreeStreaming?: boolean;
+    hasCollaborators?: boolean;
+  }) => Promise<Track | void>;
   onUpdateTrack?: (id: string, updates: { title?: string; priceInCents?: number; isPublished?: boolean }) => Promise<void>;
   onDeleteTrack?: (id: string) => Promise<void>;
   onUploadTrackCover?: (trackId: string, file: File) => Promise<void>;
   onOpenSplits?: (track: Track) => void;
+  // Video tab props
+  videos?: VideoItem[];
+  isLoadingVideos?: boolean;
+  onUploadVideo?: (options: {
+    file: File;
+    title: string;
+    description?: string;
+    thumbnailFile?: File;
+    isPaywalled: boolean;
+    priceInCents?: number;
+    pricingType?: 'fixed' | 'pwyw';
+    minimumPriceInCents?: number;
+  }) => Promise<VideoItem | void>;
+  onUpdateVideo?: (id: string, updates: {
+    title?: string;
+    description?: string;
+    isPaywalled?: boolean;
+    priceInCents?: number;
+    isPublished?: boolean;
+  }) => Promise<void>;
+  onDeleteVideo?: (id: string) => Promise<void>;
+  onUploadVideoThumbnail?: (videoId: string, file: File) => Promise<void>;
   // Tab state controlled by parent
   activeTab?: TabId;
   onTabChange?: (tab: TabId) => void;
@@ -128,6 +162,12 @@ export function LandingPageEditor({
   onDeleteTrack,
   onUploadTrackCover,
   onOpenSplits,
+  videos = [],
+  isLoadingVideos = false,
+  onUploadVideo,
+  onUpdateVideo,
+  onDeleteVideo,
+  onUploadVideoThumbnail,
   activeTab: controlledActiveTab,
   onTabChange,
 }: LandingPageEditorProps) {
@@ -208,7 +248,7 @@ export function LandingPageEditor({
               </SelectContent>
             </Select>
           ) : (
-            <div className="w-full grid grid-cols-5 bg-[rgba(102,0,51,0.05)] rounded-md p-1">
+            <div className="w-full grid grid-cols-6 bg-[rgba(102,0,51,0.05)] rounded-md p-1">
               {EDITOR_TABS.map(tab => (
                 <button
                   key={tab.id}
@@ -265,6 +305,22 @@ export function LandingPageEditor({
             ) : (
               <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
                 <p>Music features are loading...</p>
+              </div>
+            )
+          )}
+          {activeTab === 'video' && (
+            onUploadVideo && onUpdateVideo && onDeleteVideo && onUploadVideoThumbnail ? (
+              <VideoTab
+                videos={videos}
+                isLoading={isLoadingVideos}
+                onUploadVideo={onUploadVideo}
+                onUpdateVideo={onUpdateVideo}
+                onDeleteVideo={onDeleteVideo}
+                onUploadThumbnail={onUploadVideoThumbnail}
+              />
+            ) : (
+              <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
+                <p>Video features are loading...</p>
               </div>
             )
           )}
