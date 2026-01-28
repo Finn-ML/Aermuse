@@ -64,7 +64,7 @@ export function VideoSection({
   };
 
   const handlePurchaseSuccess = (videoId: string) => {
-    setPurchasedVideoIds(prev => new Set([...prev, videoId]));
+    setPurchasedVideoIds(prev => new Set(Array.from(prev).concat(videoId)));
     setShowPurchaseModal(false);
   };
 

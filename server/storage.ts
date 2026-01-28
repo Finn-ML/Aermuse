@@ -9,7 +9,9 @@ import {
   type Track, type InsertTrack,
   type TrackPurchase, type InsertTrackPurchase,
   type TrackSplit, type InsertTrackSplit, type TrackSplitStatus,
-  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals
+  type ArtistVideo, type InsertArtistVideo,
+  type VideoPurchase, type InsertVideoPurchase,
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals, artistVideos, videoPurchases
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
@@ -131,6 +133,23 @@ export interface IStorage {
   deleteTrackSplit(id: string): Promise<boolean>;
   deleteTrackSplitsByTrack(trackId: string): Promise<boolean>;
   checkAllSplitsVerifiedOrExpired(trackId: string): Promise<boolean>;
+
+  // Artist Videos (Video Store Feature)
+  getArtistVideo(id: string): Promise<ArtistVideo | undefined>;
+  getArtistVideosByLandingPage(landingPageId: string): Promise<ArtistVideo[]>;
+  getPublishedArtistVideosByLandingPage(landingPageId: string): Promise<ArtistVideo[]>;
+  createArtistVideo(video: InsertArtistVideo & { id: string }): Promise<ArtistVideo>;
+  updateArtistVideo(id: string, data: Partial<InsertArtistVideo>): Promise<ArtistVideo | undefined>;
+  deleteArtistVideo(id: string): Promise<boolean>;
+  incrementVideoViewCount(id: string): Promise<void>;
+  incrementVideoPurchaseCount(id: string): Promise<void>;
+
+  // Video Purchases
+  getVideoPurchase(id: string): Promise<VideoPurchase | undefined>;
+  getVideoPurchaseByToken(token: string): Promise<VideoPurchase | undefined>;
+  getVideoPurchaseBySession(sessionId: string): Promise<VideoPurchase | undefined>;
+  getVideoPurchasesByEmail(email: string): Promise<VideoPurchase[]>;
+  createVideoPurchase(purchase: InsertVideoPurchase): Promise<VideoPurchase>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -798,6 +817,92 @@ export class DatabaseStorage implements IStorage {
       return true; // No splits means verified by default
     }
     return splits.every(split => split.status === 'verified' || split.status === 'expired');
+  }
+
+  // ============================================
+  // ARTIST VIDEOS (Video Store Feature)
+  // ============================================
+
+  async getArtistVideo(id: string): Promise<ArtistVideo | undefined> {
+    const [video] = await db.select().from(artistVideos).where(eq(artistVideos.id, id));
+    return video;
+  }
+
+  async getArtistVideosByLandingPage(landingPageId: string): Promise<ArtistVideo[]> {
+    return db.select()
+      .from(artistVideos)
+      .where(eq(artistVideos.landingPageId, landingPageId))
+      .orderBy(asc(artistVideos.displayOrder), desc(artistVideos.createdAt));
+  }
+
+  async getPublishedArtistVideosByLandingPage(landingPageId: string): Promise<ArtistVideo[]> {
+    return db.select()
+      .from(artistVideos)
+      .where(and(
+        eq(artistVideos.landingPageId, landingPageId),
+        eq(artistVideos.isPublished, true)
+      ))
+      .orderBy(asc(artistVideos.displayOrder), desc(artistVideos.createdAt));
+  }
+
+  async createArtistVideo(video: InsertArtistVideo & { id: string }): Promise<ArtistVideo> {
+    const [newVideo] = await db.insert(artistVideos).values(video).returning();
+    return newVideo;
+  }
+
+  async updateArtistVideo(id: string, data: Partial<InsertArtistVideo>): Promise<ArtistVideo | undefined> {
+    const [video] = await db.update(artistVideos)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(artistVideos.id, id))
+      .returning();
+    return video;
+  }
+
+  async deleteArtistVideo(id: string): Promise<boolean> {
+    const result = await db.delete(artistVideos).where(eq(artistVideos.id, id));
+    return true;
+  }
+
+  async incrementVideoViewCount(id: string): Promise<void> {
+    await db.execute(
+      `UPDATE artist_videos SET view_count = COALESCE(view_count, 0) + 1 WHERE id = '${id}'`
+    );
+  }
+
+  async incrementVideoPurchaseCount(id: string): Promise<void> {
+    await db.execute(
+      `UPDATE artist_videos SET purchase_count = COALESCE(purchase_count, 0) + 1 WHERE id = '${id}'`
+    );
+  }
+
+  // ============================================
+  // VIDEO PURCHASES (Video Store Feature)
+  // ============================================
+
+  async getVideoPurchase(id: string): Promise<VideoPurchase | undefined> {
+    const [purchase] = await db.select().from(videoPurchases).where(eq(videoPurchases.id, id));
+    return purchase;
+  }
+
+  async getVideoPurchaseByToken(token: string): Promise<VideoPurchase | undefined> {
+    const [purchase] = await db.select().from(videoPurchases).where(eq(videoPurchases.accessToken, token));
+    return purchase;
+  }
+
+  async getVideoPurchaseBySession(sessionId: string): Promise<VideoPurchase | undefined> {
+    const [purchase] = await db.select().from(videoPurchases).where(eq(videoPurchases.stripeCheckoutSessionId, sessionId));
+    return purchase;
+  }
+
+  async getVideoPurchasesByEmail(email: string): Promise<VideoPurchase[]> {
+    return db.select().from(videoPurchases)
+      .where(eq(videoPurchases.buyerEmail, email))
+      .orderBy(desc(videoPurchases.createdAt));
+  }
+
+  async createVideoPurchase(purchase: InsertVideoPurchase): Promise<VideoPurchase> {
+    const [newPurchase] = await db.insert(videoPurchases).values(purchase).returning();
+    return newPurchase;
   }
 }
 

@@ -14,7 +14,7 @@ import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, deleteArtistVideoFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers } from "./services/trackStripe";
@@ -1906,8 +1906,24 @@ ${urls}
       res.set('Accept-Ranges', 'bytes'); // Support range requests for video seeking
       res.send(buffer);
     } catch (error) {
+      // Handle different error types appropriately
+      if (error instanceof StorageError) {
+        if (error.code === 'NOT_FOUND') {
+          console.warn(`Background video not found: ${req.params.path}`);
+          return res.status(404).json({ error: "Video not found" });
+        }
+        if (error.code === 'SERVICE_UNAVAILABLE') {
+          console.error("Background video storage service unavailable:", error.message);
+          return res.status(503).json({
+            error: "Video service temporarily unavailable. Please try again.",
+            retryable: error.retryable
+          });
+        }
+      }
+
+      // Unknown/unexpected error
       console.error("Background video download error:", error);
-      res.status(404).json({ error: "Video not found" });
+      res.status(500).json({ error: "Failed to load video" });
     }
   });
 
@@ -3022,6 +3038,362 @@ ${urls}
     } catch (error) {
       console.error("Get purchases error:", error);
       res.status(500).json({ error: "Failed to get purchases" });
+    }
+  });
+
+  // ============================================
+  // ARTIST VIDEOS ROUTES (Video Store Feature)
+  // ============================================
+
+  // Get videos for the authenticated user's landing page (owner only)
+  app.get("/api/landing-page/videos", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        // Return empty array if user has no landing page yet
+        return res.json([]);
+      }
+
+      const videos = await storage.getArtistVideosByLandingPage(landingPage.id);
+      res.json(videos);
+    } catch (error) {
+      console.error("Get videos error:", error);
+      res.status(500).json({ error: "Failed to get videos" });
+    }
+  });
+
+  // Upload a new video
+  app.post("/api/landing-page/videos", videoUpload.single("video"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No video file uploaded" });
+      }
+
+      let landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        // Auto-create landing page if user doesn't have one
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ error: "User not found" });
+        }
+        const slug = user.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+        landingPage = await storage.createLandingPage({
+          userId: user.id,
+          slug: `${slug}-${user.id.slice(0, 8)}`,
+          artistName: user.name,
+          tagline: "Independent Artist",
+          bio: "",
+          socialLinks: JSON.stringify([]),
+          isPublished: false,
+        });
+      }
+
+      // Parse metadata from request body
+      const {
+        title,
+        description,
+        isPaywalled = false,
+        priceInCents,
+        currency = 'gbp',
+        pricingType = 'fixed',
+        minimumPriceInCents = 0,
+      } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      // Verify file type
+      const verification = await verifyVideoType(file.buffer);
+      if (!verification.valid) {
+        return res.status(400).json({ error: verification.error });
+      }
+
+      const fileFormat = verification.type as 'mp4' | 'webm' | 'mov';
+
+      // Generate video ID
+      const videoId = crypto.randomUUID();
+
+      // Get video duration (basic estimation - in production you'd use ffprobe)
+      let durationSeconds: number | undefined;
+
+      // Upload original file
+      const uploadResult = await uploadArtistVideo(userId, videoId, file.buffer, fileFormat);
+
+      // TODO: Generate preview (10-second clip) using video processor
+      let previewPath: string | undefined;
+
+      // Parse pricing
+      const paywalled = isPaywalled === 'true' || isPaywalled === true;
+      const price = parseInt(priceInCents, 10) || 0;
+      const minPrice = parseInt(minimumPriceInCents, 10) || 0;
+
+      // Validate pricing if paywalled
+      if (paywalled && pricingType === 'fixed') {
+        if (price < 50) {
+          return res.status(400).json({ error: "Price must be at least 50 pence for fixed pricing" });
+        }
+      }
+
+      // Create video record in database
+      const video = await storage.createArtistVideo({
+        id: videoId,
+        landingPageId: landingPage.id,
+        userId,
+        title,
+        description: description || null,
+        originalFilePath: uploadResult.path,
+        previewFilePath: previewPath || null,
+        thumbnailPath: null,
+        originalFileName: file.originalname,
+        fileFormat,
+        fileSizeBytes: file.buffer.length,
+        durationSeconds: durationSeconds || null,
+        isPaywalled: paywalled,
+        priceInCents: paywalled ? (pricingType === 'fixed' ? price : minPrice) : null,
+        currency,
+        pricingType: paywalled ? pricingType as 'fixed' | 'pwyw' : null,
+        minimumPriceInCents: paywalled && pricingType === 'pwyw' ? minPrice : null,
+        stripeProductId: null,
+        stripePriceId: null,
+        displayOrder: 0,
+        isPublished: false,
+      });
+
+      res.json(video);
+    } catch (error) {
+      console.error("Upload video error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 500MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload video" });
+    }
+  });
+
+  // Get single video details
+  app.get("/api/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Check ownership for unpublished videos
+      const userId = (req.session as any).userId;
+      if (!video.isPublished && video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      res.json(video);
+    } catch (error) {
+      console.error("Get video error:", error);
+      res.status(500).json({ error: "Failed to get video" });
+    }
+  });
+
+  // Update video metadata
+  app.patch("/api/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video || video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      const { title, description, priceInCents, isPaywalled, isPublished, displayOrder } = req.body;
+
+      const updatedVideo = await storage.updateArtistVideo(req.params.id, {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(priceInCents !== undefined && { priceInCents }),
+        ...(isPaywalled !== undefined && { isPaywalled }),
+        ...(isPublished !== undefined && { isPublished }),
+        ...(displayOrder !== undefined && { displayOrder }),
+      });
+      res.json(updatedVideo);
+    } catch (error) {
+      console.error("Update video error:", error);
+      res.status(500).json({ error: "Failed to update video" });
+    }
+  });
+
+  // Delete video
+  app.delete("/api/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video || video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Delete files from storage
+      try {
+        await deleteArtistVideoFiles(userId, video.id);
+      } catch (err) {
+        console.warn("[VIDEOS] Failed to delete video files:", err);
+      }
+
+      // Delete video record
+      await storage.deleteArtistVideo(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete video error:", error);
+      res.status(500).json({ error: "Failed to delete video" });
+    }
+  });
+
+  // Upload thumbnail for a video
+  app.post("/api/videos/:id/thumbnail", coverArtUpload.single("image"), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video || video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No image uploaded" });
+      }
+
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const result = await uploadArtistVideoThumbnail(userId, video.id, file.buffer, extension);
+
+      const url = `/api/videos/${video.id}/thumbnail/${encodeURIComponent(result.path)}`;
+      await storage.updateArtistVideo(video.id, { thumbnailPath: result.path });
+
+      res.json({ success: true, url, path: result.path });
+    } catch (error) {
+      console.error("Video thumbnail upload error:", error);
+      res.status(500).json({ error: "Failed to upload thumbnail" });
+    }
+  });
+
+  // Serve video thumbnail
+  app.get("/api/videos/:id/thumbnail/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
+
+      const buffer = await downloadArtistVideoFile(filePath);
+
+      res.set('Content-Type', getImageContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Video thumbnail download error:", error);
+      res.status(404).json({ error: "Thumbnail not found" });
+    }
+  });
+
+  // Stream video preview (public - 10 second preview for paywalled content)
+  app.get("/api/videos/:id/preview", async (req: Request, res: Response) => {
+    try {
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Only serve published videos publicly
+      const userId = (req.session as any).userId;
+      if (!video.isPublished && video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Use preview if available, otherwise serve original (for non-paywalled)
+      const filePath = video.previewFilePath || video.originalFilePath;
+      const buffer = await downloadArtistVideoFile(filePath);
+
+      // Increment view count
+      await storage.incrementVideoViewCount(video.id);
+
+      res.set('Content-Type', getVideoContentType(video.fileFormat));
+      res.set('Content-Length', buffer.length.toString());
+      res.set('Accept-Ranges', 'bytes');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Video preview stream error:", error);
+      res.status(500).json({ error: "Failed to stream preview" });
+    }
+  });
+
+  // Stream full video (requires purchase for paywalled, free for non-paywalled)
+  app.get("/api/videos/:id/stream", async (req: Request, res: Response) => {
+    try {
+      const video = await storage.getArtistVideo(req.params.id);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Only serve published videos publicly
+      const userId = (req.session as any).userId;
+      if (!video.isPublished && video.userId !== userId) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      // If paywalled, check for valid access token
+      if (video.isPaywalled) {
+        const accessToken = req.query.token as string;
+        if (!accessToken) {
+          return res.status(403).json({ error: "Access token required for paywalled content" });
+        }
+
+        const purchase = await storage.getVideoPurchaseByToken(accessToken);
+        if (!purchase || purchase.videoId !== video.id || purchase.status !== 'completed') {
+          return res.status(403).json({ error: "Invalid or expired access token" });
+        }
+      }
+
+      const buffer = await downloadArtistVideoFile(video.originalFilePath);
+
+      res.set('Content-Type', getVideoContentType(video.fileFormat));
+      res.set('Content-Length', buffer.length.toString());
+      res.set('Accept-Ranges', 'bytes');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Video stream error:", error);
+      res.status(500).json({ error: "Failed to stream video" });
+    }
+  });
+
+  // Get published videos for an artist page (public)
+  app.get("/api/artist/:slug/videos", async (req: Request, res: Response) => {
+    try {
+      const page = await storage.getLandingPageBySlug(req.params.slug);
+      if (!page || !page.isPublished) {
+        return res.status(404).json({ error: "Artist page not found" });
+      }
+
+      const videos = await storage.getPublishedArtistVideosByLandingPage(page.id);
+      res.json(videos);
+    } catch (error) {
+      console.error("Get artist videos error:", error);
+      res.status(500).json({ error: "Failed to get videos" });
     }
   });
 

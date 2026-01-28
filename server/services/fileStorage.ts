@@ -366,16 +366,146 @@ export async function uploadBackgroundVideoFallback(
 }
 
 /**
- * Download video background file
+ * Custom error class for storage operations to distinguish error types
  */
-export async function downloadBackgroundVideo(path: string): Promise<Buffer> {
-  const result = await getStorage().downloadAsBytes(path);
+export class StorageError extends Error {
+  public code: 'NOT_FOUND' | 'SERVICE_UNAVAILABLE' | 'UNKNOWN';
+  public retryable: boolean;
 
-  if (result.error) {
-    throw new Error(`Failed to download video background: ${result.error.message}`);
+  constructor(message: string, code: 'NOT_FOUND' | 'SERVICE_UNAVAILABLE' | 'UNKNOWN', retryable: boolean = false) {
+    super(message);
+    this.name = 'StorageError';
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+/**
+ * Helper to determine if a storage error is retryable
+ */
+function isRetryableStorageError(error: any): boolean {
+  const errorMessage = error?.message?.toLowerCase() || '';
+
+  // Connection/network errors are retryable
+  if (error?.code === 'ECONNRESET' || error?.code === 'ETIMEDOUT' || error?.code === 'ENOTFOUND') {
+    return true;
   }
 
-  return result.value![0];
+  // Service unavailable errors
+  if (errorMessage.includes('service unavailable') || errorMessage.includes('503')) {
+    return true;
+  }
+
+  // Rate limiting
+  if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+    return true;
+  }
+
+  // Temporary failures
+  if (errorMessage.includes('temporary') || errorMessage.includes('timeout')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Helper to determine if error indicates file not found
+ */
+function isNotFoundError(error: any): boolean {
+  const errorMessage = error?.message?.toLowerCase() || '';
+  return errorMessage.includes('not found') ||
+         errorMessage.includes('no such') ||
+         errorMessage.includes('does not exist') ||
+         errorMessage.includes('404');
+}
+
+/**
+ * Sleep helper for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Download video background file with retry logic for transient failures
+ */
+export async function downloadBackgroundVideo(path: string): Promise<Buffer> {
+  const maxRetries = 3;
+  const baseDelay = 500; // Start with 500ms delay
+  let lastError: any;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await getStorage().downloadAsBytes(path);
+
+      if (result.error) {
+        // Check if it's a not-found error (don't retry)
+        if (isNotFoundError(result.error)) {
+          throw new StorageError(
+            `Video not found: ${path}`,
+            'NOT_FOUND',
+            false
+          );
+        }
+
+        // Check if it's a retryable error
+        if (isRetryableStorageError(result.error)) {
+          lastError = result.error;
+          if (attempt < maxRetries - 1) {
+            const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+            console.log(`[STORAGE] Retry ${attempt + 1}/${maxRetries} for video download after ${delay}ms: ${path}`);
+            await sleep(delay);
+            continue;
+          }
+        }
+
+        // Non-retryable error
+        throw new StorageError(
+          `Failed to download video background: ${result.error.message}`,
+          'SERVICE_UNAVAILABLE',
+          false
+        );
+      }
+
+      // Success
+      if (attempt > 0) {
+        console.log(`[STORAGE] Video download succeeded on retry ${attempt + 1}: ${path}`);
+      }
+      return result.value![0];
+
+    } catch (error: any) {
+      // If it's already a StorageError and not retryable, throw immediately
+      if (error instanceof StorageError && !error.retryable) {
+        throw error;
+      }
+
+      lastError = error;
+
+      // Check if the caught error is retryable
+      if (isRetryableStorageError(error) && attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`[STORAGE] Retry ${attempt + 1}/${maxRetries} for video download after ${delay}ms: ${path}`);
+        await sleep(delay);
+        continue;
+      }
+
+      // Not retryable or last attempt
+      if (isNotFoundError(error)) {
+        throw new StorageError(`Video not found: ${path}`, 'NOT_FOUND', false);
+      }
+
+      break;
+    }
+  }
+
+  // All retries exhausted
+  console.error(`[STORAGE] Video download failed after ${maxRetries} attempts: ${path}`, lastError);
+  throw new StorageError(
+    'Video storage service temporarily unavailable. Please try again.',
+    'SERVICE_UNAVAILABLE',
+    true
+  );
 }
 
 /**
@@ -407,4 +537,96 @@ export function getVideoContentType(format: string): string {
     mov: 'video/quicktime'
   };
   return types[format.toLowerCase()] || 'video/mp4';
+}
+
+// ============================================
+// ARTIST VIDEO STORAGE (Video Store Feature)
+// ============================================
+
+/**
+ * Upload artist video file
+ */
+export async function uploadArtistVideo(
+  userId: string,
+  videoId: string,
+  buffer: Buffer,
+  format: string
+): Promise<UploadResult> {
+  const path = `videos/${userId}/${videoId}/original.${format}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Upload artist video preview (10-second clip)
+ */
+export async function uploadArtistVideoPreview(
+  userId: string,
+  videoId: string,
+  buffer: Buffer,
+  format: string
+): Promise<UploadResult> {
+  const path = `videos/${userId}/${videoId}/preview.${format}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Upload artist video thumbnail
+ */
+export async function uploadArtistVideoThumbnail(
+  userId: string,
+  videoId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const path = `videos/${userId}/${videoId}/thumbnail.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Download artist video file
+ */
+export async function downloadArtistVideoFile(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download video file: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+/**
+ * Delete all files for an artist video
+ */
+export async function deleteArtistVideoFiles(userId: string, videoId: string): Promise<void> {
+  const basePath = `videos/${userId}/${videoId}`;
+
+  try {
+    const listResult = await getStorage().list({ prefix: basePath });
+    if (!listResult.error && listResult.value) {
+      for (const item of listResult.value) {
+        await getStorage().delete(item.name);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
 }
