@@ -12,6 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import ResetPassword from "@/pages/ResetPassword";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ContractView from "@/pages/ContractView";
+import Contracts from "@/pages/Contracts";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Pricing from "@/pages/Pricing";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/auth" component={Auth} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/contracts" component={Contracts} />
       <Route path="/contracts/:id" component={ContractView} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
