@@ -1816,7 +1816,20 @@ ${urls}
   // ============================================
 
   // Upload background video (mp4, mov) - converts to webm for smooth playback
-  app.post("/api/landing-page/background-video", videoUpload.single("video"), async (req: Request, res: Response) => {
+  app.post("/api/landing-page/background-video", (req: Request, res: Response, next) => {
+    videoUpload.single("video")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: "File too large. Maximum video size is 500MB." });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: err.message || "Upload failed" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -1882,11 +1895,6 @@ ${urls}
       });
     } catch (error) {
       console.error("Background video upload error:", error);
-      if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: "File too large. Maximum size is 50MB." });
-        }
-      }
       res.status(500).json({ error: "Failed to upload background video" });
     }
   });
@@ -3067,8 +3075,21 @@ ${urls}
     }
   });
 
-  // Upload a new video
-  app.post("/api/landing-page/videos", videoUpload.single("video"), async (req: Request, res: Response) => {
+  // Upload a new video (with multer error handling)
+  app.post("/api/landing-page/videos", (req: Request, res: Response, next) => {
+    videoUpload.single("video")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: "File too large. Maximum video size is 500MB." });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: err.message || "Upload failed" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {

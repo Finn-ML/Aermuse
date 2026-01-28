@@ -220,7 +220,7 @@ const ALLOWED_VIDEO_MIMES = [
   'video/quicktime',  // MOV
   'video/webm',
 ];
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB - videos need larger limit
 
 export const videoUpload = multer({
   storage,
