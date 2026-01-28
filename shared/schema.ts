@@ -774,3 +774,139 @@ export const trackSplitsRelations = relations(trackSplits, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ============================================
+// ARTIST VIDEOS TABLE (Video Store Feature)
+// ============================================
+
+export const artistVideos = pgTable("artist_videos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Video metadata
+  title: text("title").notNull(),
+  description: text("description"),
+
+  // File storage paths (Replit Object Storage)
+  originalFilePath: text("original_file_path").notNull(),
+  previewFilePath: text("preview_file_path"), // 10-sec preview (generated)
+  thumbnailPath: text("thumbnail_path"),
+
+  // File metadata
+  originalFileName: text("original_file_name").notNull(),
+  fileFormat: varchar("file_format", { length: 10 }).notNull(), // 'mp4' | 'webm' | 'mov'
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  durationSeconds: integer("duration_seconds"),
+
+  // Paywall settings
+  isPaywalled: boolean("is_paywalled").default(false),
+  priceInCents: integer("price_in_cents"),
+  currency: varchar("currency", { length: 3 }).default("gbp"),
+
+  // PWYW pricing options
+  pricingType: text("pricing_type").default("fixed").$type<PricingType>(), // 'fixed' | 'pwyw'
+  minimumPriceInCents: integer("minimum_price_in_cents").default(0),
+
+  // Stripe integration
+  stripeProductId: varchar("stripe_product_id", { length: 50 }),
+  stripePriceId: varchar("stripe_price_id", { length: 50 }),
+
+  // Display options
+  displayOrder: integer("display_order").default(0),
+  isPublished: boolean("is_published").default(false),
+
+  // Analytics
+  viewCount: integer("view_count").default(0),
+  purchaseCount: integer("purchase_count").default(0),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  landingPageIdx: index('idx_artist_videos_landing_page').on(table.landingPageId),
+  userIdIdx: index('idx_artist_videos_user_id').on(table.userId),
+  publishedIdx: index('idx_artist_videos_published').on(table.isPublished),
+}));
+
+export const insertArtistVideoSchema = createInsertSchema(artistVideos, {
+  pricingType: pricingTypeSchema,
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertArtistVideo = z.infer<typeof insertArtistVideoSchema>;
+export type ArtistVideo = typeof artistVideos.$inferSelect;
+
+// ============================================
+// VIDEO PURCHASES TABLE (Video Store Feature)
+// ============================================
+
+export const videoPurchases = pgTable("video_purchases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar("video_id").notNull().references(() => artistVideos.id, { onDelete: 'cascade' }),
+
+  // Buyer information
+  buyerEmail: text("buyer_email").notNull(),
+  buyerName: text("buyer_name"),
+  buyerUserId: varchar("buyer_user_id").references(() => users.id),
+
+  // Stripe payment details
+  stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 50 }),
+  stripeCheckoutSessionId: varchar("stripe_checkout_session_id", { length: 100 }),
+  amountPaidCents: integer("amount_paid_cents").notNull(),
+  currency: varchar("currency", { length: 3 }).default("gbp"),
+
+  // Access control
+  accessToken: varchar("access_token", { length: 64 }).notNull().unique(),
+  accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
+
+  // Status tracking
+  status: text("status").notNull().default("pending"), // 'pending' | 'completed' | 'refunded'
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  videoIdIdx: index('idx_video_purchases_video').on(table.videoId),
+  buyerEmailIdx: index('idx_video_purchases_email').on(table.buyerEmail),
+  accessTokenIdx: index('idx_video_purchases_token').on(table.accessToken),
+  statusIdx: index('idx_video_purchases_status').on(table.status),
+}));
+
+export const insertVideoPurchaseSchema = createInsertSchema(videoPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertVideoPurchase = z.infer<typeof insertVideoPurchaseSchema>;
+export type VideoPurchase = typeof videoPurchases.$inferSelect;
+
+// Video purchase status type
+export type VideoPurchaseStatus = 'pending' | 'completed' | 'refunded';
+
+// ============================================
+// ARTIST VIDEOS RELATIONS
+// ============================================
+
+export const artistVideosRelations = relations(artistVideos, ({ one, many }) => ({
+  landingPage: one(landingPages, {
+    fields: [artistVideos.landingPageId],
+    references: [landingPages.id],
+  }),
+  user: one(users, {
+    fields: [artistVideos.userId],
+    references: [users.id],
+  }),
+  purchases: many(videoPurchases),
+}));
+
+export const videoPurchasesRelations = relations(videoPurchases, ({ one }) => ({
+  video: one(artistVideos, {
+    fields: [videoPurchases.videoId],
+    references: [artistVideos.id],
+  }),
+  buyer: one(users, {
+    fields: [videoPurchases.buyerUserId],
+    references: [users.id],
+  }),
+}));
