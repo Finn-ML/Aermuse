@@ -687,7 +687,9 @@ export default function Dashboard() {
     toast({ title: 'Cover art updated' });
   };
 
-  // Video mutations for video tab
+  // Video mutations for video tab - uses chunked upload to bypass proxy limits
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
   const uploadVideo = async (options: {
     file: File;
     title: string;
@@ -709,33 +711,84 @@ export default function Dashboard() {
       minimumPriceInCents,
     } = options;
 
-    const formData = new FormData();
-    formData.append('video', file);
-    formData.append('title', title);
-    if (description) formData.append('description', description);
-    formData.append('isPaywalled', String(isPaywalled));
-    if (isPaywalled) {
-      formData.append('pricingType', pricingType);
-      if (pricingType === 'fixed' && priceInCents !== undefined) {
-        formData.append('priceInCents', priceInCents.toString());
-      }
-      if (pricingType === 'pwyw' && minimumPriceInCents !== undefined) {
-        formData.append('minimumPriceInCents', minimumPriceInCents.toString());
-      }
-    }
+    // Calculate number of chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'mp4';
 
-    const res = await fetch('/api/landing-page/videos', {
+    console.log(`[VIDEO UPLOAD] Starting chunked upload: ${file.name} (${file.size} bytes, ${totalChunks} chunks)`);
+
+    // Step 1: Initialize upload
+    const initRes = await fetch('/api/landing-page/videos/init-upload', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
+      body: JSON.stringify({
+        totalChunks,
+        fileName: file.name,
+        fileFormat: fileExtension,
+        title,
+        description,
+        isPaywalled,
+        priceInCents,
+        pricingType,
+        minimumPriceInCents,
+        currency: 'gbp',
+      }),
     });
 
-    if (!res.ok) {
-      const errorMessage = await parseErrorResponse(res, 'Failed to upload video');
+    if (!initRes.ok) {
+      const errorMessage = await parseErrorResponse(initRes, 'Failed to initialize upload');
       throw new Error(errorMessage);
     }
 
-    const video = await res.json();
+    const { uploadId } = await initRes.json();
+    console.log(`[VIDEO UPLOAD] Upload initialized: ${uploadId}`);
+
+    // Step 2: Upload chunks
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+      const chunkBuffer = await chunk.arrayBuffer();
+
+      console.log(`[VIDEO UPLOAD] Uploading chunk ${i + 1}/${totalChunks} (${end - start} bytes)`);
+
+      const chunkRes = await fetch('/api/landing-page/videos/chunk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-Upload-Id': uploadId,
+          'X-Chunk-Index': i.toString(),
+        },
+        credentials: 'include',
+        body: chunkBuffer,
+      });
+
+      if (!chunkRes.ok) {
+        const errorMessage = await parseErrorResponse(chunkRes, `Failed to upload chunk ${i + 1}`);
+        throw new Error(errorMessage);
+      }
+
+      const chunkResult = await chunkRes.json();
+      console.log(`[VIDEO UPLOAD] Chunk ${i + 1} received: ${chunkResult.received}/${chunkResult.total}`);
+    }
+
+    // Step 3: Complete upload
+    console.log(`[VIDEO UPLOAD] Completing upload...`);
+    const completeRes = await fetch('/api/landing-page/videos/complete-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ uploadId }),
+    });
+
+    if (!completeRes.ok) {
+      const errorMessage = await parseErrorResponse(completeRes, 'Failed to complete upload');
+      throw new Error(errorMessage);
+    }
+
+    const video = await completeRes.json();
+    console.log(`[VIDEO UPLOAD] Upload completed: ${video.id}`);
 
     // Upload thumbnail if provided
     if (thumbnailFile && video.id) {

@@ -3075,7 +3075,266 @@ ${urls}
     }
   });
 
-  // Upload a new video (with multer error handling)
+  // ============================================
+  // CHUNKED VIDEO UPLOAD (bypasses proxy limits)
+  // ============================================
+
+  // In-memory store for chunked uploads (in production, use Redis)
+  const chunkedUploads = new Map<string, {
+    userId: string;
+    landingPageId: string;
+    chunks: Buffer[];
+    totalChunks: number;
+    receivedChunks: number;
+    metadata: {
+      title: string;
+      description?: string;
+      originalFileName: string;
+      fileFormat: string;
+      isPaywalled: boolean;
+      priceInCents?: number;
+      pricingType?: string;
+      minimumPriceInCents?: number;
+      currency?: string;
+    };
+    createdAt: Date;
+  }>();
+
+  // Clean up stale uploads (older than 1 hour)
+  setInterval(() => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    for (const [uploadId, upload] of chunkedUploads.entries()) {
+      if (upload.createdAt < oneHourAgo) {
+        chunkedUploads.delete(uploadId);
+        console.log(`[CHUNKED UPLOAD] Cleaned up stale upload: ${uploadId}`);
+      }
+    }
+  }, 5 * 60 * 1000); // Run every 5 minutes
+
+  // Initialize chunked upload
+  app.post("/api/landing-page/videos/init-upload", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      let landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ error: "User not found" });
+        }
+        const slug = user.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+        landingPage = await storage.createLandingPage({
+          userId: user.id,
+          slug: `${slug}-${user.id.slice(0, 8)}`,
+          artistName: user.name,
+          tagline: "Independent Artist",
+          bio: "",
+          socialLinks: JSON.stringify([]),
+          isPublished: false,
+        });
+      }
+
+      const {
+        totalChunks,
+        fileName,
+        fileFormat,
+        title,
+        description,
+        isPaywalled,
+        priceInCents,
+        pricingType,
+        minimumPriceInCents,
+        currency,
+      } = req.body;
+
+      if (!totalChunks || !fileName || !title) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Validate file format
+      const validFormats = ['mp4', 'webm', 'mov'];
+      const format = (fileFormat || fileName.split('.').pop())?.toLowerCase();
+      if (!validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
+      }
+
+      const uploadId = crypto.randomUUID();
+
+      chunkedUploads.set(uploadId, {
+        userId,
+        landingPageId: landingPage.id,
+        chunks: new Array(totalChunks).fill(null),
+        totalChunks,
+        receivedChunks: 0,
+        metadata: {
+          title,
+          description,
+          originalFileName: fileName,
+          fileFormat: format,
+          isPaywalled: isPaywalled === true || isPaywalled === 'true',
+          priceInCents: parseInt(priceInCents, 10) || undefined,
+          pricingType,
+          minimumPriceInCents: parseInt(minimumPriceInCents, 10) || undefined,
+          currency: currency || 'gbp',
+        },
+        createdAt: new Date(),
+      });
+
+      console.log(`[CHUNKED UPLOAD] Initialized upload ${uploadId} for ${fileName} (${totalChunks} chunks)`);
+
+      res.json({ uploadId, totalChunks });
+    } catch (error) {
+      console.error("Init chunked upload error:", error);
+      res.status(500).json({ error: "Failed to initialize upload" });
+    }
+  });
+
+  // Upload a chunk
+  app.post("/api/landing-page/videos/chunk", express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const uploadId = req.headers['x-upload-id'] as string;
+      const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
+
+      if (!uploadId || isNaN(chunkIndex)) {
+        return res.status(400).json({ error: "Missing upload ID or chunk index" });
+      }
+
+      const upload = chunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (chunkIndex < 0 || chunkIndex >= upload.totalChunks) {
+        return res.status(400).json({ error: "Invalid chunk index" });
+      }
+
+      // Store chunk
+      const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      upload.chunks[chunkIndex] = chunkBuffer;
+      upload.receivedChunks++;
+
+      console.log(`[CHUNKED UPLOAD] Received chunk ${chunkIndex + 1}/${upload.totalChunks} for ${uploadId}`);
+
+      res.json({
+        received: upload.receivedChunks,
+        total: upload.totalChunks,
+        complete: upload.receivedChunks === upload.totalChunks,
+      });
+    } catch (error) {
+      console.error("Upload chunk error:", error);
+      res.status(500).json({ error: "Failed to upload chunk" });
+    }
+  });
+
+  // Complete chunked upload
+  app.post("/api/landing-page/videos/complete-upload", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { uploadId } = req.body;
+      if (!uploadId) {
+        return res.status(400).json({ error: "Missing upload ID" });
+      }
+
+      const upload = chunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Check all chunks received
+      if (upload.receivedChunks !== upload.totalChunks) {
+        return res.status(400).json({
+          error: `Missing chunks. Received ${upload.receivedChunks}/${upload.totalChunks}`,
+        });
+      }
+
+      // Verify no null chunks
+      if (upload.chunks.some(c => c === null)) {
+        return res.status(400).json({ error: "Some chunks are missing" });
+      }
+
+      console.log(`[CHUNKED UPLOAD] Completing upload ${uploadId}...`);
+
+      // Combine chunks
+      const completeBuffer = Buffer.concat(upload.chunks);
+      console.log(`[CHUNKED UPLOAD] Combined buffer size: ${completeBuffer.length} bytes`);
+
+      // Verify file type
+      const verification = await verifyVideoType(completeBuffer);
+      if (!verification.valid) {
+        chunkedUploads.delete(uploadId);
+        return res.status(400).json({ error: verification.error });
+      }
+
+      const fileFormat = verification.type as 'mp4' | 'webm' | 'mov';
+      const videoId = crypto.randomUUID();
+      const { metadata } = upload;
+
+      // Upload to storage
+      const uploadResult = await uploadArtistVideo(userId, videoId, completeBuffer, fileFormat);
+
+      // Parse pricing
+      const paywalled = metadata.isPaywalled;
+      const price = metadata.priceInCents || 0;
+      const minPrice = metadata.minimumPriceInCents || 0;
+      const pricingType = metadata.pricingType || 'fixed';
+
+      // Create video record
+      const video = await storage.createArtistVideo({
+        id: videoId,
+        landingPageId: upload.landingPageId,
+        userId,
+        title: metadata.title,
+        description: metadata.description || null,
+        originalFilePath: uploadResult.path,
+        previewFilePath: null,
+        thumbnailPath: null,
+        originalFileName: metadata.originalFileName,
+        fileFormat,
+        fileSizeBytes: completeBuffer.length,
+        durationSeconds: null,
+        isPaywalled: paywalled,
+        priceInCents: paywalled ? (pricingType === 'fixed' ? price : minPrice) : null,
+        currency: metadata.currency,
+        pricingType: paywalled ? pricingType as 'fixed' | 'pwyw' : null,
+        minimumPriceInCents: paywalled && pricingType === 'pwyw' ? minPrice : null,
+        stripeProductId: null,
+        stripePriceId: null,
+        displayOrder: 0,
+        isPublished: false,
+      });
+
+      // Clean up
+      chunkedUploads.delete(uploadId);
+      console.log(`[CHUNKED UPLOAD] Completed upload ${uploadId} -> video ${videoId}`);
+
+      res.json(video);
+    } catch (error) {
+      console.error("Complete chunked upload error:", error);
+      res.status(500).json({ error: "Failed to complete upload" });
+    }
+  });
+
+  // Upload a new video (with multer error handling) - kept for smaller files
   app.post("/api/landing-page/videos", (req: Request, res: Response, next) => {
     videoUpload.single("video")(req, res, (err: any) => {
       if (err) {
