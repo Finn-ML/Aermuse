@@ -3607,7 +3607,20 @@ ${urls}
 
       // Use preview if available, otherwise serve original (for non-paywalled)
       const filePath = video.previewFilePath || video.originalFilePath;
-      const buffer = await downloadArtistVideoFile(filePath);
+
+      // Check if file path exists
+      if (!filePath) {
+        console.error(`Video ${video.id} has no file path`);
+        return res.status(404).json({ error: "Video file not available" });
+      }
+
+      let buffer: Buffer;
+      try {
+        buffer = await downloadArtistVideoFile(filePath);
+      } catch (downloadError) {
+        console.error(`Failed to download video file: ${filePath}`, downloadError);
+        return res.status(404).json({ error: "Video file not found in storage" });
+      }
 
       // Increment view count
       await storage.incrementVideoViewCount(video.id);
@@ -3649,7 +3662,19 @@ ${urls}
         }
       }
 
-      const buffer = await downloadArtistVideoFile(video.originalFilePath);
+      // Check if file path exists
+      if (!video.originalFilePath) {
+        console.error(`Video ${video.id} has no original file path`);
+        return res.status(404).json({ error: "Video file not available" });
+      }
+
+      let buffer: Buffer;
+      try {
+        buffer = await downloadArtistVideoFile(video.originalFilePath);
+      } catch (downloadError) {
+        console.error(`Failed to download video file: ${video.originalFilePath}`, downloadError);
+        return res.status(404).json({ error: "Video file not found in storage" });
+      }
 
       res.set('Content-Type', getVideoContentType(video.fileFormat));
       res.set('Content-Length', buffer.length.toString());

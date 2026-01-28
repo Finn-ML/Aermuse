@@ -33,6 +33,8 @@ export function VideoPlayer({
   const [showPaywall, setShowPaywall] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Video source - full video if has access (with token), otherwise preview
@@ -197,11 +199,50 @@ export function VideoPlayer({
             src={videoSrc}
             className="w-full h-full object-contain"
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
+            onLoadedMetadata={() => {
+              handleLoadedMetadata();
+              setIsLoading(false);
+              setVideoError(null);
+            }}
             onEnded={() => setIsPlaying(false)}
             onClick={togglePlay}
+            onError={() => {
+              setVideoError('Video could not be loaded. The file may not be available.');
+              setIsLoading(false);
+            }}
+            onLoadStart={() => setIsLoading(true)}
             playsInline
           />
+
+          {/* Loading State */}
+          {isLoading && !videoError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {videoError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-center p-4">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                style={{ backgroundColor: `${primaryColor}40` }}
+              >
+                <X className="w-8 h-8" style={{ color: secondaryColor }} />
+              </div>
+              <p className="text-white text-lg font-semibold mb-2">Video Unavailable</p>
+              <p className="text-white/60 text-sm max-w-xs">{videoError}</p>
+              {video.isPaywalled && (
+                <button
+                  onClick={onPurchaseClick}
+                  className="mt-4 px-4 py-2 rounded-lg font-medium"
+                  style={{ backgroundColor: secondaryColor, color: primaryColor }}
+                >
+                  Purchase to Access
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Paywall Overlay */}
           {showPaywall && (

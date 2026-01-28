@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useSearch, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock, Play } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { parseVideoUrl } from '@/lib/video-parser';
@@ -911,23 +911,98 @@ export default function ArtistPage() {
                             );
                           })}
 
-                        {/* Paywalled Videos */}
-                        {paywalledVideos.map((video) => (
-                          <div
-                            key={video.id}
-                            className="flex-shrink-0"
-                            style={{ scrollSnapAlign: 'start' }}
-                          >
-                            <VideoCard
-                              video={video}
-                              isSelected={selectedVideo?.id === video.id}
+                        {/* Paywalled Videos - Same styling as embedded */}
+                        {paywalledVideos.map((video, index) => {
+                          const thumbnailUrl = video.thumbnailPath
+                            ? `/api/videos/${video.id}/thumbnail/${encodeURIComponent(video.thumbnailPath)}`
+                            : undefined;
+                          const isPWYW = video.pricingType === 'pwyw';
+                          const minPrice = video.minimumPriceInCents || 0;
+
+                          return (
+                            <motion.div
+                              key={video.id}
+                              custom={index + videoLinks.length}
+                              variants={videoEmbedVariants}
+                              initial="hidden"
+                              whileInView="visible"
+                              viewport={{ once: true, margin: '-50px' }}
+                              className="flex-shrink-0 w-72 md:w-80 rounded-2xl overflow-hidden glass-card p-3 cursor-pointer group"
+                              style={{
+                                scrollSnapAlign: 'start',
+                                boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px ${secondaryColor}10`,
+                              }}
                               onClick={() => handleVideoSelect(video)}
-                              primaryColor={primaryColor}
-                              secondaryColor={secondaryColor}
-                              textColor={textColor}
-                            />
-                          </div>
-                        ))}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              {/* Title with accent dot - same as embedded */}
+                              <p
+                                className="text-sm font-medium mb-2 truncate flex items-center gap-2"
+                                style={{ color: textColor }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: accentColor }}
+                                />
+                                {video.title}
+                                {/* Price badge inline */}
+                                {video.isPaywalled && video.priceInCents !== null && (
+                                  <span
+                                    className="ml-auto px-2 py-0.5 rounded text-xs font-semibold flex-shrink-0"
+                                    style={{ backgroundColor: secondaryColor, color: primaryColor }}
+                                  >
+                                    {isPWYW
+                                      ? minPrice === 0 ? 'Free+' : `From £${(minPrice / 100).toFixed(2)}`
+                                      : `£${((video.priceInCents || 0) / 100).toFixed(2)}`}
+                                  </span>
+                                )}
+                              </p>
+
+                              {/* Video Thumbnail - same aspect ratio as embedded */}
+                              <div
+                                className="relative w-full overflow-hidden rounded-xl"
+                                style={{
+                                  aspectRatio: '16 / 9',
+                                  boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
+                                  backgroundColor: `${primaryColor}30`,
+                                }}
+                              >
+                                {thumbnailUrl ? (
+                                  <img
+                                    src={thumbnailUrl}
+                                    alt={video.title}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-black/20">
+                                    <Play className="w-12 h-12 opacity-40" style={{ color: textColor }} />
+                                  </div>
+                                )}
+
+                                {/* Lock Icon for Paywalled */}
+                                {video.isPaywalled && (
+                                  <div
+                                    className="absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm"
+                                    style={{ backgroundColor: `${primaryColor}90` }}
+                                  >
+                                    <Lock className="w-3.5 h-3.5" style={{ color: secondaryColor }} />
+                                  </div>
+                                )}
+
+                                {/* Play Overlay on Hover */}
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/30">
+                                  <div
+                                    className="w-14 h-14 rounded-full flex items-center justify-center backdrop-blur-sm"
+                                    style={{ backgroundColor: `${secondaryColor}e0` }}
+                                  >
+                                    <Play className="w-7 h-7 ml-1" style={{ color: primaryColor }} />
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </div>
 
                       {/* Scrollbar hide CSS */}
