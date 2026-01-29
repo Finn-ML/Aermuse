@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2, HelpCircle, X } from 'lucide-react';
+import { ArrowLeft, Eye, Trash2, Save, Clock, FileText, Loader2, HelpCircle, X, BookOpen } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useTemplateForm } from '@/hooks/useTemplateForm';
@@ -52,6 +52,8 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
   const queryClient = useQueryClient();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showReadContract, setShowReadContract] = useState(false);
+  const templateContent = template.content as import('@shared/types/templates').TemplateContent;
   const { user } = useAuth();
 
   // Get suggestions for a field based on its label/id
@@ -181,6 +183,14 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowReadContract(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#660033] text-[#F7E6CA] hover:bg-[#7a0d40] transition-all text-sm font-medium"
+            title="Read the full contract template"
+          >
+            <BookOpen size={18} />
+            <span className="hidden sm:inline">Read Contract</span>
+          </button>
+          <button
             onClick={() => setShowHelp(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[rgba(255,255,255,0.6)] text-[#660033] hover:bg-[rgba(255,255,255,0.8)] transition-all text-sm font-medium"
             title="How to use this form"
@@ -290,6 +300,78 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
                 className="w-full py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold hover:shadow-lg transition-all"
               >
                 Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Read Contract Modal */}
+      {showReadContract && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowReadContract(false)}
+          />
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(102,0,51,0.1)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#660033] flex items-center justify-center">
+                  <BookOpen size={20} className="text-[#F7E6CA]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#660033]">{templateContent?.title || template.name}</h3>
+                  <p className="text-xs text-[rgba(102,0,51,0.5)]">Read-only preview — fill in the form to customise</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReadContract(false)}
+                className="p-2 rounded-lg hover:bg-[rgba(102,0,51,0.05)] transition-colors"
+              >
+                <X size={20} className="text-[#660033]" />
+              </button>
+            </div>
+
+            {/* Contract Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {templateContent?.sections?.map((section, index) => (
+                <div key={section.id || index}>
+                  {section.heading && (
+                    <h4 className="font-bold text-[#660033] text-base mb-2">
+                      {section.heading}
+                      {section.isOptional && (
+                        <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-[rgba(102,0,51,0.08)] text-[rgba(102,0,51,0.5)]">
+                          Optional
+                        </span>
+                      )}
+                    </h4>
+                  )}
+                  <div className="text-sm text-[rgba(102,0,51,0.75)] leading-relaxed whitespace-pre-wrap">
+                    {section.content.split(/(\{\{[^}]+\}\})/).map((part, i) =>
+                      part.startsWith('{{') && part.endsWith('}}') ? (
+                        <span
+                          key={i}
+                          className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-[rgba(102,0,51,0.08)] text-[#660033] font-medium text-xs"
+                        >
+                          {part.slice(2, -2).replace(/_/g, ' ')}
+                        </span>
+                      ) : (
+                        <span key={i}>{part}</span>
+                      )
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-[rgba(102,0,51,0.1)]">
+              <button
+                onClick={() => setShowReadContract(false)}
+                className="w-full py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                Close
               </button>
             </div>
           </div>
