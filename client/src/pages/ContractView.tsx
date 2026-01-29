@@ -112,7 +112,8 @@ export default function ContractView() {
 
       // Only auto-analyze for premium users - but NOT for contracts pending field review
       // (pending_review contracts need user to fill in fields first before generating)
-      if (data.contract.extractedText && !data.contract.aiAnalysis && isPremium && data.contract.status !== 'pending_review') {
+      // Check both extractedText (uploaded contracts) and renderedContent (template contracts)
+      if ((data.contract.extractedText || data.contract.renderedContent) && !data.contract.aiAnalysis && isPremium && data.contract.status !== 'pending_review') {
         analyze(id);
       }
     } catch (err) {
