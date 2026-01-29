@@ -222,10 +222,12 @@ export function AudioProgressBar({
 
         {/* Thumb */}
         <motion.div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full shadow-md"
+          className="absolute top-1/2 w-3 h-3 rounded-full shadow-md"
           style={{
             backgroundColor: primaryColor,
             left: `${displayProgress}%`,
+            y: '-50%',
+            x: '-50%',
             boxShadow: `0 0 0 2px ${secondaryColor}`,
           }}
           initial={{ scale: 0, opacity: 0 }}

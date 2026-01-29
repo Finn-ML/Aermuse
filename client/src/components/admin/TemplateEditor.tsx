@@ -545,6 +545,8 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
   };
 
   return (
+    <>
+    <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -556,8 +558,6 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
             </Button>
           </div>
         </DialogHeader>
-
-        <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
@@ -975,5 +975,6 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
