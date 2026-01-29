@@ -242,7 +242,7 @@ function validateTemplateStructure(template: {
 function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
+      <DialogContent className="max-w-2xl max-h-[85vh] top-[5%] translate-y-0">
         <DialogHeader>
           <DialogTitle>How to Create Contract Templates</DialogTitle>
           <DialogDescription>
