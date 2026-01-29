@@ -9,7 +9,7 @@ import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
 import { validatePassword } from "@shared/passwordValidation";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
-import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail, sendPurchaseReceiptEmail, sendTrackSoldNotificationEmail } from "./services/postmark";
+import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail, sendPurchaseReceiptEmail, sendTrackSoldNotificationEmail, sendVideoPurchaseReceiptEmail, sendVideoSoldNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
@@ -3908,6 +3908,53 @@ ${urls}
       });
 
       await storage.incrementVideoPurchaseCount(details.videoId);
+
+      // Send purchase receipt and artist notification emails (async, don't block response)
+      const video = await storage.getArtistVideo(details.videoId);
+      if (video) {
+        const landingPage = await storage.getLandingPage(video.landingPageId);
+        const artistName = landingPage?.artistName || 'Unknown Artist';
+        const baseUrl = getBaseUrl(req);
+
+        console.log('[VIDEO PURCHASE] Sending receipt email to:', details.buyerEmail);
+
+        sendVideoPurchaseReceiptEmail({
+          buyerEmail: details.buyerEmail,
+          buyerName: details.buyerName || '',
+          videoTitle: video.title,
+          artistName,
+          amountPaidCents: details.amountPaid,
+          currency: details.currency,
+          accessToken,
+          accessExpiresAt: accessExpires,
+          videoId: video.id,
+          landingPageSlug: landingPage?.slug || '',
+          baseUrl,
+        }).then(result => {
+          console.log('[VIDEO PURCHASE] Receipt email result:', result);
+        }).catch(err => console.error('[VIDEO PURCHASE] Failed to send receipt email:', err));
+
+        // Notify the artist about the sale
+        const artist = await storage.getUser(video.userId);
+        if (artist?.email) {
+          const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT || '0', 10);
+          const platformFee = Math.round((details.amountPaid * platformFeePercent) / 100);
+          const artistEarnings = details.amountPaid - platformFee;
+
+          console.log('[VIDEO PURCHASE] Sending artist notification to:', artist.email);
+
+          sendVideoSoldNotificationEmail(
+            artist.email,
+            artist.name,
+            video.title,
+            details.buyerName || details.buyerEmail,
+            artistEarnings,
+            details.currency
+          ).then(result => {
+            console.log('[VIDEO PURCHASE] Artist notification result:', result);
+          }).catch(err => console.error('[VIDEO PURCHASE] Failed to send artist notification:', err));
+        }
+      }
 
       res.json({
         success: true,

@@ -940,6 +940,239 @@ Keep creating amazing music!
   }
 }
 
+/**
+ * Send purchase receipt email for video purchases
+ */
+interface VideoPurchaseReceiptParams {
+  buyerEmail: string;
+  buyerName: string;
+  videoTitle: string;
+  artistName: string;
+  amountPaidCents: number;
+  currency: string;
+  accessToken: string;
+  accessExpiresAt: Date;
+  videoId: string;
+  landingPageSlug: string;
+  baseUrl: string;
+}
+
+export async function sendVideoPurchaseReceiptEmail(
+  params: VideoPurchaseReceiptParams
+): Promise<EmailResult> {
+  const {
+    buyerEmail,
+    buyerName,
+    videoTitle,
+    artistName,
+    amountPaidCents,
+    currency,
+    accessExpiresAt,
+    landingPageSlug,
+    baseUrl,
+  } = params;
+
+  const watchUrl = `${baseUrl}/artist/${landingPageSlug}`;
+  const formattedAmount = new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amountPaidCents / 100);
+
+  const expiryDate = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(accessExpiresAt);
+
+  const purchaseDate = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date());
+
+  if (!client) {
+    console.log('[EMAIL] Video purchase receipt email (dev mode):');
+    console.log(`  To: ${buyerEmail}`);
+    console.log(`  Buyer: ${buyerName}`);
+    console.log(`  Video: ${videoTitle} by ${artistName}`);
+    console.log(`  Amount: ${formattedAmount}`);
+    console.log(`  Watch URL: ${watchUrl}`);
+    console.log(`  Expires: ${expiryDate}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const receiptDetails = `
+      <div style="background-color: ${COLORS.cream}; border-radius: 16px; padding: 24px; margin: 20px 0;">
+        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: ${COLORS.burgundy};">Order Details</h3>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Video:</td>
+            <td style="padding: 10px 0; color: ${COLORS.text}; font-size: 14px; font-weight: 600;">${videoTitle}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Artist:</td>
+            <td style="padding: 10px 0; color: ${COLORS.text}; font-size: 14px;">${artistName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: ${COLORS.textMuted}; font-size: 14px;">Date:</td>
+            <td style="padding: 10px 0; color: ${COLORS.text}; font-size: 14px;">${purchaseDate}</td>
+          </tr>
+          <tr style="border-top: 1px solid ${COLORS.champagne};">
+            <td style="padding: 16px 0 10px 0; color: ${COLORS.text}; font-size: 16px; font-weight: 600;">Total Paid:</td>
+            <td style="padding: 16px 0 10px 0; color: ${COLORS.burgundy}; font-size: 16px; font-weight: 700;">${formattedAmount}</td>
+          </tr>
+        </table>
+        <p style="margin: 16px 0 0 0; font-size: 12px; color: ${COLORS.textMuted}; font-style: italic;">
+          Price includes VAT where applicable
+        </p>
+      </div>
+    `;
+
+    const accessInfo = `
+      <div style="background-color: ${COLORS.successLight}; border-radius: 16px; padding: 24px; margin: 20px 0;">
+        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: ${COLORS.success};">Your Access</h3>
+        <p style="margin: 0; font-size: 14px; color: ${COLORS.text};">
+          <strong>Access expires:</strong> ${expiryDate}
+        </p>
+      </div>
+    `;
+
+    const legalNotice = `
+      <div style="background-color: ${COLORS.champagneLight}; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 12px; color: ${COLORS.textMuted}; line-height: 1.6;">
+        <strong>Consumer Rights Notice:</strong> By completing this purchase, you acknowledged that you received immediate access to digital content and waived your 14-day cancellation right under the Consumer Contracts Regulations 2013. This does not affect your statutory rights if the product is faulty.
+      </div>
+    `;
+
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: buyerEmail,
+      Subject: `Your video is ready: "${videoTitle}" by ${artistName}`,
+      HtmlBody: emailTemplate({
+        title: 'Thank You For Your Purchase!',
+        preheader: `Watch "${videoTitle}" by ${artistName}`,
+        greeting: `Hi ${buyerName || 'there'},`,
+        content: `${successBox('Payment Successful!')}
+          ${receiptDetails}
+          ${accessInfo}
+          <p style="margin: 20px 0; font-size: 15px; color: ${COLORS.text}; text-align: center;">
+            Click the button below to watch your video.
+          </p>
+          ${legalNotice}`,
+        buttonText: 'Watch Your Video',
+        buttonUrl: watchUrl,
+        footerNote: 'Keep this email for your records. If you have any issues with your video, please contact us.',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${buyerName || 'there'},
+
+Thank you for your purchase!
+
+ORDER DETAILS
+-------------
+Video: ${videoTitle}
+Artist: ${artistName}
+Date: ${purchaseDate}
+Total Paid: ${formattedAmount} (includes VAT where applicable)
+
+YOUR ACCESS
+-----------
+Watch your video here: ${watchUrl}
+
+Access expires: ${expiryDate}
+
+CONSUMER RIGHTS NOTICE
+----------------------
+By completing this purchase, you acknowledged that you received immediate access to digital content and waived your 14-day cancellation right under the Consumer Contracts Regulations 2013. This does not affect your statutory rights if the product is faulty.
+
+Keep this email for your records.
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Video purchase receipt email sent to ${buyerEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send video purchase receipt email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send artist notification when a video is purchased
+ */
+export async function sendVideoSoldNotificationEmail(
+  artistEmail: string,
+  artistName: string,
+  videoTitle: string,
+  buyerName: string,
+  amountEarnedCents: number,
+  currency: string
+): Promise<EmailResult> {
+  const formattedAmount = new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amountEarnedCents / 100);
+
+  if (!client) {
+    console.log('[EMAIL] Video sold notification email (dev mode):');
+    console.log(`  To: ${artistEmail}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Video: ${videoTitle}`);
+    console.log(`  Buyer: ${buyerName}`);
+    console.log(`  Amount earned: ${formattedAmount}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: artistEmail,
+      Subject: `You sold "${videoTitle}"!`,
+      HtmlBody: emailTemplate({
+        title: 'You Made a Sale!',
+        preheader: `Someone purchased "${videoTitle}"`,
+        greeting: `Hi ${artistName},`,
+        content: `${successBox('Cha-ching!')}
+          <p style="margin: 20px 0; font-size: 18px; color: ${COLORS.text}; text-align: center;">
+            <strong>${buyerName || 'A customer'}</strong> just purchased your video:
+          </p>
+          ${infoBox(videoTitle, 'Video Sold')}
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="display: inline-block; background: linear-gradient(135deg, ${COLORS.success} 0%, #218838 100%); color: white; font-size: 24px; font-weight: 700; padding: 16px 32px; border-radius: 12px;">
+              ${formattedAmount}
+            </span>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: ${COLORS.textMuted};">credited to your account</p>
+          </div>
+          <p style="margin: 20px 0 0 0; font-size: 14px; color: ${COLORS.textMuted}; text-align: center;">
+            Funds will be available in your Stripe account according to your payout schedule.
+          </p>`,
+        footerNote: 'Keep creating amazing content!',
+        accentColor: COLORS.success,
+      }),
+      TextBody: `Hi ${artistName},
+
+Cha-ching! You made a sale!
+
+${buyerName || 'A customer'} just purchased your video "${videoTitle}".
+
+Amount earned: ${formattedAmount}
+
+Funds will be available in your Stripe account according to your payout schedule.
+
+Keep creating amazing content!
+
+- The Aermuse Team`,
+      MessageStream: 'outbound'
+    });
+
+    console.log(`[EMAIL] Video sold notification email sent to ${artistEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send video sold notification email:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
 // ============================================
 // COLLABORATION SPLIT VERIFICATION EMAILS
 // ============================================
