@@ -2076,10 +2076,11 @@ ${urls}
           return res.status(400).json({ error: "Stripe account already connected" });
         }
         // Resume onboarding for existing account
+        const connectBaseUrl = getBaseUrl(req);
         const accountLink = await createAccountLink(
           user.stripeConnectAccountId,
-          `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
-          `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+          `${connectBaseUrl}/dashboard?stripe_connect=refresh`,
+          `${connectBaseUrl}/dashboard?stripe_connect=complete`
         );
         return res.json({ url: accountLink.url });
       }
@@ -2094,10 +2095,11 @@ ${urls}
       });
 
       // Create onboarding link
+      const connectBaseUrl = getBaseUrl(req);
       const accountLink = await createAccountLink(
         account.id,
-        `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
-        `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+        `${connectBaseUrl}/dashboard?stripe_connect=refresh`,
+        `${connectBaseUrl}/dashboard?stripe_connect=complete`
       );
 
       res.json({ url: accountLink.url });
@@ -2185,10 +2187,11 @@ ${urls}
         return res.status(400).json({ error: "No Stripe Connect account" });
       }
 
+      const connectBaseUrl = getBaseUrl(req);
       const accountLink = await createAccountLink(
         user.stripeConnectAccountId,
-        `${connectConfig.appUrl}/dashboard?stripe_connect=refresh`,
-        `${connectConfig.appUrl}/dashboard?stripe_connect=complete`
+        `${connectBaseUrl}/dashboard?stripe_connect=refresh`,
+        `${connectBaseUrl}/dashboard?stripe_connect=complete`
       );
 
       res.json({ url: accountLink.url });
@@ -2749,6 +2752,7 @@ ${urls}
         productId: track.stripeProductId || undefined,
         buyerEmail,
         landingPageSlug: landingPage.slug,
+        baseUrl: getBaseUrl(req),
         currency: track.currency || 'gbp',
         connectedAccountId,
         applicationFeeAmount,
@@ -3843,6 +3847,7 @@ ${urls}
         customAmountCents: isPWYW ? amountInCents : undefined,
         buyerEmail,
         landingPageSlug: landingPage.slug,
+        baseUrl: getBaseUrl(req),
         currency: video.currency || 'gbp',
         connectedAccountId,
         applicationFeeAmount,
@@ -4451,12 +4456,13 @@ ${urls}
       }
 
       // Create checkout session with tier
+      const baseUrl = getBaseUrl(req);
       const session = await stripe.createCheckoutSession({
         customerId,
         userId: user.id,
         tier,
-        successUrl: `${stripe.stripeConfig.appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${stripe.stripeConfig.appUrl}/pricing?canceled=true`,
+        successUrl: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${baseUrl}/pricing?canceled=true`,
       });
 
       console.log(`[BILLING] Checkout session created: ${session.id} for user ${userId}`);

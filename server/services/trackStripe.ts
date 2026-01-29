@@ -119,6 +119,7 @@ export interface TrackCheckoutParams {
   artistName: string;
   buyerEmail?: string;
   landingPageSlug: string;
+  baseUrl?: string; // Base URL derived from request for redirect URLs
   currency?: string;
   connectedAccountId?: string;
   applicationFeeAmount?: number;
@@ -141,20 +142,22 @@ export async function createTrackCheckoutSession(
     artistName,
     buyerEmail,
     landingPageSlug,
+    baseUrl,
     currency = 'gbp',
     connectedAccountId,
     applicationFeeAmount = 0,
   } = params;
 
   const isPWYW = !priceId && customAmountCents !== undefined;
+  const appUrl = baseUrl || APP_URL;
 
   console.log(`[TRACK-STRIPE] Creating checkout for track ${trackId}${isPWYW ? ` (PWYW: ${customAmountCents} ${currency})` : `, price ${priceId}`}`);
   if (connectedAccountId) {
     console.log(`[TRACK-STRIPE] Using connected account: ${connectedAccountId}, fee: ${applicationFeeAmount}`);
   }
 
-  const successUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=success&track=${trackId}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${APP_URL}/artist/${landingPageSlug}?purchase=cancelled`;
+  const successUrl = `${appUrl}/artist/${landingPageSlug}?purchase=success&track=${trackId}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${appUrl}/artist/${landingPageSlug}?purchase=cancelled`;
 
   // Build line items - different for PWYW vs fixed price
   let lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
@@ -391,6 +394,7 @@ export interface VideoCheckoutParams {
   customAmountCents?: number;
   buyerEmail?: string;
   landingPageSlug: string;
+  baseUrl?: string; // Base URL derived from request for redirect URLs
   currency?: string;
   connectedAccountId?: string;
   applicationFeeAmount?: number;
@@ -411,6 +415,7 @@ export async function createVideoCheckoutSession(
     customAmountCents,
     buyerEmail,
     landingPageSlug,
+    baseUrl,
     currency = 'gbp',
     connectedAccountId,
     applicationFeeAmount = 0,
@@ -418,14 +423,15 @@ export async function createVideoCheckoutSession(
 
   const isPWYW = pricingType === 'pwyw';
   const amount = isPWYW && customAmountCents !== undefined ? customAmountCents : priceInCents;
+  const appUrl = baseUrl || APP_URL;
 
   console.log(`[VIDEO-STRIPE] Creating checkout for video ${videoId}: ${amount} ${currency}`);
   if (connectedAccountId) {
     console.log(`[VIDEO-STRIPE] Using connected account: ${connectedAccountId}, fee: ${applicationFeeAmount}`);
   }
 
-  const successUrl = `${APP_URL}/artist/${landingPageSlug}?video_purchase=success&video=${videoId}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${APP_URL}/artist/${landingPageSlug}?video_purchase=cancelled`;
+  const successUrl = `${appUrl}/artist/${landingPageSlug}?video_purchase=success&video=${videoId}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${appUrl}/artist/${landingPageSlug}?video_purchase=cancelled`;
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
