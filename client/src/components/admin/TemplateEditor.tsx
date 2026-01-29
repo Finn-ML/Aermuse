@@ -242,7 +242,7 @@ function validateTemplateStructure(template: {
 function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] top-[5%] translate-y-0">
+      <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>How to Create Contract Templates</DialogTitle>
           <DialogDescription>
@@ -545,8 +545,6 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
   };
 
   return (
-    <>
-    <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -558,6 +556,8 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
             </Button>
           </div>
         </DialogHeader>
+
+        <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
@@ -975,6 +975,5 @@ export function TemplateEditor({ open, onOpenChange, template }: TemplateEditorP
         </div>
       </DialogContent>
     </Dialog>
-    </>
   );
 }

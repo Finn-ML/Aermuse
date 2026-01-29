@@ -200,7 +200,7 @@ export function TemplateForm({ template, onBack, onPreview, initialData, proposa
 
       {/* Help Modal */}
       {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowHelp(false)}
