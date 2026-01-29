@@ -18,6 +18,19 @@ declare module "http" {
   }
 }
 
+// Health check endpoint - before session middleware to avoid DB dependency and respond fast
+// Supports both /api/health and / for deployment health probes
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+app.get("/", (_req, res, next) => {
+  const accept = _req.headers.accept || "";
+  if (!accept.includes("text/html")) {
+    return res.status(200).json({ status: "ok" });
+  }
+  next();
+});
+
 // Trust proxy - required for secure cookies and rate limiting behind reverse proxies (Replit, Heroku, etc.)
 // Always enable on Replit (REPL_ID env var) or in production
 if (process.env.NODE_ENV === "production" || process.env.REPL_ID) {
