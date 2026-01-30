@@ -27,9 +27,9 @@ import { FREE_TIER_LIMITS } from "@shared/types/subscription";
 import { generateContractPdf, sanitizeFilename, generateContractPDFWithSignatureAreas } from "./services/pdfGenerator";
 import { getDocuSealService, DocuSealServiceError } from "./services/docuseal";
 import { logAdminActivity, getActivityLogs, getAvailableActions, getActiveAdmins } from "./services/adminActivity";
-import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts, users } from "@shared/schema";
+import { signatureRequests, signatories, insertSignatureRequestSchema, insertSignatorySchema, proposals, PROPOSAL_TYPES, systemSettings, aiUsage, contracts, users, trackSplits, contractTemplates } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, sql, gte } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, gte, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { sendSignatureRequestEmail, sendSignatureReminderEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 import { registerAnalyticsRoutes } from "./routes/analytics";
@@ -182,6 +182,20 @@ ${urls}
         socialLinks: JSON.stringify([]),
         isPublished: false,
       });
+
+      // Link pending signatories by email (producer license agreements)
+      try {
+        const userEmail = data.email.toLowerCase();
+        await db.update(signatories)
+          .set({ userId: user.id })
+          .where(and(eq(signatories.email, userEmail), isNull(signatories.userId)));
+
+        await db.update(trackSplits)
+          .set({ collaboratorUserId: user.id })
+          .where(and(eq(trackSplits.collaboratorEmail, userEmail), isNull(trackSplits.collaboratorUserId)));
+      } catch (linkError) {
+        console.error("[AUTH] Failed to link pending signatories/splits on registration:", linkError);
+      }
 
       // Set session
       (req.session as any).userId = user.id;
@@ -4012,7 +4026,7 @@ ${urls}
         return res.status(404).json({ error: "Track not found" });
       }
 
-      const { splits, ownerSplitPercentage } = req.body as {
+      const { splits, ownerSplitPercentage, producerAgreementData } = req.body as {
         splits: Array<{
           collaboratorName: string;
           collaboratorEmail: string;
@@ -4020,6 +4034,7 @@ ${urls}
           splitPercentage: number;
         }>;
         ownerSplitPercentage: number;
+        producerAgreementData?: Record<string, unknown>;
       };
 
       // Validate splits
@@ -4094,6 +4109,182 @@ ${urls}
           });
         } catch (emailError) {
           console.error("Failed to send split verification email:", emailError);
+        }
+      }
+
+      // Handle producer license agreements if producerAgreementData is provided
+      if (producerAgreementData) {
+        const producerCreatedSplits = createdSplits.filter(
+          (s: any) => (s.collaboratorRole || 'artist') === 'producer'
+        );
+
+        if (producerCreatedSplits.length > 0) {
+          try {
+            // Look up the Conditional License Agreement template by name
+            const [template] = await db
+              .select()
+              .from(contractTemplates)
+              .where(eq(contractTemplates.name, 'Conditional License Agreement'))
+              .limit(1);
+
+            if (!template) {
+              console.error("[SPLITS] Conditional License Agreement template not found in database");
+            } else {
+              const initiator = await storage.getUser(userId);
+              const initiatorName = initiator?.name || initiator?.email || 'Artist';
+              const baseUrl = getBaseUrl(req);
+
+              for (const producerSplit of producerCreatedSplits) {
+                try {
+                  // Create contract record
+                  const contractName = `Conditional License - ${track.title} - ${producerSplit.collaboratorName}`;
+                  const contract = await storage.createContract({
+                    userId,
+                    name: contractName,
+                    type: 'production',
+                    status: 'pending_signature',
+                    partnerName: producerSplit.collaboratorName,
+                    templateId: template.id,
+                    templateData: producerAgreementData as any,
+                    renderedContent: null,
+                  } as any);
+
+                  // Generate HTML content from template
+                  const templateFormData: TemplateFormData = {
+                    fields: producerAgreementData as Record<string, string | number | Date | null>,
+                    enabledClauses: [],
+                  };
+                  const templateForRender = {
+                    content: template.content as TemplateContent,
+                    optionalClauses: (template.optionalClauses || []) as OptionalClause[],
+                  };
+                  const rendered = renderTemplateContent(templateForRender, templateFormData);
+                  const renderedContent = generateHTML(rendered.title, rendered.sections);
+                  await storage.updateContract(contract.id, { renderedContent } as any);
+
+                  // Generate PDF with signature areas (2 signers: artist + producer)
+                  const contractForPdf = { ...contract, renderedContent };
+                  const pdfResult = await generateContractPDFWithSignatureAreas(contractForPdf, 2);
+
+                  // Upload to DocuSeal
+                  let docusealService;
+                  try {
+                    docusealService = getDocuSealService();
+                  } catch (err) {
+                    console.error('[SPLITS] DocuSeal not configured, skipping e-sign for producer:', producerSplit.collaboratorEmail);
+                    // Still link the contract to the split
+                    await db.update(trackSplits)
+                      .set({ contractId: contract.id })
+                      .where(eq(trackSplits.id, producerSplit.id));
+                    continue;
+                  }
+
+                  const filename = `${contractName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
+                  const docusealDoc = await docusealService.uploadDocument(pdfResult.buffer, filename);
+
+                  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+                  // Create batch signature request with two signers
+                  const signerList = [
+                    { signerName: initiatorName, signerEmail: initiator!.email.toLowerCase(), signingOrder: 1 },
+                    { signerName: producerSplit.collaboratorName, signerEmail: producerSplit.collaboratorEmail.toLowerCase(), signingOrder: 2 },
+                  ];
+
+                  const batchResponse = await docusealService.createBatchSignatureRequests({
+                    documentId: docusealDoc.id,
+                    signers: signerList.map((s, i) => ({
+                      ...s,
+                      signaturePosition: pdfResult.signaturePositions[i] ? {
+                        page: pdfResult.signaturePositions[i].page,
+                        x: pdfResult.signaturePositions[i].x,
+                        y: pdfResult.signaturePositions[i].y,
+                        width: pdfResult.signaturePositions[i].width,
+                        height: pdfResult.signaturePositions[i].height,
+                      } : undefined,
+                    })),
+                    expiresAt: expiresAt.toISOString(),
+                  });
+
+                  // Create local signature request record
+                  const [signatureRequest] = await db
+                    .insert(signatureRequests)
+                    .values({
+                      contractId: contract.id,
+                      initiatorId: userId,
+                      docusealDocumentId: docusealDoc.id,
+                      status: 'pending',
+                      signingOrder: 'sequential',
+                      expiresAt,
+                    })
+                    .returning();
+
+                  // Create signatory records
+                  const signatoryRecords = await Promise.all(
+                    batchResponse.signatureRequests.map(async (sr: any, index: number) => {
+                      const signerInput = signerList[index];
+                      const existingSigner = await storage.getUserByEmail(signerInput.signerEmail);
+
+                      const [signatory] = await db
+                        .insert(signatories)
+                        .values({
+                          signatureRequestId: signatureRequest.id,
+                          docusealRequestId: sr.id,
+                          signingToken: sr.signingToken,
+                          signingUrl: sr.signingUrl,
+                          email: signerInput.signerEmail,
+                          name: signerInput.signerName,
+                          userId: existingSigner?.id || null,
+                          signingOrder: sr.signingOrder,
+                          status: sr.signingOrder === 1 ? 'pending' : 'waiting',
+                        })
+                        .returning();
+
+                      return signatory;
+                    })
+                  );
+
+                  // Update split record with contract and signature request references
+                  await db.update(trackSplits)
+                    .set({
+                      contractId: contract.id,
+                      signatureRequestId: signatureRequest.id,
+                    })
+                    .where(eq(trackSplits.id, producerSplit.id));
+
+                  // Send signature request emails to pending signatories
+                  for (const signatory of signatoryRecords) {
+                    if (signatory.status === 'pending' && signatory.signingUrl) {
+                      try {
+                        const contractDownloadUrl = signatory.signingToken
+                          ? `${baseUrl}/api/signatures/contract/${signatory.signingToken}`
+                          : null;
+                        await sendSignatureRequestEmail(
+                          signatory.email,
+                          signatory.name,
+                          initiatorName,
+                          contractName,
+                          signatory.signingUrl,
+                          `Conditional License Agreement for "${track.title}"`,
+                          contractDownloadUrl
+                        );
+                        console.log(`[SPLITS] Producer license e-sign email sent to ${signatory.email}`);
+                      } catch (emailError) {
+                        console.error(`[SPLITS] Failed to send e-sign email to ${signatory.email}:`, emailError);
+                      }
+                    }
+                  }
+
+                  console.log(`[SPLITS] Producer license agreement created for ${producerSplit.collaboratorName}: contract=${contract.id}, sigRequest=${signatureRequest.id}`);
+                } catch (producerError) {
+                  console.error(`[SPLITS] Failed to create producer license agreement for ${producerSplit.collaboratorName}:`, producerError);
+                  // Continue — split creation still succeeds even if e-signing fails
+                }
+              }
+            }
+          } catch (templateError) {
+            console.error("[SPLITS] Error processing producer agreements:", templateError);
+            // Non-fatal: splits are already created
+          }
         }
       }
 

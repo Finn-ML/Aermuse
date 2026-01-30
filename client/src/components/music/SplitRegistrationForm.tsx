@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { ProducerLicenseDialog, type ProducerAgreementData } from './ProducerLicenseDialog';
 
 // Minimal track type needed for this component
 interface TrackLike {
   id: string;
+  title?: string;
   ownerSplitPercentage?: number | null;
 }
 
@@ -81,26 +83,39 @@ export function SplitRegistrationForm({
     return track.ownerSplitPercentage ?? (100 - totalCollaboratorPercentage);
   });
 
+  // Producer license dialog state
+  const [showProducerDialog, setShowProducerDialog] = useState(false);
+  const [producerAgreementData, setProducerAgreementData] = useState<ProducerAgreementData | null>(null);
+
   const totalPercentage =
     ownerPercentage + splits.reduce((sum, s) => sum + (s.splitPercentage || 0), 0);
 
   const isValidTotal = Math.abs(totalPercentage - 100) < 0.01;
 
+  const producerSplits = splits.filter((s) => s.collaboratorRole === 'producer');
+  const hasProducers = producerSplits.length > 0;
+
   const saveSplitsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (agreementData?: ProducerAgreementData | null) => {
+      const body: Record<string, unknown> = {
+        splits: splits.map((s) => ({
+          collaboratorName: s.collaboratorName,
+          collaboratorEmail: s.collaboratorEmail,
+          collaboratorRole: s.collaboratorRole,
+          splitPercentage: s.splitPercentage,
+        })),
+        ownerSplitPercentage: ownerPercentage,
+      };
+
+      if (agreementData) {
+        body.producerAgreementData = agreementData;
+      }
+
       const response = await fetch(`/api/tracks/${track.id}/splits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          splits: splits.map((s) => ({
-            collaboratorName: s.collaboratorName,
-            collaboratorEmail: s.collaboratorEmail,
-            collaboratorRole: s.collaboratorRole,
-            splitPercentage: s.splitPercentage,
-          })),
-          ownerSplitPercentage: ownerPercentage,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -113,11 +128,13 @@ export function SplitRegistrationForm({
     onSuccess: () => {
       toast({
         title: 'Splits saved',
-        description:
-          'Verification emails have been sent to all collaborators.',
+        description: hasProducers
+          ? 'Verification emails sent. A license agreement has been sent to the producer(s) for e-signing.'
+          : 'Verification emails have been sent to all collaborators.',
       });
       queryClient.invalidateQueries({ queryKey: ['tracks'] });
       queryClient.invalidateQueries({ queryKey: ['track-splits', track.id] });
+      setProducerAgreementData(null);
       onSuccess?.();
     },
     onError: (error: Error) => {
@@ -152,19 +169,16 @@ export function SplitRegistrationForm({
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const validateSplits = (): boolean => {
     if (!isValidTotal) {
       toast({
         title: 'Invalid percentages',
         description: 'Split percentages must add up to exactly 100%',
         variant: 'destructive',
       });
-      return;
+      return false;
     }
 
-    // Validate all splits have required fields
     for (const split of splits) {
       if (!split.collaboratorName.trim()) {
         toast({
@@ -172,7 +186,7 @@ export function SplitRegistrationForm({
           description: 'Please enter a name for all collaborators',
           variant: 'destructive',
         });
-        return;
+        return false;
       }
       if (!split.collaboratorEmail.trim() || !split.collaboratorEmail.includes('@')) {
         toast({
@@ -180,7 +194,7 @@ export function SplitRegistrationForm({
           description: 'Please enter a valid email for all collaborators',
           variant: 'destructive',
         });
-        return;
+        return false;
       }
       if (split.splitPercentage <= 0) {
         toast({
@@ -188,12 +202,35 @@ export function SplitRegistrationForm({
           description: 'All collaborators must have a percentage greater than 0',
           variant: 'destructive',
         });
-        return;
+        return false;
       }
     }
 
-    saveSplitsMutation.mutate();
+    return true;
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateSplits()) return;
+
+    // If there are producers and no agreement data yet, show the dialog
+    if (hasProducers && !producerAgreementData) {
+      setShowProducerDialog(true);
+      return;
+    }
+
+    saveSplitsMutation.mutate(producerAgreementData);
+  };
+
+  const handleProducerAgreementSubmit = useCallback(
+    (data: ProducerAgreementData) => {
+      setProducerAgreementData(data);
+      setShowProducerDialog(false);
+      // Submit immediately with the agreement data
+      saveSplitsMutation.mutate(data);
+    },
+    [saveSplitsMutation]
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -394,6 +431,20 @@ export function SplitRegistrationForm({
           )}
         </Button>
       </div>
+
+      {/* Producer License Agreement Dialog */}
+      <ProducerLicenseDialog
+        open={showProducerDialog}
+        onClose={() => setShowProducerDialog(false)}
+        onSubmit={handleProducerAgreementSubmit}
+        producerSplits={producerSplits.map((s) => ({
+          collaboratorName: s.collaboratorName,
+          collaboratorEmail: s.collaboratorEmail,
+          splitPercentage: s.splitPercentage,
+        }))}
+        trackTitle={track.title}
+        isSubmitting={saveSplitsMutation.isPending}
+      />
     </form>
   );
 }

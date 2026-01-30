@@ -728,6 +728,10 @@ export const trackSplits = pgTable("track_splits", {
   // Stripe payout destination
   stripeConnectAccountId: varchar("stripe_connect_account_id", { length: 50 }),
 
+  // Producer license agreement references
+  contractId: varchar("contract_id").references(() => contracts.id),
+  signatureRequestId: varchar("signature_request_id").references(() => signatureRequests.id),
+
   // Verification status
   status: text("status").notNull().default("pending").$type<TrackSplitStatus>(),
   verificationToken: varchar("verification_token", { length: 64 }).unique(),
