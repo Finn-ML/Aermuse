@@ -17,7 +17,7 @@ function getBaseUrl(req: Request): string {
   if (host) {
     return `${protocol}://${host}`;
   }
-  return process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
+  return process.env.APP_URL || 'http://localhost:5000';
 }
 
 /**

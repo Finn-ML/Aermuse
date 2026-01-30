@@ -153,7 +153,7 @@ app.use((req, res, next) => {
  */
 function startScheduledJobs() {
   const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-api-key';
-  const APP_URL = `http://localhost:${process.env.PORT || 5000}`;
+  const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
 
   // Process split deadlines every hour
   const DEADLINE_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour

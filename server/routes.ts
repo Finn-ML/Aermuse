@@ -73,7 +73,7 @@ function getBaseUrl(req: Request): string {
   }
 
   // Last resort fallback
-  return process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
+  return process.env.APP_URL || 'http://localhost:5000';
 }
 
 export async function registerRoutes(
@@ -6670,7 +6670,7 @@ Sent at: ${new Date().toISOString()}
   // Register webhook with DocuSeal on startup
   async function registerDocuSealWebhook() {
     try {
-      const appUrl = process.env.APP_URL || process.env.BASE_URL ||
+      const appUrl = process.env.APP_URL ||
         (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000');
       const webhookUrl = `${appUrl}/api/webhooks/docuseal`;
 
