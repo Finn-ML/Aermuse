@@ -893,21 +893,25 @@ If you believe this is an error, please contact the artist directly to discuss u
 async function pushTemplate(tmpl: TemplateDefinition) {
   const { alias, name, subject, htmlBody, textBody } = tmpl;
 
+  let exists = false;
   try {
-    // Check if template already exists
     await client.getTemplate(alias);
-    // Template exists — update it
-    await client.editTemplate(alias, {
-      Name: name,
-      Subject: subject,
-      HtmlBody: htmlBody,
-      TextBody: textBody,
-      TemplateType: postmark.Models.TemplateTypes.Standard,
-    });
-    console.log(`  [updated] ${alias}`);
-  } catch (err: any) {
-    if (err?.statusCode === 404 || err?.code === 1101) {
-      // Template doesn't exist — create it
+    exists = true;
+  } catch {
+    exists = false;
+  }
+
+  try {
+    if (exists) {
+      await client.editTemplate(alias, {
+        Name: name,
+        Subject: subject,
+        HtmlBody: htmlBody,
+        TextBody: textBody,
+        TemplateType: postmark.Models.TemplateTypes.Standard,
+      });
+      console.log(`  [updated] ${alias}`);
+    } else {
       await client.createTemplate({
         Alias: alias,
         Name: name,
@@ -917,10 +921,10 @@ async function pushTemplate(tmpl: TemplateDefinition) {
         TemplateType: postmark.Models.TemplateTypes.Standard,
       });
       console.log(`  [created] ${alias}`);
-    } else {
-      console.error(`  [FAILED] ${alias}: ${err.message || err}`);
-      throw err;
     }
+  } catch (err: any) {
+    console.error(`  [FAILED] ${alias}: ${err.message || err}`);
+    throw err;
   }
 }
 
