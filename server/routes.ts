@@ -4185,10 +4185,10 @@ ${urls}
 
                   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-                  // Create batch signature request with two signers
+                  // Create batch signature request with two signers (parallel — both can sign independently)
                   const signerList = [
                     { signerName: initiatorName, signerEmail: initiator!.email.toLowerCase(), signingOrder: 1 },
-                    { signerName: producerSplit.collaboratorName, signerEmail: producerSplit.collaboratorEmail.toLowerCase(), signingOrder: 2 },
+                    { signerName: producerSplit.collaboratorName, signerEmail: producerSplit.collaboratorEmail.toLowerCase(), signingOrder: 1 },
                   ];
 
                   const batchResponse = await docusealService.createBatchSignatureRequests({
@@ -4204,6 +4204,7 @@ ${urls}
                       } : undefined,
                     })),
                     expiresAt: expiresAt.toISOString(),
+                    completedRedirectUrl: `${process.env.APP_URL}/dashboard?tab=contracts`,
                   });
 
                   // Create local signature request record
@@ -4214,7 +4215,7 @@ ${urls}
                       initiatorId: userId,
                       docusealDocumentId: docusealDoc.id,
                       status: 'pending',
-                      signingOrder: 'sequential',
+                      signingOrder: 'parallel',
                       expiresAt,
                     })
                     .returning();
@@ -4236,7 +4237,7 @@ ${urls}
                           name: signerInput.signerName,
                           userId: existingSigner?.id || null,
                           signingOrder: sr.signingOrder,
-                          status: sr.signingOrder === 1 ? 'pending' : 'waiting',
+                          status: 'pending',
                         })
                         .returning();
 
@@ -6189,6 +6190,7 @@ Sent at: ${new Date().toISOString()}
           } : undefined,
         })),
         expiresAt: expiresAt.toISOString(),
+        completedRedirectUrl: `${process.env.APP_URL}/dashboard?tab=contracts`,
       });
 
       // Create local signature request record

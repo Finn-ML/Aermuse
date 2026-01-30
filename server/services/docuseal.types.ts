@@ -74,6 +74,7 @@ export interface CreateBatchRequestInput {
   documentId: string;
   signers: BatchSigner[];
   expiresAt?: string;
+  completedRedirectUrl?: string;
 }
 
 export interface BatchSignatureResponse {
