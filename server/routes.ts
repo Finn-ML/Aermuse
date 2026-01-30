@@ -4106,6 +4106,7 @@ ${urls}
             verificationToken,
             deadline,
             isExistingUser: !!existingUser,
+            baseUrl: getBaseUrl(req),
           });
         } catch (emailError) {
           console.error("Failed to send split verification email:", emailError);
@@ -4378,6 +4379,7 @@ ${urls}
         verificationToken: split.verificationToken!,
         deadline: split.verificationDeadline!,
         isExistingUser: !!existingUser,
+        baseUrl: getBaseUrl(req),
       });
 
       // Update reminder count
@@ -4511,6 +4513,7 @@ ${urls}
                 to: trackOwner.email,
                 artistName: trackOwner.name,
                 trackTitle: track.title,
+                baseUrl: getBaseUrl(req),
               });
             } catch (emailError) {
               console.error("Failed to send all splits verified email:", emailError);

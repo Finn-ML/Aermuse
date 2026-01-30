@@ -52,6 +52,6 @@ defaultBucketID = "replit-objstore-ff2f1431-d9f8-4393-9b30-883b8b30fc98"
 [userenv]
 
 [userenv.shared]
-ADMIN_EMAIL = "admin@aermuse.com"
+ADMIN_EMAIL = "served@aermuse.com"
 ADMIN_NAME = "Admin"
-FROM_EMAIL = "noreply@aermuse.com"
+FROM_EMAIL = "served@aermuse.com"
