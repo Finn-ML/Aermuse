@@ -30,7 +30,7 @@ interface Props {
   onCountChange?: (count: number) => void;
 }
 
-export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountChange }: Props) {
+export function AwaitingSignatureList({ showTitle = true, onCountChange }: Props) {
   const [, setLocation] = useLocation();
   const [toSign, setToSign] = useState<SignatureToSign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,8 +113,6 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
     return null; // Don't render if nothing to sign
   }
 
-  const displayItems = maxItems ? toSign.slice(0, maxItems) : toSign;
-
   return (
     <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg overflow-hidden">
       {showTitle && (
@@ -132,8 +130,8 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
         </div>
       )}
 
-      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-        {displayItems.map((item) => (
+      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 max-h-[400px] overflow-y-auto">
+        {toSign.map((item) => (
           <div
             key={item.id}
             className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl border border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)] hover:bg-[rgba(102,0,51,0.02)] transition-all group gap-3"
@@ -184,15 +182,6 @@ export function AwaitingSignatureList({ maxItems = 5, showTitle = true, onCountC
             </div>
           </div>
         ))}
-
-        {toSign.length > maxItems && (
-          <button
-            onClick={() => setLocation('/signatures')}
-            className="w-full py-3 text-center text-[#660033] font-semibold hover:bg-[rgba(102,0,51,0.05)] rounded-xl transition-colors"
-          >
-            View all {toSign.length} pending signatures
-          </button>
-        )}
       </div>
     </div>
   );
