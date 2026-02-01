@@ -4229,18 +4229,22 @@ ${urls}
                     .returning();
 
                   // Create signatory records
+                  console.log(`[SPLITS] DocuSeal batch response:`, JSON.stringify(batchResponse, null, 2));
                   const signatoryRecords = await Promise.all(
                     batchResponse.signatureRequests.map(async (sr: any, index: number) => {
                       const signerInput = signerList[index];
                       const existingSigner = await storage.getUserByEmail(signerInput.signerEmail);
 
+                      const resolvedSigningUrl = sr.signingUrl || sr.signing_url || sr.embed_src || '';
+                      // Extract slug from signing URL as fallback token (e.g. /sign/sign_xxx → sign_xxx)
+                      const slugFromUrl = resolvedSigningUrl.split('/').pop() || '';
                       const [signatory] = await db
                         .insert(signatories)
                         .values({
                           signatureRequestId: signatureRequest.id,
                           docusealRequestId: sr.id,
-                          signingToken: sr.signingToken || sr.slug || crypto.randomUUID(),
-                          signingUrl: sr.signingUrl || sr.signing_url || sr.embed_src,
+                          signingToken: sr.signingToken || sr.slug || slugFromUrl || crypto.randomUUID(),
+                          signingUrl: resolvedSigningUrl,
                           email: signerInput.signerEmail,
                           name: signerInput.signerName,
                           userId: existingSigner?.id || null,
@@ -6216,7 +6220,7 @@ Sent at: ${new Date().toISOString()}
         .returning();
 
       // Create signatory records
-      console.log(`[SIGNATURES] DocuSeal batch response keys per signer:`, batchResponse.signatureRequests.map((sr: any) => Object.keys(sr)));
+      console.log(`[SIGNATURES] DocuSeal batch response:`, JSON.stringify(batchResponse, null, 2));
       const signatoryRecords = await Promise.all(
         batchResponse.signatureRequests.map(async (sr, index) => {
           const signerInput = input.signatories[index];
@@ -6224,13 +6228,16 @@ Sent at: ${new Date().toISOString()}
           // Check if signer is a registered user
           const existingUser = await storage.getUserByEmail(signerInput.email.toLowerCase());
 
+          const resolvedSigningUrl = sr.signingUrl || sr.signing_url || sr.embed_src || '';
+          // Extract slug from signing URL as fallback token (e.g. /sign/sign_xxx → sign_xxx)
+          const slugFromUrl = resolvedSigningUrl.split('/').pop() || '';
           const [signatory] = await db
             .insert(signatories)
             .values({
               signatureRequestId: signatureRequest.id,
               docusealRequestId: sr.id,
-              signingToken: sr.signingToken || sr.slug || crypto.randomUUID(),
-              signingUrl: sr.signingUrl || sr.signing_url || sr.embed_src,
+              signingToken: sr.signingToken || sr.slug || slugFromUrl || crypto.randomUUID(),
+              signingUrl: resolvedSigningUrl,
               email: signerInput.email.toLowerCase(),
               name: signerInput.name,
               userId: existingUser?.id || null,
