@@ -927,7 +927,7 @@ ${urls}
         aiRiskScore: riskScore,
         analyzedAt: new Date(),
         analysisVersion: (contract.analysisVersion || 0) + 1,
-        ...(contract.status !== 'pending_review' ? { status: 'analyzed' } : {}),
+        ...(!['pending_review', 'pending_signature', 'signed'].includes(contract.status) ? { status: 'analyzed' } : {}),
       });
 
       // Track usage after successful analysis
