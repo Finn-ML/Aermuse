@@ -6187,7 +6187,7 @@ Sent at: ${new Date().toISOString()}
         signers: input.signatories.map((s, i) => ({
           signerName: s.name,
           signerEmail: s.email.toLowerCase(),
-          signingOrder: i + 1,
+          signingOrder: 1,
           // Pass signature position if available
           signaturePosition: pdfResult.signaturePositions[i] ? {
             page: pdfResult.signaturePositions[i].page,
@@ -6209,7 +6209,7 @@ Sent at: ${new Date().toISOString()}
           initiatorId: userId,
           docusealDocumentId: docusealDoc.id,
           status: 'pending',
-          signingOrder: 'sequential',
+          signingOrder: 'parallel',
           message: input.message || null,
           expiresAt,
         })
@@ -6233,8 +6233,8 @@ Sent at: ${new Date().toISOString()}
               email: signerInput.email.toLowerCase(),
               name: signerInput.name,
               userId: existingUser?.id || null,
-              signingOrder: sr.signingOrder,
-              status: sr.signingOrder === 1 ? 'pending' : 'waiting',
+              signingOrder: 1,
+              status: 'pending',
             })
             .returning();
 
@@ -6267,9 +6267,7 @@ Sent at: ${new Date().toISOString()}
       const initiator = await storage.getUser(userId);
       const initiatorName = initiator?.name || initiator?.email || 'Someone';
 
-      // Send signature request emails to pending signatories
-      // For sequential signing, only the first signer gets an email initially
-      // Others will receive emails via the handleNextSignerReady webhook when it's their turn
+      // Send signature request emails to all signatories (parallel signing - all can sign immediately)
       console.log(`[SIGNATURES] Sending emails to pending signatories`);
       const baseUrl = getBaseUrl(req);
       for (const signatory of signatoryRecords) {
@@ -7197,23 +7195,14 @@ Sent at: ${new Date().toISOString()}
       }
 
       // For template contracts, generate PDF from rendered content
-      if (contract.renderedContent) {
-        const pdfBuffer = await generateContractPdf({
-          id: contract.id,
-          name: contract.name,
-          type: contract.type,
-          status: contract.status,
-          partnerName: contract.partnerName,
-          value: contract.value,
-          createdAt: contract.createdAt || new Date(),
-          updatedAt: contract.updatedAt || new Date(),
-          signedAt: contract.signedAt,
-          aiRiskScore: contract.aiRiskScore,
-          aiAnalysis: contract.aiAnalysis as any,
-        });
+      if (contract.renderedContent || contract.extractedText) {
+        const pdfResult = await generateContractPDFWithSignatureAreas(
+          { name: contract.name, renderedContent: contract.renderedContent, extractedText: contract.extractedText },
+          0
+        );
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `inline; filename="${contract.name || 'contract'}.pdf"`);
-        return res.send(pdfBuffer);
+        return res.send(pdfResult.buffer);
       }
 
       return res.status(404).json({ error: 'No contract document available' });

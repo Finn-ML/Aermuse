@@ -632,18 +632,25 @@ export default function Dashboard() {
       try {
         const coverFormData = new FormData();
         coverFormData.append('image', coverFile);
-        await fetch(`/api/tracks/${track.id}/cover`, {
+        const coverRes = await fetch(`/api/tracks/${track.id}/cover`, {
           method: 'POST',
           body: coverFormData,
           credentials: 'include',
         });
+        if (coverRes.ok) {
+          const coverData = await coverRes.json();
+          if (coverData.path) {
+            track.coverArtPath = coverData.path;
+          }
+        } else {
+          console.warn('Cover art upload failed:', coverRes.status, await coverRes.text());
+        }
       } catch (err) {
         console.warn('Failed to upload cover art:', err);
-        // Don't fail the whole upload if cover fails
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+    await queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
     toast({ title: 'Track uploaded successfully' });
 
     return track;
@@ -2476,9 +2483,6 @@ export default function Dashboard() {
                         splits={trackSplits}
                         ownerSplitPercentage={splitsModalTrack.ownerSplitPercentage || 100}
                         autoPublishAt={splitsModalTrack.autoPublishAt}
-                        onEditSplits={() => {
-                          // Switch to edit mode - handled by toggling state
-                        }}
                       />
                     </div>
                   ) : (

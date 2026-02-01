@@ -743,7 +743,7 @@ Keep creating amazing content!
               If you don't verify by this date, the track may be published without your share being reserved.
             </p>
           </div>
-          {{accountAction}}`,
+          <p style="margin-top: 16px; font-size: 14px; color: ${COLORS.textMuted};">{{accountAction}}</p>`,
       buttonText: 'Verify Your Split',
       buttonUrl: '{{verifyUrl}}',
       footerNote: "Once verified, you'll receive your share of royalties directly whenever the track is purchased. You can also set up Stripe Connect to receive instant payouts.",

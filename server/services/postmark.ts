@@ -119,7 +119,7 @@ export async function sendSignatureRequestEmail(
         contractTitle,
         signingUrl,
         message: message || '',
-        contractDownloadUrl: contractDownloadUrl || '',
+        contractDownloadUrl: contractDownloadUrl || false,
       },
       MessageStream: 'outbound',
     });
@@ -732,8 +732,8 @@ export async function sendSplitVerificationEmail(
 
   try {
     const accountAction = isExistingUser
-      ? '<p style="margin-top: 16px; font-size: 14px; color: #666666;">Log in to verify your split and start receiving royalties.</p>'
-      : '<p style="margin-top: 16px; font-size: 14px; color: #666666;">You\'ll need to create a free Aermuse account to receive your royalties. It only takes a minute!</p>';
+      ? 'Log in to verify your split and start receiving royalties.'
+      : 'You\'ll need to create a free Aermuse account to receive your royalties. It only takes a minute!';
 
     const accountActionText = isExistingUser
       ? 'Log in to verify and start receiving royalties.'
