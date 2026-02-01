@@ -358,7 +358,7 @@ export default function Dashboard() {
     verificationDeadline?: string;
     rejectionReason?: string;
   }
-  const { data: trackSplitsData, isLoading: trackSplitsLoading } = useQuery<TrackSplit[]>({
+  const { data: trackSplitsData, isLoading: trackSplitsLoading } = useQuery<{ splits: TrackSplit[] }>({
     queryKey: ['/api/tracks', splitsModalTrack?.id, 'splits'],
     queryFn: async () => {
       const res = await fetch(`/api/tracks/${splitsModalTrack!.id}/splits`, { credentials: 'include' });
@@ -367,7 +367,7 @@ export default function Dashboard() {
     },
     enabled: !!splitsModalTrack,
   });
-  const trackSplits = trackSplitsData || [];
+  const trackSplits = trackSplitsData?.splits || [];
 
   // Fetch Stripe Connect status for payment settings
   interface StripeConnectStatus {
