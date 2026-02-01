@@ -4239,8 +4239,8 @@ ${urls}
                         .values({
                           signatureRequestId: signatureRequest.id,
                           docusealRequestId: sr.id,
-                          signingToken: sr.signingToken,
-                          signingUrl: sr.signingUrl,
+                          signingToken: sr.signingToken || sr.slug || crypto.randomUUID(),
+                          signingUrl: sr.signingUrl || sr.signing_url || sr.embed_src,
                           email: signerInput.signerEmail,
                           name: signerInput.signerName,
                           userId: existingSigner?.id || null,
@@ -6216,6 +6216,7 @@ Sent at: ${new Date().toISOString()}
         .returning();
 
       // Create signatory records
+      console.log(`[SIGNATURES] DocuSeal batch response keys per signer:`, batchResponse.signatureRequests.map((sr: any) => Object.keys(sr)));
       const signatoryRecords = await Promise.all(
         batchResponse.signatureRequests.map(async (sr, index) => {
           const signerInput = input.signatories[index];
@@ -6228,8 +6229,8 @@ Sent at: ${new Date().toISOString()}
             .values({
               signatureRequestId: signatureRequest.id,
               docusealRequestId: sr.id,
-              signingToken: sr.signingToken,
-              signingUrl: sr.signingUrl,
+              signingToken: sr.signingToken || sr.slug || crypto.randomUUID(),
+              signingUrl: sr.signingUrl || sr.signing_url || sr.embed_src,
               email: signerInput.email.toLowerCase(),
               name: signerInput.name,
               userId: existingUser?.id || null,
@@ -6964,9 +6965,19 @@ Sent at: ${new Date().toISOString()}
         const contract = await storage.getContract(request.contractId);
         const initiator = await storage.getUser(request.initiatorId);
         const baseUrl = getBaseUrl(req);
-        const contractDownloadUrl = signatory.signingToken
-          ? `${baseUrl}/api/signatures/contract/${signatory.signingToken}`
-          : null;
+
+        // Backfill signingToken if missing (for signatories created before the fix)
+        let token = signatory.signingToken;
+        if (!token) {
+          token = crypto.randomUUID();
+          await db
+            .update(signatories)
+            .set({ signingToken: token })
+            .where(eq(signatories.id, signatory.id));
+          console.log(`[WEBHOOK] Backfilled signingToken for signatory ${signatory.id}`);
+        }
+
+        const contractDownloadUrl = `${baseUrl}/api/signatures/contract/${token}`;
 
         // Send signature request email
         sendSignatureRequestEmail(
