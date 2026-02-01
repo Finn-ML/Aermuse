@@ -891,8 +891,11 @@ ${urls}
         });
       }
 
-      // Update status to analyzing
-      await storage.updateContract(contract.id, { status: 'analyzing' });
+      // Update status to analyzing — but preserve signature-related statuses
+      const signatureStatuses = ['pending_signature', 'signed'];
+      if (!signatureStatuses.includes(contract.status)) {
+        await storage.updateContract(contract.id, { status: 'analyzing' });
+      }
 
       // Truncate if needed
       const { text, truncated, originalLength } = truncateForAI(contractText);
@@ -921,13 +924,16 @@ ${urls}
       const riskScore = overallScore >= 80 ? "low" : overallScore >= 60 ? "medium" : "high";
 
       // Save analysis to contract
-      // Don't overwrite 'pending_review' status - those contracts need field review first
+      // Fetch fresh status from DB (may have changed during analysis)
+      const freshContract = await storage.getContract(contract.id);
+      const currentStatus = freshContract?.status || contract.status;
+      const preserveStatuses = ['pending_review', 'pending_signature', 'signed'];
       const updatedContract = await storage.updateContract(contract.id, {
         aiAnalysis: analysis,
         aiRiskScore: riskScore,
         analyzedAt: new Date(),
         analysisVersion: (contract.analysisVersion || 0) + 1,
-        ...(!['pending_review', 'pending_signature', 'signed'].includes(contract.status) ? { status: 'analyzed' } : {}),
+        ...(!preserveStatuses.includes(currentStatus) ? { status: 'analyzed' } : { status: currentStatus }),
       });
 
       // Track usage after successful analysis
@@ -6852,6 +6858,109 @@ Sent at: ${new Date().toISOString()}
       console.error('[WEBHOOK] Error processing webhook:', error);
       // Always return 200 to prevent retries
       res.json({ received: true, error: 'Processing error' });
+    }
+  });
+
+  // GET /api/webhooks/docuseal/test - Check webhook registration status
+  app.get("/api/webhooks/docuseal/test", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const docusealService = getDocuSealService();
+      const webhooks = await docusealService.listWebhooks();
+      const appUrl = process.env.APP_URL || '';
+      const webhookUrl = `${appUrl}/api/webhooks/docuseal`;
+      const match = webhooks.find((w: any) => w.url === webhookUrl);
+
+      res.json({
+        registered: !!match,
+        webhookUrl,
+        lastTriggered: match?.lastTriggeredAt || null,
+        isActive: match?.isActive || false,
+        secretConfigured: !!WEBHOOK_SECRET,
+        totalWebhooks: webhooks.length,
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to check webhook status' });
+    }
+  });
+
+  // POST /api/contracts/:id/sync-signature-status - Manually sync signature status from DocuSeal
+  app.post("/api/contracts/:id/sync-signature-status", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const contractId = req.params.id;
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      // Find signature request for this contract
+      const [sigReq] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.contractId, contractId));
+
+      if (!sigReq) {
+        return res.status(404).json({ error: 'No signature request found for this contract' });
+      }
+
+      // Query DocuSeal for current document status
+      const docusealService = getDocuSealService();
+      const docDetails = await docusealService.getDocument(sigReq.docusealDocumentId);
+
+      console.log(`[SYNC] DocuSeal document ${sigReq.docusealDocumentId}:`, JSON.stringify(docDetails, null, 2));
+
+      // Update local signatories based on DocuSeal status
+      const localSignatories = await db
+        .select()
+        .from(signatories)
+        .where(eq(signatories.signatureRequestId, sigReq.id));
+
+      let allSigned = true;
+      const updates: any[] = [];
+
+      for (const localSig of localSignatories) {
+        // Match by email
+        const remoteSig = docDetails.signatureRequests?.find(
+          (r: any) => (r.signerEmail || r.signer_email || '').toLowerCase() === localSig.email.toLowerCase()
+        );
+
+        if (remoteSig) {
+          const remoteStatus = remoteSig.status;
+          if ((remoteStatus === 'signed' || remoteStatus === 'completed') && localSig.status !== 'signed') {
+            await db
+              .update(signatories)
+              .set({ status: 'signed', signedAt: new Date(), updatedAt: new Date() })
+              .where(eq(signatories.id, localSig.id));
+            updates.push({ email: localSig.email, oldStatus: localSig.status, newStatus: 'signed' });
+          }
+          if (remoteStatus !== 'signed' && remoteStatus !== 'completed') {
+            allSigned = false;
+          }
+        } else {
+          allSigned = false;
+        }
+      }
+
+      // If all signed, update signature request and contract
+      if (allSigned && localSignatories.length > 0) {
+        if (sigReq.status !== 'completed') {
+          await db
+            .update(signatureRequests)
+            .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+            .where(eq(signatureRequests.id, sigReq.id));
+        }
+        await storage.updateContract(contractId, { status: 'signed' } as any);
+        console.log(`[SYNC] Contract ${contractId} marked as signed`);
+      }
+
+      const contract = await storage.getContract(contractId);
+      res.json({
+        contractStatus: contract?.status,
+        signatureRequestStatus: allSigned ? 'completed' : sigReq.status,
+        signatoryUpdates: updates,
+        allSigned,
+        docusealResponse: docDetails,
+      });
+    } catch (error) {
+      console.error('[SYNC] Error syncing signature status:', error);
+      res.status(500).json({ error: 'Failed to sync signature status' });
     }
   });
 
