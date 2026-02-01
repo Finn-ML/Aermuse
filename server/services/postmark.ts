@@ -109,6 +109,14 @@ export async function sendSignatureRequestEmail(
   }
 
   try {
+    // Build download link HTML server-side to bypass Postmark Mustache conditional issues
+    const downloadLinkHtml = contractDownloadUrl
+      ? `<p style="margin: 16px 0 0 0; text-align: center;"><a href="${contractDownloadUrl}" style="color: #660033; text-decoration: underline;">Download Contract PDF</a></p>`
+      : '';
+    const downloadLinkText = contractDownloadUrl
+      ? `Download contract: ${contractDownloadUrl}`
+      : '';
+
     const result = await client.sendEmailWithTemplate({
       From: FROM_EMAIL,
       To: signatoryEmail,
@@ -118,8 +126,9 @@ export async function sendSignatureRequestEmail(
         initiatorName,
         contractTitle,
         signingUrl,
-        message: message || '',
-        ...(contractDownloadUrl ? { contractDownloadUrl } : {}),
+        ...(message ? { message } : {}),
+        downloadLinkHtml,
+        downloadLinkText,
       },
       MessageStream: 'outbound',
     });

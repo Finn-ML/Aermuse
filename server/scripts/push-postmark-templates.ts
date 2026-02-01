@@ -260,7 +260,7 @@ This link will expire in 24 hours.
           ${infoBox('{{contractTitle}}', 'Contract')}
           {{#message}}${infoBox('"{{message}}"', 'Personal Message')}{{/message}}
           Please review and sign the document at your earliest convenience.
-          {{#contractDownloadUrl}}<p style="margin: 16px 0 0 0; text-align: center;"><a href="{{contractDownloadUrl}}" style="color: #660033; text-decoration: underline;">Download Contract PDF</a></p>{{/contractDownloadUrl}}`,
+          {{{downloadLinkHtml}}}`,
       buttonText: 'Review & Sign',
       buttonUrl: '{{signingUrl}}',
       footerNote: "This signature request was sent via Aermuse. If you weren't expecting this, please contact the sender directly.",
@@ -271,7 +271,7 @@ This link will expire in 24 hours.
 
 Contract: {{contractTitle}}
 {{#message}}Message: "{{message}}"{{/message}}
-{{#contractDownloadUrl}}Download contract: {{contractDownloadUrl}}{{/contractDownloadUrl}}
+{{downloadLinkText}}
 
 Sign here: {{signingUrl}}
 
