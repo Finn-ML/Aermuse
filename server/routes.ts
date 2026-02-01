@@ -14,7 +14,7 @@ import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
@@ -1871,8 +1871,8 @@ ${urls}
 
       console.log(`[VIDEO] Processing upload: ${file.originalname} (${inputFormat}, ${file.size} bytes)`);
 
-      // Process video - convert to webm with mp4 fallback
-      const { webm, mp4 } = await processCanvasVideo(file.buffer, inputFormat, {
+      // Process video - convert to webm with mp4 fallback + poster frame
+      const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
         generateFallback: true,
         quality: 'medium'
       });
@@ -1888,10 +1888,18 @@ ${urls}
         mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
       }
 
-      // Store both URLs in backgroundValue as JSON
+      // Upload poster frame for instant visual feedback
+      let posterUrl: string | undefined;
+      if (poster) {
+        const posterResult = await uploadBackgroundVideoPoster(userId, landingPage.id, poster);
+        posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
+      }
+
+      // Store URLs in backgroundValue as JSON
       const backgroundVideoData = JSON.stringify({
         webm: webmUrl,
         mp4: mp4Url,
+        poster: posterUrl,
         duration: webm.duration
       });
 

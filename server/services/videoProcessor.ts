@@ -97,10 +97,11 @@ export async function convertToWebM(
   console.log(`[VIDEO] Converting to WebM: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s`);
 
   // Quality presets (CRF values - lower = better quality, larger file)
+  // Tuned for background videos that sit behind page content
   const qualitySettings = {
-    low: { crf: 35, bitrate: '500k' },
-    medium: { crf: 30, bitrate: '1000k' },
-    high: { crf: 23, bitrate: '2000k' }
+    low: { crf: 40, bitrate: '300k' },
+    medium: { crf: 35, bitrate: '600k' },
+    high: { crf: 28, bitrate: '1200k' }
   };
 
   const settings = qualitySettings[quality];
@@ -205,10 +206,11 @@ export async function convertToMp4(
 
   console.log(`[VIDEO] Converting to MP4: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s`);
 
+  // Tuned for background videos that sit behind page content
   const qualitySettings = {
-    low: { crf: 28, preset: 'fast' },
-    medium: { crf: 23, preset: 'medium' },
-    high: { crf: 18, preset: 'slow' }
+    low: { crf: 32, preset: 'fast' },
+    medium: { crf: 28, preset: 'medium' },
+    high: { crf: 23, preset: 'medium' }
   };
 
   const settings = qualitySettings[quality];
@@ -289,21 +291,100 @@ export async function processCanvasVideo(
 ): Promise<{
   webm: VideoProcessResult;
   mp4?: VideoProcessResult;
+  poster?: Buffer;
 }> {
   const { generateFallback = true, quality = 'medium' } = options;
 
   console.log(`[VIDEO] Processing canvas video (format: ${inputFormat}, fallback: ${generateFallback})`);
 
+  const canvasOptions = {
+    quality,
+    maxWidth: 720,
+    maxHeight: 1280,
+  };
+
   // Convert to WebM (primary format)
-  const webm = await convertToWebM(inputBuffer, inputFormat, { quality });
+  const webm = await convertToWebM(inputBuffer, inputFormat, canvasOptions);
 
   // Generate MP4 fallback if requested
   let mp4: VideoProcessResult | undefined;
   if (generateFallback) {
-    mp4 = await convertToMp4(inputBuffer, inputFormat, { quality });
+    mp4 = await convertToMp4(inputBuffer, inputFormat, canvasOptions);
   }
 
-  return { webm, mp4 };
+  // Generate poster frame for instant visual feedback
+  let poster: Buffer | undefined;
+  try {
+    poster = await generatePosterFrame(inputBuffer, inputFormat, {
+      maxWidth: 720,
+      maxHeight: 1280,
+    });
+  } catch (err) {
+    console.warn('[VIDEO] Poster generation failed, continuing without poster:', err);
+  }
+
+  return { webm, mp4, poster };
+}
+
+/**
+ * Generate a poster frame (JPEG) from the first frame of a video.
+ * Used for instant visual feedback while the video loads.
+ */
+export async function generatePosterFrame(
+  inputBuffer: Buffer,
+  inputFormat: 'mp4' | 'mov' | 'webm',
+  options: {
+    maxWidth?: number;
+    maxHeight?: number;
+    quality?: number; // JPEG quality 1-31 (lower = better)
+  } = {}
+): Promise<Buffer> {
+  const {
+    maxWidth = 720,
+    maxHeight = 1280,
+    quality = 5
+  } = options;
+
+  console.log(`[VIDEO] Generating poster frame from ${inputFormat}`);
+
+  return new Promise((resolve, reject) => {
+    const inputStream = Readable.from(inputBuffer);
+    const outputStream = new PassThrough();
+    const chunks: Buffer[] = [];
+
+    outputStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+    outputStream.on('end', () => {
+      const buffer = Buffer.concat(chunks);
+      console.log(`[VIDEO] Poster frame generated: ${buffer.length} bytes`);
+      resolve(buffer);
+    });
+    outputStream.on('error', (err) => {
+      console.error('[VIDEO] Poster frame generation failed:', err);
+      reject(err);
+    });
+
+    const command = ffmpeg(inputStream);
+
+    if (inputFormat === 'mov') {
+      command.inputFormat('mov');
+    } else if (inputFormat === 'mp4') {
+      command.inputFormat('mp4');
+    }
+
+    command
+      .frames(1)
+      .videoFilters([
+        `scale='min(${maxWidth},iw)':'min(${maxHeight},ih)':force_original_aspect_ratio=decrease`,
+        'pad=ceil(iw/2)*2:ceil(ih/2)*2'
+      ])
+      .addOutputOption('-q:v', quality.toString())
+      .format('mjpeg')
+      .on('error', (err) => {
+        console.error('[VIDEO] FFmpeg poster error:', err);
+        reject(new Error(`Poster generation failed: ${err.message}`));
+      })
+      .pipe(outputStream);
+  });
 }
 
 /**

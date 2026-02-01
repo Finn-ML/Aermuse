@@ -366,6 +366,25 @@ export async function uploadBackgroundVideoFallback(
 }
 
 /**
+ * Upload video background poster frame (JPEG)
+ */
+export async function uploadBackgroundVideoPoster(
+  userId: string,
+  landingPageId: string,
+  buffer: Buffer
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `landing-pages/${userId}/${landingPageId}/background-video-poster-${timestamp}.jpg`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
  * Custom error class for storage operations to distinguish error types
  */
 export class StorageError extends Error {
@@ -534,7 +553,9 @@ export function getVideoContentType(format: string): string {
   const types: Record<string, string> = {
     webm: 'video/webm',
     mp4: 'video/mp4',
-    mov: 'video/quicktime'
+    mov: 'video/quicktime',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg'
   };
   return types[format.toLowerCase()] || 'video/mp4';
 }

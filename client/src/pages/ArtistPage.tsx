@@ -132,7 +132,7 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
 }
 
 // Parse video background value JSON
-function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; duration?: number } | null {
+function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; poster?: string; duration?: number } | null {
   if (!value) return null;
   try {
     return JSON.parse(value);
@@ -602,8 +602,9 @@ export default function ArtistPage() {
             muted
             loop
             playsInline
+            preload="metadata"
             className="absolute min-w-full min-h-full w-auto h-auto top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
-            poster=""
+            poster={videoData.poster || ""}
           >
             {videoData.webm && (
               <source src={videoData.webm} type="video/webm" />
