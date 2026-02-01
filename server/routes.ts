@@ -6938,12 +6938,29 @@ Sent at: ${new Date().toISOString()}
         }
       }
 
-      // If all signed, update signature request and contract
+      // If all signed, update signature request, download signed PDF, and update contract
       if (allSigned && localSignatories.length > 0) {
+        // Download signed PDF if not already stored
+        let signedPdfPath = sigReq.signedPdfPath;
+        if (!signedPdfPath) {
+          try {
+            const pdfBuffer = await docusealService.downloadSignedDocument(sigReq.docusealDocumentId);
+            if (pdfBuffer.slice(0, 5).toString().startsWith('%PDF')) {
+              const filename = `signed_${Date.now()}.pdf`;
+              const { uploadSignedPdf } = await import('./services/fileStorage');
+              const uploadResult = await uploadSignedPdf(contractId, pdfBuffer, filename);
+              signedPdfPath = uploadResult.path;
+              console.log(`[SYNC] Downloaded signed PDF: ${signedPdfPath}`);
+            }
+          } catch (pdfErr) {
+            console.error('[SYNC] Failed to download signed PDF:', pdfErr);
+          }
+        }
+
         if (sigReq.status !== 'completed') {
           await db
             .update(signatureRequests)
-            .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+            .set({ status: 'completed', completedAt: new Date(), signedPdfPath, updatedAt: new Date() })
             .where(eq(signatureRequests.id, sigReq.id));
         }
         await storage.updateContract(contractId, { status: 'signed' } as any);
