@@ -6279,11 +6279,13 @@ Sent at: ${new Date().toISOString()}
       console.log(`[SIGNATURES] Sending emails to pending signatories`);
       const baseUrl = getBaseUrl(req);
       for (const signatory of signatoryRecords) {
+        console.log(`[SIGNATURES] Signatory record:`, JSON.stringify({ id: signatory.id, email: signatory.email, status: signatory.status, signingToken: signatory.signingToken, signingUrl: signatory.signingUrl }));
         if (signatory.status === 'pending' && signatory.signingUrl) {
           try {
             const contractDownloadUrl = signatory.signingToken
               ? `${baseUrl}/api/signatures/contract/${signatory.signingToken}`
               : null;
+            console.log(`[SIGNATURES] contractDownloadUrl for ${signatory.email}:`, contractDownloadUrl);
             await sendSignatureRequestEmail(
               signatory.email,
               signatory.name,
