@@ -6703,7 +6703,7 @@ Sent at: ${new Date().toISOString()}
   // WEBHOOK HANDLER (Story 4-5)
   // ============================================
 
-  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || process.env.DOCUSEAL_WEBHOOK_SECRET || '';
+  let WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || process.env.DOCUSEAL_WEBHOOK_SECRET || '';
 
   // Register webhook with DocuSeal on startup
   async function registerDocuSealWebhook() {
@@ -6737,6 +6737,11 @@ Sent at: ${new Date().toISOString()}
 
       if (existingWebhook) {
         console.log(`[WEBHOOK] Webhook already registered: ${existingWebhook.id}`);
+        // Auto-sync secret from DocuSeal so env mismatch doesn't silently break webhooks
+        if (existingWebhook.secret && !existingWebhook.secret.endsWith('...') && existingWebhook.secret !== WEBHOOK_SECRET) {
+          console.log(`[WEBHOOK] Updating in-memory WEBHOOK_SECRET to match registered webhook`);
+          WEBHOOK_SECRET = existingWebhook.secret;
+        }
         return;
       }
 
@@ -6752,7 +6757,9 @@ Sent at: ${new Date().toISOString()}
 
       console.log(`[WEBHOOK] Successfully registered webhook: ${registration.id}`);
       if (registration.secret) {
-        console.log(`[WEBHOOK] IMPORTANT: Set WEBHOOK_SECRET=${registration.secret} in your environment`);
+        WEBHOOK_SECRET = registration.secret;
+        console.log(`[WEBHOOK] Set in-memory WEBHOOK_SECRET from new registration`);
+        console.log(`[WEBHOOK] IMPORTANT: Also set WEBHOOK_SECRET=${registration.secret} in your environment for persistence`);
       }
     } catch (error) {
       console.error('[WEBHOOK] Failed to register webhook with DocuSeal:', error);
