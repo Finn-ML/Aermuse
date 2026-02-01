@@ -6693,6 +6693,18 @@ Sent at: ${new Date().toISOString()}
 
       const existingWebhook = existingWebhooks.find(w => w.url === webhookUrl);
 
+      // Delete any stale webhooks pointing to different URLs (e.g. old dev URLs)
+      for (const w of existingWebhooks) {
+        if (w.url !== webhookUrl) {
+          console.log(`[WEBHOOK] Deleting stale webhook ${w.id} pointing to ${w.url}`);
+          try {
+            await docusealService.deleteWebhook(w.id);
+          } catch (deleteErr) {
+            console.warn(`[WEBHOOK] Failed to delete stale webhook ${w.id}:`, deleteErr);
+          }
+        }
+      }
+
       if (existingWebhook) {
         console.log(`[WEBHOOK] Webhook already registered: ${existingWebhook.id}`);
         return;
@@ -6818,20 +6830,40 @@ Sent at: ${new Date().toISOString()}
       console.log(`[WEBHOOK] Signature completed - payload keys: ${Object.keys(payload).join(', ')}`);
       console.log(`[WEBHOOK] Signature completed by ${signerEmail} for submission ${submissionId}, requestId: ${signatureRequestId}`);
 
-      // Find the signatory by DocuSeal request ID or email
-      const [signatory] = await db
-        .select()
-        .from(signatories)
-        .where(
-          or(
-            eq(signatories.docusealRequestId, String(signatureRequestId)),
-            eq(signatories.email, signerEmail?.toLowerCase())
-          )
-        );
+      // Find the signatory by DocuSeal request ID first (exact match)
+      let signatory: any = null;
+      if (signatureRequestId) {
+        const [match] = await db
+          .select()
+          .from(signatories)
+          .where(eq(signatories.docusealRequestId, String(signatureRequestId)));
+        signatory = match || null;
+      }
+
+      // Fall back to email, but scope to the specific submission's signature request
+      if (!signatory && signerEmail && submissionId) {
+        const [match] = await db
+          .select({ signatory: signatories })
+          .from(signatories)
+          .innerJoin(signatureRequests, eq(signatories.signatureRequestId, signatureRequests.id))
+          .where(
+            and(
+              eq(signatories.email, signerEmail.toLowerCase()),
+              eq(signatureRequests.docusealDocumentId, String(submissionId))
+            )
+          );
+        signatory = match?.signatory || null;
+      }
 
       if (!signatory) {
         console.warn(`[WEBHOOK] Signatory not found for signatureRequestId: ${signatureRequestId}, email: ${signerEmail}`);
         console.warn(`[WEBHOOK] Full payload: ${JSON.stringify(payload)}`);
+        return;
+      }
+
+      // Idempotency: skip if already signed
+      if (signatory.status === 'signed') {
+        console.log(`[WEBHOOK] Signatory ${signatory.id} already signed, skipping duplicate webhook`);
         return;
       }
 
@@ -6880,16 +6912,30 @@ Sent at: ${new Date().toISOString()}
       console.log(`[WEBHOOK] Next signer ready - payload keys: ${Object.keys(payload).join(', ')}`);
       console.log(`[WEBHOOK] Next signer ready: ${signerEmail} for submission ${submissionId}, requestId: ${signatureRequestId}`);
 
-      // Find the signatory
-      const [signatory] = await db
-        .select()
-        .from(signatories)
-        .where(
-          or(
-            eq(signatories.docusealRequestId, String(signatureRequestId)),
-            eq(signatories.email, signerEmail?.toLowerCase())
-          )
-        );
+      // Find the signatory by DocuSeal request ID first (exact match)
+      let signatory: any = null;
+      if (signatureRequestId) {
+        const [match] = await db
+          .select()
+          .from(signatories)
+          .where(eq(signatories.docusealRequestId, String(signatureRequestId)));
+        signatory = match || null;
+      }
+
+      // Fall back to email, but scope to the specific submission's signature request
+      if (!signatory && signerEmail && submissionId) {
+        const [match] = await db
+          .select({ signatory: signatories })
+          .from(signatories)
+          .innerJoin(signatureRequests, eq(signatories.signatureRequestId, signatureRequests.id))
+          .where(
+            and(
+              eq(signatories.email, signerEmail.toLowerCase()),
+              eq(signatureRequests.docusealDocumentId, String(submissionId))
+            )
+          );
+        signatory = match?.signatory || null;
+      }
 
       if (!signatory) {
         console.warn(`[WEBHOOK] Signatory not found for next signer: ${signerEmail}, requestId: ${signatureRequestId}`);
@@ -6969,6 +7015,12 @@ Sent at: ${new Date().toISOString()}
       if (!request) {
         console.warn(`[WEBHOOK] Signature request not found for document: ${documentId}`);
         console.warn(`[WEBHOOK] Full payload: ${JSON.stringify(payload)}`);
+        return;
+      }
+
+      // Idempotency: skip if already completed
+      if (request.status === 'completed') {
+        console.log(`[WEBHOOK] Signature request ${request.id} already completed, skipping duplicate webhook`);
         return;
       }
 
