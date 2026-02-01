@@ -1,0 +1,266 @@
+Delivered-To: fin.howard03@gmail.com
+Received: by 2002:a05:7300:3c26:b0:2a4:7efe:e4de with SMTP id e38csp1440784dys;
+        Sun, 1 Feb 2026 10:28:14 -0800 (PST)
+X-Received: by 2002:a05:6820:448a:b0:662:f452:647f with SMTP id 006d021491bc7-6630f051a9fmr3164554eaf.14.1769970493938;
+        Sun, 01 Feb 2026 10:28:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1769970493; cv=none;
+        d=google.com; s=arc-20240605;
+        b=UNNZ6BehuwCjDg8OGUz/bkp7khtTTqxIKXtNGKv93bZxPmTayHwajb1rOs/imP0ij/
+         m3cz0W5unFj9SELS27gDq2ongMID/OB1ARqAA0BLuiLmIRBMgonzpdf7FvNVXUx5qJt4
+         L/8QkGjHPHBCjgsZJLmfvEgLSE0DLrtuQ+2RF7kGdtToGAfxnBIEUXLt8yW7HhL0p3OT
+         pm2cuDdIRrEJDoKvGQgvpMQzP8QTaBdeAks47vVBCWxnM6N1SBu6J3kMXJOaqpCnJIOy
+         0WGM2yfNZd8L5IT5l2KGe++IL+VTCGEB5FSYcj3tqdYGrjz2BeTnSGRxpHtuR7R7z7IA
+         BejQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=mime-version:feedback-id:to:reply-to:message-id:subject:date:from
+         :dkim-signature:dkim-signature;
+        bh=ofOdOAl/G5UtO3C4EVvvv8020+5tG/F7E/Jgj0GY6YI=;
+        fh=pK3/twQb4EoG5Zfnp1pjckZ6OQQTqLySb0+urR72gCM=;
+        b=BGpSXTVeT7vpIc5wNHVyiR9R84JqQ0i8Zocc+5WBeX65TINZNHjuHuLSlfLVJnAkVf
+         5gn8HrLZ6UM6g2yFQgnrnYlLOssLXbQxvwG23sAguviYNdJSAwSDnVawTpoqDdLAAd2Y
+         7iRrV+/CbvZDTkDZacIX/8Cl/tivpIHR88nHDlMfJrQX+4ttUZnK9XfaltKSUAZPa4hg
+         HmsoNxzFJ9f5FUBnvJQXj2VL4VYnFysit8J3vipjkinAxqdCSf7zhJmNL1esfIU9VANZ
+         vK1qCybSjQshGqTp3D/3vgWfPv1t4ADwZaHs5z1JwyI0rni7uThANfjatu1oCaxHUXIm
+         ++fg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@pm.mtasv.net header.s=pm20250324 header.b=KhIhaN0g;
+       dkim=pass header.i=@aermuse.com header.s=20251207211442pm header.b=XI2iDqFd;
+       spf=pass (google.com: domain of pm_bounces@pm-bounces.aermuse.com designates 104.245.209.235 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.aermuse.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=aermuse.com
+Return-Path: <pm_bounces@pm-bounces.aermuse.com>
+Received: from mta235b-ord.mtasv.net (mta235b-ord.mtasv.net. [104.245.209.235])
+        by mx.google.com with ESMTPS id 586e51a60fabf-409571521d1si10720849fac.18.2026.02.01.10.28.13
+        for <fin.howard03@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 01 Feb 2026 10:28:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of pm_bounces@pm-bounces.aermuse.com designates 104.245.209.235 as permitted sender) client-ip=104.245.209.235;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@pm.mtasv.net header.s=pm20250324 header.b=KhIhaN0g;
+       dkim=pass header.i=@aermuse.com header.s=20251207211442pm header.b=XI2iDqFd;
+       spf=pass (google.com: domain of pm_bounces@pm-bounces.aermuse.com designates 104.245.209.235 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.aermuse.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=aermuse.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; s=pm20250324; d=pm.mtasv.net;
+ h=From:Date:Subject:Message-Id:Reply-To:To:Feedback-ID:MIME-Version:
+ Content-Type:Date:From:Message-ID:Reply-To:Sender:Subject:To:CC; t=1769970493;
+ x=1770056893;
+ bh=ofOdOAl/G5UtO3C4EVvvv8020+5tG/F7E/Jgj0GY6YI=;
+ b=KhIhaN0gi9q8oVdrGL4/GihR2koYhzgoYWGTAX9OOH9rZAueOwY/vW7f5WsOWW1a5ggUEi9gEMI3
+   H9LJtvIvhMnN3+ZBxlcKPc3bY12uJ9tsOSLoPCNtiiTwv+FnwgDBEDNaowxn+vJ7RTYKl1mbKYtX
+   JiMLWsEPh/M+YGVGqkfNGuYDuFlh+JgFv0dx2tiFIIZ2dG9A7fQJ1OcNS8s/edjk4b8mNdrCted9
+   sueFV3RSIOZLx1nbuAl8v8YvFXcPjHM22+gvXyDMG1RdB0GANZ8YW13qxD+UGhkgP6nKEo3l4hQT
+   2G+3ayy7eqXYVvZ5RRmq8NMopIQ5GTKJP/VMuw==
+Received: by mta235b-ord.mtasv.net id hfudjq3b84kk for <fin.howard03@gmail.com>; Sun, 1 Feb 2026 13:28:13 -0500 (envelope-from <pm_bounces@pm-bounces.aermuse.com>)
+X-PM-IP: 104.245.209.235
+X-IADB-IP: 104.245.209.235
+X-IADB-IP-REVERSE: 235.209.245.104
+DKIM-Signature: v=1; a=rsa-sha256; d=aermuse.com; s=20251207211442pm;
+	c=relaxed/relaxed; i=served@aermuse.com; t=1769970493; x=1770143293;
+	h=date:date:from:from:message-id:reply-to:reply-to:sender:subject:subject:to:
+	to:cc:feedback-id:mime-version:content-type;
+	bh=ofOdOAl/G5UtO3C4EVvvv8020+5tG/F7E/Jgj0GY6YI=;
+	b=XI2iDqFdTPN5prxo7WcbCe/e5o17vMVZ2kNMMU+bqHV2Gx81MszXygP8gsV9uj/CTEeinKE7pfU
+	P/DXIKUC1BtNAP503vmM9+acHHLaTn1tchvxNqESPNocO2PLR/dz2XGF5vFYDGnduYpYnaaCBpTNw
+	7BA1Az488sSU6TmkI0U=
+From: AERMUSE <served@aermuse.com>
+Date: Sun, 01 Feb 2026 18:28:13 +0000
+Subject: Fieves has requested your signature on "AIRMUSE =?utf-8?b?4oCT?=
+ MUTUAL NON-DISCLOSURE AGREEMENT (MNDA)"
+Message-Id: <ef743571-e7d1-4152-929e-4d3a23547a92@mtasv.net>
+Reply-To: served@aermuse.com
+To: fin.howard03@gmail.com
+Feedback-ID: s17630723-_:s17630723:a467433:postmark
+X-Complaints-To: abuse@postmarkapp.com
+X-PM-Message-Id: ef743571-e7d1-4152-929e-4d3a23547a92
+X-PM-RCPT: |bTB8NDY3NDMzfDE3NjMwNzIzfGZpbi5ob3dhcmQwM0BnbWFpbC5jb20=|
+X-PM-Message-Options: v1;1.w7V6AslWtYIzD7art_pzmg.8agh_Z6hT-B9UW4mmbQT4BO9XFIweOakwHsoAoD13zUL0DEaEGiW9LW81969JpPyU-PxE_MYGwlp8YvQL7N_zAUJMPVOlhh_u0lpq2nMNP9mg805_o9xLFKXPZ2zfoUEuGuliAqYly5O-qY6VmbHm1gflY6bETUIKuhH5Hiz2XXjDTYL6BZWWUQFUMU7Zq6b
+MIME-Version: 1.0
+X-PM-MTA-Pool: transactional-3
+Content-Type: multipart/alternative;
+	boundary=mk3-59d22dd0c4e442099ed4ecc3f3948ad7; charset=UTF-8
+
+--mk3-59d22dd0c4e442099ed4ecc3f3948ad7
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi fin,
+
+Fieves has requested your signature on the following contract:
+
+Contract: AIRMUSE =E2=80=93 MUTUAL NON-DISCLOSURE AGREEMENT (MNDA)
+
+Download contract:=20
+
+Sign here: https://track.pstmrk.it/3t/docu-seal-host--finn107.replit.app%2F=
+sign%2Fsign_c283dff210275b8e8bf040765f7b3204/AwYNAQ/lR3DAQ/AQ/ef743571-e7d1=
+-4152-929e-4d3a23547a92/1/Kw8ibbQ7UK
+
+- The Aermuse Team
+
+--mk3-59d22dd0c4e442099ed4ecc3f3948ad7
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html><html lang=3D"en"><head>
+  <meta charset=3D"UTF-8">
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D=
+1.0">
+  <title>Signature Request</title>
+  </head><body style=3D"margin: 0; padding: 0; font-family: 'Nunito', 'Sego=
+e UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #F7E6CA;"><sp=
+an style=3D"display:none;font-size:1px;color:#ffffff;line-height:1px;max-he=
+ight:0px;max-width:0px;opacity:0;overflow:hidden;">Fieves needs your signat=
+ure on a contract</span>
+
+
+  <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" width=3D=
+"100%" style=3D"background-color: #F7E6CA;">
+    <tbody><tr>
+      <td style=3D"padding: 40px 20px;">
+        <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" wi=
+dth=3D"100%" style=3D"max-width: 600px; margin: 0 auto;">
+
+          <!-- Logo Header -->
+          <tbody><tr>
+            <td style=3D"text-align: center; padding-bottom: 32px;">
+              <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D=
+"0" style=3D"margin: 0 auto;">
+                <tbody><tr>
+                  <td style=3D"background: linear-gradient(135deg, #660033 =
+0%, #8B0045 100%); padding: 16px 32px; border-radius: 50px;">
+                    <span style=3D"font-size: 24px; font-weight: 700; color=
+: #F7E6CA; letter-spacing: 2px; text-transform: lowercase;">aermuse</span>
+                  </td>
+                </tr>
+              </tbody></table>
+            </td>
+          </tr>
+
+          <!-- Main Card -->
+          <tr>
+            <td>
+              <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D=
+"0" width=3D"100%" style=3D"background-color: #FFFAF3; border-radius: 24px;=
+ overflow: hidden; box-shadow: 0 4px 24px rgba(102, 0, 51, 0.08);">
+
+                <!-- Accent Bar -->
+                <tbody><tr>
+                  <td style=3D"height: 6px; background: linear-gradient(90d=
+eg, #660033 0%, #8B0045 100%);"></td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style=3D"padding: 48px 40px;">
+                    <!-- Title -->
+                    <h1 style=3D"margin: 0 0 24px 0; font-size: 28px; font-=
+weight: 700; color: #660033; text-align: center;">
+                      Signature Request
+                    </h1>
+
+                    <!-- Greeting -->
+                    <p style=3D"margin: 0 0 20px 0; font-size: 16px; line-h=
+eight: 1.6; color: #2D2D2D;">
+                      Hi fin,
+                    </p>
+
+                    <!-- Main Content -->
+                    <div style=3D"margin: 0 0 28px 0; font-size: 16px; line=
+-height: 1.7; color: #2D2D2D;">
+                      <strong>Fieves</strong> has requested your signature =
+on the following contract:
+         =20
+    <div style=3D"background-color: #FDF8F0; border-left: 4px solid #660033=
+; border-radius: 12px; padding: 20px 24px; margin: 20px 0;">
+      <p style=3D"margin: 0 0 8px 0; font-size: 14px; font-weight: 600; col=
+or: #660033; text-transform: uppercase; letter-spacing: 0.5px;">Contract</p=
+>
+      <p style=3D"margin: 0; font-size: 15px; color: #2D2D2D; line-height: =
+1.5;">AIRMUSE =E2=80=93 MUTUAL NON-DISCLOSURE AGREEMENT (MNDA)</p>
+    </div>
+ =20
+         =20
+          Please review and sign the document at your earliest convenience.
+          <p style=3D"margin: 16px 0 0 0; text-align: center;"><a href=3D""=
+ style=3D"color: #660033; text-decoration: underline;">Download Contract PD=
+F</a></p>
+                    </div>
+
+                   =20
+                    <!-- CTA Button -->
+                    <table role=3D"presentation" cellpadding=3D"0" cellspac=
+ing=3D"0" width=3D"100%" style=3D"margin: 32px 0;">
+                      <tbody><tr>
+                        <td style=3D"text-align: center;">
+                          <a href=3D"https://track.pstmrk.it/3/docu-seal-ho=
+st--finn107.replit.app%2Fsign%2Fsign_c283dff210275b8e8bf040765f7b3204/AwYNA=
+Q/lR3DAQ/AQ/ef743571-e7d1-4152-929e-4d3a23547a92/1/Kw8ibbQ7UK" style=3D"dis=
+play: inline-block; padding: 18px 48px; background: linear-gradient(135deg,=
+ #660033 0%, #8B0045 100%); color: #F7E6CA; text-decoration: none; border-r=
+adius: 50px; font-weight: 600; font-size: 16px; letter-spacing: 0.5px; box-=
+shadow: 0 4px 16px rgba(102, 0, 51, 0.25);">
+                            Review &amp; Sign
+                          </a>
+                        </td>
+                      </tr>
+                    </tbody></table>
+
+                    <!-- Fallback Link -->
+                    <p style=3D"margin: 24px 0 0 0; font-size: 13px; color:=
+ #999999; text-align: center;">
+                      Or copy this link: <br>
+                      <a href=3D"https://track.pstmrk.it/3/docu-seal-host--=
+finn107.replit.app%2Fsign%2Fsign_c283dff210275b8e8bf040765f7b3204/AwYNAQ/lR=
+3DAQ/AQ/ef743571-e7d1-4152-929e-4d3a23547a92/1/Kw8ibbQ7UK" style=3D"color: =
+#660033; word-break: break-all;">http://docu-seal-host--finn107.replit.app/=
+sign/sign_c283dff210275b8e8bf040765f7b3204</a>
+                    </p>
+                   =20
+
+                   =20
+                    <!-- Footer Note -->
+                    <div style=3D"margin-top: 32px; padding-top: 24px; bord=
+er-top: 1px solid rgba(102, 0, 51, 0.1);">
+                      <p style=3D"margin: 0; font-size: 14px; color: #66666=
+6; line-height: 1.6;">
+                        This signature request was sent via Aermuse. If you=
+ weren't expecting this, please contact the sender directly.
+                      </p>
+                    </div>
+                   =20
+                  </td>
+                </tr>
+              </tbody></table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style=3D"padding: 32px 20px; text-align: center;">
+              <p style=3D"margin: 0 0 8px 0; font-size: 14px; color: #66003=
+3; font-weight: 600;">
+                The Aermuse Team
+              </p>
+              <p style=3D"margin: 0; font-size: 12px; color: #666666;">
+                Empowering artists to own their careers
+              </p>
+            </td>
+          </tr>
+
+        </tbody></table>
+      </td>
+    </tr>
+  </tbody></table>
+
+<img src=3D"https://ea.pstmrk.it/open?m=3Dv3_1.mbKOzk2NTZkCuOAK4JEcKw.vxxMI=
+XrBAgX1vA9urDMZIIr4Ka-UMLPMPn9ysLTw0Z70OtiTB398qgjC89TkDC18hnQPELITSHrMtdg6=
+M5LRP971m6Hi-sDqIJJP35bL_NOlQ6tR5Kg1PhrBqrgOIVYi5FPMdDze1nyYDcbnM_8PRucl_x1=
+UC-l54z1AHLfaw2AqBf23QXrWtUFV4K846t27-TxsHTkEunit-hP0hhBTuoharUKaw1ubKCbfad=
+mAad5A1xhlB3ha3LEoEAGQqDf0E9d585dGfwh4aI37-EN0MVW8pN6IZz-PUHzzq8XVEpXia9TJv=
+liRBeZ6UPJEtdQ_PEcEhf0a-1dmQr9RvgmrQrBhQ9XSEInjrMixSN1b3_62aezoyC3lXqQ5g54d=
+HYn495IIJTC2ViuVIDr1jSiJjkA6zqnJeNn07k1tO5YQRL1k5YMJz0M6_7oAOTbqbbo1b_KNLQp=
+brXh08kTdH-qwY8pUIibO2zojHa0VGAkrws7gGi40aopAUK3rvOYGFc3WNuBUtj2Db2ewTblI5w=
+rxsDFulGUDQjhmUM8BxYyn9CYEWSjEqgrrusmwsmBhsbgjcLf_66ZJ5MsdQkSI7tX8nw" width=
+=3D"1" height=3D"1" border=3D"0" alt=3D"" /></body></html>
+
+--mk3-59d22dd0c4e442099ed4ecc3f3948ad7--

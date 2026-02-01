@@ -119,7 +119,7 @@ export async function sendSignatureRequestEmail(
         contractTitle,
         signingUrl,
         message: message || '',
-        contractDownloadUrl: contractDownloadUrl || false,
+        ...(contractDownloadUrl ? { contractDownloadUrl } : {}),
       },
       MessageStream: 'outbound',
     });
