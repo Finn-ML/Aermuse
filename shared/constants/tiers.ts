@@ -54,12 +54,12 @@ export const TIER_HIERARCHY: Record<SubscriptionTier, number> = {
  */
 export const STRIPE_PAYMENT_LINKS = {
   beta: {
-    monthly: 'https://buy.stripe.com/test_9B600b59s6T03Gq97hcwg01',
-    yearly: 'https://buy.stripe.com/test_7sY14f45odho6SC0ALcwg02',
+    monthly: 'https://buy.stripe.com/7sY3cnfWJevy4t07Je4Rq04',
+    yearly: 'https://buy.stripe.com/6oU00b7qddrugbI1kQ4Rq05',
   },
   alpha: {
-    monthly: 'https://buy.stripe.com/test_fZu28jbxQ7X47WG83dcwg00',
-    yearly: 'https://buy.stripe.com/test_cNi28jatMa5c3Gqcjtcwg03',
+    monthly: 'https://buy.stripe.com/00w9ALh0N7364t00gM4Rq03',
+    yearly: 'https://buy.stripe.com/aFa28jfWJ4UY4t01kQ4Rq06',
   },
 } as const;
 
