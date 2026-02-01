@@ -27,19 +27,13 @@ interface ProducerSplit {
 }
 
 export interface ProducerAgreementData {
-  effectiveDate: string;
-  territory: string;
-  licenseType: string;
-  duration: string;
-  usageRights: string;
-  masterOwnershipPercent: number;
-  publishingPercent: number;
-  royaltyRate: number;
-  advance: string;
-  producerCreditFormat: string;
-  conditions: string;
-  terminationConditions: string;
-  noticePeriod: string;
+  agreement_date: string;
+  licence_structure: 'recoup' | 'perpetual';
+  licence_fee_amount: string;
+  post_recoup_producer_split: number;
+  post_recoup_artist_split: number;
+  inactivity_period: string;
+  licence_buyout_amount: string;
 }
 
 interface ProducerLicenseDialogProps {
@@ -51,40 +45,11 @@ interface ProducerLicenseDialogProps {
   isSubmitting?: boolean;
 }
 
-const TERRITORY_OPTIONS = [
-  { value: 'worldwide', label: 'Worldwide' },
-  { value: 'north_america', label: 'North America' },
-  { value: 'europe', label: 'Europe' },
-  { value: 'asia_pacific', label: 'Asia Pacific' },
-  { value: 'custom', label: 'Custom / Regional' },
-];
-
-const LICENSE_TYPE_OPTIONS = [
-  { value: 'conditional', label: 'Conditional License' },
-  { value: 'exclusive', label: 'Exclusive License' },
-  { value: 'non_exclusive', label: 'Non-Exclusive License' },
-];
-
-const DURATION_OPTIONS = [
-  { value: '1_year', label: '1 Year' },
-  { value: '2_years', label: '2 Years' },
-  { value: '3_years', label: '3 Years' },
-  { value: '5_years', label: '5 Years' },
-  { value: 'perpetual', label: 'Perpetual' },
-];
-
-const USAGE_RIGHTS_OPTIONS = [
-  { value: 'streaming_only', label: 'Streaming Only' },
-  { value: 'streaming_downloads', label: 'Streaming & Downloads' },
-  { value: 'all_digital', label: 'All Digital Platforms' },
-  { value: 'all_media', label: 'All Media (Digital + Physical)' },
-  { value: 'sync_included', label: 'All Media + Sync Licensing' },
-];
-
-const NOTICE_PERIOD_OPTIONS = [
-  { value: '30_days', label: '30 Days' },
-  { value: '60_days', label: '60 Days' },
-  { value: '90_days', label: '90 Days' },
+const INACTIVITY_PERIOD_OPTIONS = [
+  { value: '6', label: '6 months' },
+  { value: '12', label: '12 months' },
+  { value: '18', label: '18 months' },
+  { value: '24', label: '24 months' },
 ];
 
 function getDefaultDate(): string {
@@ -100,19 +65,13 @@ export function ProducerLicenseDialog({
   isSubmitting = false,
 }: ProducerLicenseDialogProps) {
   const [formData, setFormData] = useState<ProducerAgreementData>({
-    effectiveDate: getDefaultDate(),
-    territory: 'worldwide',
-    licenseType: 'conditional',
-    duration: '1_year',
-    usageRights: 'all_digital',
-    masterOwnershipPercent: producerSplits[0]?.splitPercentage ?? 50,
-    publishingPercent: 50,
-    royaltyRate: 3,
-    advance: '',
-    producerCreditFormat: producerSplits.map((p) => `Prod. by ${p.collaboratorName}`).join(', '),
-    conditions: 'License activates upon split verification and track release.',
-    terminationConditions: 'Either party may terminate with written notice if material obligations are breached.',
-    noticePeriod: '30_days',
+    agreement_date: getDefaultDate(),
+    licence_structure: 'perpetual',
+    licence_fee_amount: '',
+    post_recoup_producer_split: producerSplits[0]?.splitPercentage ?? 10,
+    post_recoup_artist_split: 100 - (producerSplits[0]?.splitPercentage ?? 10),
+    inactivity_period: '12',
+    licence_buyout_amount: '',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof ProducerAgreementData, string>>>({});
@@ -134,23 +93,17 @@ export function ProducerLicenseDialog({
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof ProducerAgreementData, string>> = {};
 
-    if (!formData.effectiveDate) newErrors.effectiveDate = 'Required';
-    if (!formData.territory) newErrors.territory = 'Required';
-    if (!formData.licenseType) newErrors.licenseType = 'Required';
-    if (!formData.duration) newErrors.duration = 'Required';
-    if (!formData.usageRights) newErrors.usageRights = 'Required';
-    if (formData.masterOwnershipPercent < 0 || formData.masterOwnershipPercent > 100)
-      newErrors.masterOwnershipPercent = 'Must be 0-100';
-    if (formData.publishingPercent < 0 || formData.publishingPercent > 100)
-      newErrors.publishingPercent = 'Must be 0-100';
-    if (formData.royaltyRate < 0 || formData.royaltyRate > 50)
-      newErrors.royaltyRate = 'Must be 0-50';
-    if (!formData.producerCreditFormat.trim())
-      newErrors.producerCreditFormat = 'Required';
-    if (!formData.conditions.trim()) newErrors.conditions = 'Required';
-    if (!formData.terminationConditions.trim())
-      newErrors.terminationConditions = 'Required';
-    if (!formData.noticePeriod) newErrors.noticePeriod = 'Required';
+    if (!formData.agreement_date) newErrors.agreement_date = 'Required';
+    if (!formData.inactivity_period) newErrors.inactivity_period = 'Required';
+    if (!formData.licence_buyout_amount.trim()) newErrors.licence_buyout_amount = 'Required';
+
+    if (formData.licence_structure === 'recoup') {
+      if (!formData.licence_fee_amount.trim()) newErrors.licence_fee_amount = 'Required';
+      if (formData.post_recoup_producer_split < 0 || formData.post_recoup_producer_split > 100)
+        newErrors.post_recoup_producer_split = 'Must be 0-100';
+      if (formData.post_recoup_artist_split < 0 || formData.post_recoup_artist_split > 100)
+        newErrors.post_recoup_artist_split = 'Must be 0-100';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -169,7 +122,7 @@ export function ProducerLicenseDialog({
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Conditional License Agreement
+            Producer License & Monetisation Consent
           </DialogTitle>
           <DialogDescription>
             {trackTitle
@@ -191,269 +144,166 @@ export function ProducerLicenseDialog({
               ))}
             </div>
 
-            {/* Agreement Details */}
+            {/* Agreement Date */}
             <fieldset className="space-y-4">
               <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Agreement Details
               </legend>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="effectiveDate">Effective Date</Label>
-                  <Input
-                    id="effectiveDate"
-                    type="date"
-                    value={formData.effectiveDate}
-                    onChange={(e) => updateField('effectiveDate', e.target.value)}
-                  />
-                  {errors.effectiveDate && (
-                    <p className="text-xs text-destructive">{errors.effectiveDate}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="territory">Territory</Label>
-                  <Select
-                    value={formData.territory}
-                    onValueChange={(v) => updateField('territory', v)}
-                  >
-                    <SelectTrigger id="territory">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TERRITORY_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.territory && (
-                    <p className="text-xs text-destructive">{errors.territory}</p>
-                  )}
-                </div>
-              </div>
-            </fieldset>
-
-            {/* License Terms */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                License Terms
-              </legend>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="licenseType">License Type</Label>
-                  <Select
-                    value={formData.licenseType}
-                    onValueChange={(v) => updateField('licenseType', v)}
-                  >
-                    <SelectTrigger id="licenseType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LICENSE_TYPE_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.licenseType && (
-                    <p className="text-xs text-destructive">{errors.licenseType}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration</Label>
-                  <Select
-                    value={formData.duration}
-                    onValueChange={(v) => updateField('duration', v)}
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DURATION_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.duration && (
-                    <p className="text-xs text-destructive">{errors.duration}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="usageRights">Usage Rights</Label>
-                  <Select
-                    value={formData.usageRights}
-                    onValueChange={(v) => updateField('usageRights', v)}
-                  >
-                    <SelectTrigger id="usageRights">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {USAGE_RIGHTS_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.usageRights && (
-                    <p className="text-xs text-destructive">{errors.usageRights}</p>
-                  )}
-                </div>
-              </div>
-            </fieldset>
-
-            {/* Ownership & Royalties */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Ownership & Royalties
-              </legend>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="masterOwnershipPercent">Master Ownership (%)</Label>
-                  <Input
-                    id="masterOwnershipPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={formData.masterOwnershipPercent}
-                    onChange={(e) =>
-                      updateField('masterOwnershipPercent', parseFloat(e.target.value) || 0)
-                    }
-                  />
-                  {errors.masterOwnershipPercent && (
-                    <p className="text-xs text-destructive">{errors.masterOwnershipPercent}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="publishingPercent">Publishing (%)</Label>
-                  <Input
-                    id="publishingPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={formData.publishingPercent}
-                    onChange={(e) =>
-                      updateField('publishingPercent', parseFloat(e.target.value) || 0)
-                    }
-                  />
-                  {errors.publishingPercent && (
-                    <p className="text-xs text-destructive">{errors.publishingPercent}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="royaltyRate">Royalty Rate (%)</Label>
-                  <Input
-                    id="royaltyRate"
-                    type="number"
-                    min="0"
-                    max="50"
-                    step="0.5"
-                    value={formData.royaltyRate}
-                    onChange={(e) =>
-                      updateField('royaltyRate', parseFloat(e.target.value) || 0)
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">Percentage of net master royalties</p>
-                  {errors.royaltyRate && (
-                    <p className="text-xs text-destructive">{errors.royaltyRate}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="advance">Advance (optional)</Label>
-                  <Input
-                    id="advance"
-                    type="text"
-                    placeholder="e.g., $500"
-                    value={formData.advance}
-                    onChange={(e) => updateField('advance', e.target.value)}
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            {/* Credits */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Credits
-              </legend>
-
               <div className="space-y-2">
-                <Label htmlFor="producerCreditFormat">Producer Credit Format</Label>
+                <Label htmlFor="agreement_date">Agreement Date</Label>
                 <Input
-                  id="producerCreditFormat"
-                  placeholder='e.g., "Prod. by Beat Master"'
-                  value={formData.producerCreditFormat}
-                  onChange={(e) => updateField('producerCreditFormat', e.target.value)}
+                  id="agreement_date"
+                  type="date"
+                  value={formData.agreement_date}
+                  onChange={(e) => updateField('agreement_date', e.target.value)}
                 />
-                {errors.producerCreditFormat && (
-                  <p className="text-xs text-destructive">{errors.producerCreditFormat}</p>
+                {errors.agreement_date && (
+                  <p className="text-xs text-destructive">{errors.agreement_date}</p>
                 )}
               </div>
             </fieldset>
 
-            {/* Conditions */}
+            {/* Licence Structure */}
             <fieldset className="space-y-4">
               <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Conditions
+                Licence Structure
               </legend>
 
               <div className="space-y-2">
-                <Label htmlFor="conditions">Conditions for License Activation</Label>
-                <textarea
-                  id="conditions"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={formData.conditions}
-                  onChange={(e) => updateField('conditions', e.target.value)}
-                />
-                {errors.conditions && (
-                  <p className="text-xs text-destructive">{errors.conditions}</p>
-                )}
-              </div>
-            </fieldset>
-
-            {/* Termination */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Termination
-              </legend>
-
-              <div className="space-y-2">
-                <Label htmlFor="terminationConditions">Termination Conditions</Label>
-                <textarea
-                  id="terminationConditions"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={formData.terminationConditions}
-                  onChange={(e) => updateField('terminationConditions', e.target.value)}
-                />
-                {errors.terminationConditions && (
-                  <p className="text-xs text-destructive">{errors.terminationConditions}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="noticePeriod">Notice Period</Label>
+                <Label>Licence Payment Structure</Label>
                 <Select
-                  value={formData.noticePeriod}
-                  onValueChange={(v) => updateField('noticePeriod', v)}
+                  value={formData.licence_structure}
+                  onValueChange={(v) => updateField('licence_structure', v as 'recoup' | 'perpetual')}
                 >
-                  <SelectTrigger id="noticePeriod">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {NOTICE_PERIOD_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
+                    <SelectItem value="perpetual">Perpetual Revenue Share via Aermuse</SelectItem>
+                    <SelectItem value="recoup">Recoup-Until-Paid Licence</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.noticePeriod && (
-                  <p className="text-xs text-destructive">{errors.noticePeriod}</p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {formData.licence_structure === 'perpetual'
+                    ? 'The revenue split applies perpetually to all Aermuse sales of the track.'
+                    : 'A licence fee is recouped from the producer\'s share. After full recoupment, the split adjusts.'}
+                </p>
+              </div>
+
+              {formData.licence_structure === 'recoup' && (
+                <div className="space-y-4 p-3 bg-muted/30 rounded-lg">
+                  <div className="space-y-2">
+                    <Label htmlFor="licence_fee_amount">Licence Fee Amount</Label>
+                    <Input
+                      id="licence_fee_amount"
+                      type="text"
+                      placeholder="e.g., 500"
+                      value={formData.licence_fee_amount}
+                      onChange={(e) => updateField('licence_fee_amount', e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Amount to be recouped from producer's share of Aermuse sales
+                    </p>
+                    {errors.licence_fee_amount && (
+                      <p className="text-xs text-destructive">{errors.licence_fee_amount}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="post_recoup_producer_split">Post-Recoup Producer Split (%)</Label>
+                      <Input
+                        id="post_recoup_producer_split"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={formData.post_recoup_producer_split}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          updateField('post_recoup_producer_split', val);
+                          updateField('post_recoup_artist_split', 100 - val);
+                        }}
+                      />
+                      {errors.post_recoup_producer_split && (
+                        <p className="text-xs text-destructive">{errors.post_recoup_producer_split}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="post_recoup_artist_split">Post-Recoup Artist Split (%)</Label>
+                      <Input
+                        id="post_recoup_artist_split"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={formData.post_recoup_artist_split}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          updateField('post_recoup_artist_split', val);
+                          updateField('post_recoup_producer_split', 100 - val);
+                        }}
+                      />
+                      {errors.post_recoup_artist_split && (
+                        <p className="text-xs text-destructive">{errors.post_recoup_artist_split}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    After the licence fee is fully recouped, the revenue split adjusts to these percentages.
+                  </p>
+                </div>
+              )}
+            </fieldset>
+
+            {/* Inactivity & Buyout */}
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Inactivity & Buyout
+              </legend>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="inactivity_period">Inactivity Period</Label>
+                  <Select
+                    value={formData.inactivity_period}
+                    onValueChange={(v) => updateField('inactivity_period', v)}
+                  >
+                    <SelectTrigger id="inactivity_period">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INACTIVITY_PERIOD_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    If no paid purchases in this period, artist must remove the track or buy out the licence.
+                  </p>
+                  {errors.inactivity_period && (
+                    <p className="text-xs text-destructive">{errors.inactivity_period}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="licence_buyout_amount">Licence Buyout Amount</Label>
+                  <Input
+                    id="licence_buyout_amount"
+                    type="text"
+                    placeholder="e.g., 1000"
+                    value={formData.licence_buyout_amount}
+                    onChange={(e) => updateField('licence_buyout_amount', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Amount for outright licence purchase if inactivity clause triggers
+                  </p>
+                  {errors.licence_buyout_amount && (
+                    <p className="text-xs text-destructive">{errors.licence_buyout_amount}</p>
+                  )}
+                </div>
               </div>
             </fieldset>
           </div>

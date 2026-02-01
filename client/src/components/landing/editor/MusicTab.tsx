@@ -315,7 +315,7 @@ export function MusicTab({
             <input
               ref={newCoverInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,.jpg,.jpeg"
               onChange={handleNewCoverSelect}
               className="hidden"
             />
@@ -556,7 +556,7 @@ export function MusicTab({
       <input
         ref={coverInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,.jpg,.jpeg"
         onChange={handleCoverSelect}
         className="hidden"
       />

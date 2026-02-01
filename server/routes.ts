@@ -4159,8 +4159,28 @@ ${urls}
                   } as any);
 
                   // Generate HTML content from template
+                  // Merge context data (artist, producer, track info) with form data
+                  const formFields = producerAgreementData as Record<string, string | number | Date | null>;
+                  // Clear recoup-specific fields when perpetual licence is selected
+                  if (formFields.licence_structure === 'perpetual') {
+                    formFields.licence_fee_amount = '';
+                    formFields.post_recoup_producer_split = '';
+                    formFields.post_recoup_artist_split = '';
+                  }
                   const templateFormData: TemplateFormData = {
-                    fields: producerAgreementData as Record<string, string | number | Date | null>,
+                    fields: {
+                      ...formFields,
+                      artist_legal_name: initiatorName,
+                      artist_stage_name: initiator?.name || '',
+                      artist_email: initiator?.email || '',
+                      producer_legal_name: producerSplit.collaboratorName,
+                      producer_stage_name: producerSplit.collaboratorName,
+                      producer_email: producerSplit.collaboratorEmail,
+                      track_title: track.title,
+                      track_version: track.version && track.version > 1 ? `v${track.version}` : 'Original',
+                      producer_split_percent: producerSplit.splitPercentage,
+                      artist_split_percent: ownerSplitPercentage,
+                    },
                     enabledClauses: [],
                   };
                   const templateForRender = {
@@ -4221,7 +4241,7 @@ ${urls}
                     .values({
                       contractId: contract.id,
                       initiatorId: userId,
-                      docusealDocumentId: docusealDoc.id,
+                      docusealDocumentId: String(docusealDoc.id),
                       status: 'pending',
                       signingOrder: 'parallel',
                       expiresAt,
@@ -7023,7 +7043,8 @@ Sent at: ${new Date().toISOString()}
                           payload.pdfUrl || payload.pdf_url;
 
       console.log(`[WEBHOOK] Document completed - payload keys: ${Object.keys(payload).join(', ')}`);
-      console.log(`[WEBHOOK] Document completed: ${documentId}, submissionId: ${submissionId}`);
+      console.log(`[WEBHOOK] Document completed: ${documentId} (type: ${typeof documentId}), submissionId: ${submissionId}`);
+      console.log(`[WEBHOOK] Looking up by docusealDocumentId: "${String(documentId)}"`);
       console.log(`[WEBHOOK] Has signedContent: ${!!signedContent}, Has signedPdfUrl: ${!!signedPdfUrl}`);
 
       // Find the signature request by DocuSeal document ID
@@ -7109,6 +7130,8 @@ Sent at: ${new Date().toISOString()}
 
       // Update contract status to signed
       await storage.updateContract(request.contractId, { status: 'signed' } as any);
+      const verifiedContract = await storage.getContract(request.contractId);
+      console.log(`[WEBHOOK] Updated contract ${request.contractId} to 'signed', verified status: ${verifiedContract?.status}`);
 
       // Epic 13: Update linked proposal status to responded (completed)
       const linkedProposal = await db

@@ -168,7 +168,10 @@ export const AUDIO_UPLOAD_CONSTANTS = {
   MAX_AUDIO_SIZE
 };
 
-// Cover art upload for tracks (same as avatar size)
+// Cover art upload for tracks - JPEG only
+const ALLOWED_COVER_EXTENSIONS = ['.jpg', '.jpeg'];
+const ALLOWED_COVER_MIMES = ['image/jpeg'];
+
 export const coverArtUpload = multer({
   storage,
   limits: {
@@ -176,11 +179,11 @@ export const coverArtUpload = multer({
   },
   fileFilter: (_req, file, cb) => {
     const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
-    if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
-      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_IMAGE_EXTENSIONS.join(', ')}`));
+    if (!ALLOWED_COVER_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Cover art must be JPEG (.jpg or .jpeg)`));
     }
-    if (!ALLOWED_IMAGE_MIMES.includes(file.mimetype)) {
-      return cb(new Error(`Invalid mime type. Accepted: jpg, png, webp`));
+    if (!ALLOWED_COVER_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Cover art must be JPEG`));
     }
     cb(null, true);
   }
