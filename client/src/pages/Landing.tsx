@@ -42,9 +42,9 @@ export default function Landing() {
   ];
 
   const testimonials = [
-    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'Finally, a platform that treats artists like professionals, not products.' },
-    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'The contract analysis alone has saved me from multiple bad deals.' },
-    { name: 'Sirvon', role: 'Hip Hop & R&B Artist', quote: 'The contract AI saved me from a terrible publishing deal. Invaluable.' }
+    { name: 'Paxe', role: 'Artist', quote: 'This is the first of its kind.' },
+    { name: 'Sirvon', role: 'Artist', quote: 'This is my artist development project, because I realised no one was going to save us — then God breathed Aermuse.' },
+    { name: 'Stunna', role: 'Artist', quote: 'Aermuse makes sense.' }
   ];
 
   return (
