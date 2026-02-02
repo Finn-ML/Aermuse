@@ -2286,7 +2286,7 @@ export default function Dashboard() {
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href="https://billing.stripe.com/p/login/test_fZu28jbxQ7X47WG83dcwg00"
+                      href="https://billing.stripe.com/p/login/3cI28j6m93QU8Jg7Je4Rq00"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block px-6 py-3 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-sm hover:shadow-[0_10px_30px_rgba(102,0,51,0.3)] transition-all"
