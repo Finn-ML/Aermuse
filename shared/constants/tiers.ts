@@ -8,6 +8,7 @@ export const SUBSCRIPTION_TIERS = {
   FREE: 'free',
   BETA: 'beta',
   ALPHA: 'alpha',
+  THETA: 'theta',
 } as const;
 
 export const FREE_TIER_CONTRACT_LIMIT = 10;
@@ -23,20 +24,28 @@ export type Feature =
   | 'ai-key-terms'
   | 'ai-missing-clauses'
   | 'e-signing'
-  | 'templates';
+  | 'templates'
+  | 'canvas-video-loop'
+  | 'mailing-list'
+  | 'track-preview-selection'
+  | 'merch-selling';
 
 /**
  * Feature access matrix - defines which tiers can access each feature
  */
 export const TIER_FEATURES: Record<Feature, SubscriptionTier[]> = {
-  'contract-storage': ['free', 'beta', 'alpha'],
-  'ai-summary': ['beta', 'alpha'],
-  'ai-risk-score': ['beta', 'alpha'],
-  'ai-red-flags': ['alpha'],
-  'ai-key-terms': ['alpha'],
-  'ai-missing-clauses': ['alpha'],
-  'e-signing': ['free', 'beta', 'alpha'],
-  'templates': ['beta', 'alpha'],
+  'contract-storage': ['free', 'beta', 'alpha', 'theta'],
+  'ai-summary': ['beta', 'alpha', 'theta'],
+  'ai-risk-score': ['beta', 'alpha', 'theta'],
+  'ai-red-flags': ['alpha', 'theta'],
+  'ai-key-terms': ['alpha', 'theta'],
+  'ai-missing-clauses': ['alpha', 'theta'],
+  'e-signing': ['free', 'beta', 'alpha', 'theta'],
+  'templates': ['beta', 'alpha', 'theta'],
+  'canvas-video-loop': ['theta'],
+  'mailing-list': ['theta'],
+  'track-preview-selection': ['theta'],
+  'merch-selling': ['theta'],
 } as const;
 
 /**
@@ -46,6 +55,7 @@ export const TIER_HIERARCHY: Record<SubscriptionTier, number> = {
   free: 0,
   beta: 1,
   alpha: 2,
+  theta: 3,
 };
 
 /**
@@ -60,6 +70,10 @@ export const STRIPE_PAYMENT_LINKS = {
   alpha: {
     monthly: 'https://buy.stripe.com/00w9ALh0N7364t00gM4Rq03',
     yearly: 'https://buy.stripe.com/aFa28jfWJ4UY4t01kQ4Rq06',
+  },
+  theta: {
+    monthly: '',
+    yearly: '',
   },
 } as const;
 

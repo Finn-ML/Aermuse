@@ -190,7 +190,7 @@ function buildSubscriptionUpdate(subscription: Stripe.Subscription): Subscriptio
   const status = mapStripeStatus(subscription.status);
 
   // Determine tier: use metadata if available, otherwise derive from price ID
-  const metadataTier = subscription.metadata?.tier as 'beta' | 'alpha' | undefined;
+  const metadataTier = subscription.metadata?.tier as 'beta' | 'alpha' | 'theta' | undefined;
   const tier = metadataTier || priceIdToTier(priceId);
 
   // Only set tier if subscription is active/trialing

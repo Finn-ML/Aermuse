@@ -14,7 +14,7 @@ export const sessions = pgTable("session", {
 }));
 
 // Subscription tier type (Epic 12)
-export type SubscriptionTier = 'free' | 'beta' | 'alpha';
+export type SubscriptionTier = 'free' | 'beta' | 'alpha' | 'theta';
 
 // Users table
 export const users = pgTable("users", {
@@ -50,7 +50,7 @@ export const users = pgTable("users", {
 });
 
 // Zod schema for subscription tier validation
-const subscriptionTierSchema = z.enum(['free', 'beta', 'alpha']).nullable().optional();
+const subscriptionTierSchema = z.enum(['free', 'beta', 'alpha', 'theta']).nullable().optional();
 
 export const insertUserSchema = createInsertSchema(users, {
   subscriptionTier: subscriptionTierSchema,

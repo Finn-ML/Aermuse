@@ -1231,9 +1231,9 @@ export default function Dashboard() {
             </div>
             <div>
               <div className="font-semibold text-sm">{user.name}</div>
-              <div className="text-xs text-[rgba(102,0,51,0.5)]">
+              <div className={`text-xs ${user.subscriptionTier === 'theta' ? 'text-[#D4AF37] font-semibold' : 'text-[rgba(102,0,51,0.5)]'}`}>
                 {user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing'
-                  ? user.subscriptionTier === 'alpha' ? 'AERMUSE Alpha' : 'AERMUSE Beta'
+                  ? user.subscriptionTier === 'theta' ? 'AERMUSE Theta' : user.subscriptionTier === 'alpha' ? 'AERMUSE Alpha' : 'AERMUSE Beta'
                   : 'Free Plan'}
               </div>
             </div>
@@ -2204,8 +2204,8 @@ export default function Dashboard() {
                   )}
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-[rgba(102,0,51,0.5)] uppercase tracking-wide">Account Type</p>
-                    <p className="text-[#660033] font-medium capitalize">
-                      {isPremium ? (tier === 'alpha' ? 'Alpha (Premium)' : 'Beta (Premium)') : 'Free'}
+                    <p className={`font-medium capitalize ${tier === 'theta' ? 'text-[#D4AF37] font-bold' : 'text-[#660033]'}`}>
+                      {isPremium ? (tier === 'theta' ? 'Theta (Exclusive)' : tier === 'alpha' ? 'Alpha (Premium)' : 'Beta (Premium)') : 'Free'}
                     </p>
                   </div>
                   <div className="space-y-1">

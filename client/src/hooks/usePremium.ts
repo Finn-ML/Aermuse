@@ -7,8 +7,9 @@ import { TIER_FEATURES, canAccessFeature, type Feature } from '@shared/constants
  */
 export interface PremiumState {
   tier: SubscriptionTier;
-  isPremium: boolean;      // beta or alpha (active subscription)
-  isAlpha: boolean;        // alpha only (highest tier)
+  isPremium: boolean;      // beta, alpha, or theta (active subscription)
+  isAlpha: boolean;        // alpha only
+  isTheta: boolean;        // theta only (highest tier)
   canAccess: (feature: Feature) => boolean;
   user: ReturnType<typeof useAuth>['user'];
   isLoading: boolean;
@@ -31,8 +32,9 @@ export function usePremium(): PremiumState {
     ? (rawTier && rawTier !== 'free' ? rawTier : 'beta')
     : 'free';
 
-  const isPremium = tier === 'beta' || tier === 'alpha';
+  const isPremium = tier === 'beta' || tier === 'alpha' || tier === 'theta';
   const isAlpha = tier === 'alpha';
+  const isTheta = tier === 'theta';
 
   const canAccess = (feature: Feature): boolean => {
     return canAccessFeature(tier, feature);
@@ -42,6 +44,7 @@ export function usePremium(): PremiumState {
     tier,
     isPremium,
     isAlpha,
+    isTheta,
     canAccess,
     user,
     isLoading,

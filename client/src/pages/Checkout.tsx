@@ -14,11 +14,17 @@ export default function Checkout() {
 
     // Get tier and billing from query params
     const params = new URLSearchParams(search);
-    const tier = params.get('tier') as 'beta' | 'alpha' || 'alpha';
+    const tier = params.get('tier') as 'beta' | 'alpha' | 'theta' || 'alpha';
     const billing = params.get('billing') as 'monthly' | 'annual' || 'monthly';
 
     if (!user) {
       setLocation(`/auth?redirect=/checkout?tier=${tier}&billing=${billing}`);
+      return;
+    }
+
+    // Theta tier is not yet available for checkout
+    if (tier === 'theta') {
+      setLocation('/pricing');
       return;
     }
 

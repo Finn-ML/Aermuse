@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Check, X } from 'lucide-react';
+import { Sparkles, Check, X, Crown } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { usePremium } from '@/hooks/usePremium';
 import { FAQ } from '@/components/pricing/FAQ';
@@ -81,6 +81,23 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: true,
     badge: 'Recommended',
   },
+  {
+    id: 'theta',
+    name: 'AERMUSE Theta',
+    monthlyPrice: 'Coming Soon',
+    annualPrice: 'Coming Soon',
+    description: 'The ultimate artist platform',
+    features: [
+      { text: 'Everything in Alpha', included: true },
+      { text: 'Canvas Video Loop', included: true },
+      { text: 'Mailing List', included: true },
+      { text: 'Track Preview Selection', included: true },
+      { text: 'Merch Selling', included: true },
+    ],
+    cta: 'Contact Us',
+    highlighted: false,
+    badge: 'Exclusive',
+  },
 ];
 
 interface PricingCardProps {
@@ -95,13 +112,17 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
   const isCurrentPlan = currentTier === plan.id;
   const canUpgrade = !isCurrentPlan && TIER_HIERARCHY[plan.id] > TIER_HIERARCHY[currentTier];
   const isHigherTier = TIER_HIERARCHY[plan.id] < TIER_HIERARCHY[currentTier];
+  const isTheta = plan.id === 'theta';
 
   const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
-  const period = plan.id === 'free' ? 'forever' : billingPeriod === 'monthly' ? '/month' : '/year';
+  const period = plan.id === 'free' ? 'forever' : isTheta ? '' : billingPeriod === 'monthly' ? '/month' : '/year';
 
   const handleClick = () => {
     if (plan.id === 'free') {
       window.location.href = isLoggedIn ? '/dashboard' : '/auth';
+    } else if (isTheta) {
+      // Theta is coming soon - no checkout yet
+      return;
     } else if (canUpgrade) {
       onSubscribe(plan.id as 'beta' | 'alpha', billingPeriod);
     }
@@ -110,35 +131,45 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
   const getButtonText = () => {
     if (isCurrentPlan) return 'Current Plan';
     if (isHigherTier) return 'Included';
+    if (isTheta && !isCurrentPlan) return 'Coming Soon';
     if (!isLoggedIn) return plan.cta;
     return canUpgrade ? 'Upgrade' : plan.cta;
   };
 
-  const isDisabled = isCurrentPlan || isHigherTier;
+  const isDisabled = isCurrentPlan || isHigherTier || (isTheta && !isCurrentPlan);
 
   return (
     <div
       className={`rounded-2xl p-6 sm:p-8 relative transition-all ${
-        plan.highlighted
-          ? 'bg-gradient-to-br from-[#660033] to-[#8B0045] text-[#F7E6CA] ring-4 ring-[#D4AF37] scale-105'
-          : 'bg-white/80 text-[#660033]'
+        isTheta
+          ? 'bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-[#F7E6CA] ring-4 ring-[#D4AF37]'
+          : plan.highlighted
+            ? 'bg-gradient-to-br from-[#660033] to-[#8B0045] text-[#F7E6CA] ring-4 ring-[#D4AF37] scale-105'
+            : 'bg-white/80 text-[#660033]'
       }`}
     >
       {plan.badge && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-block px-3 py-1 bg-[#D4AF37] text-[#660033] text-xs font-bold rounded-full whitespace-nowrap">
+        <span className={`absolute -top-3 left-1/2 -translate-x-1/2 inline-block px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${
+          isTheta
+            ? 'bg-gradient-to-r from-[#D4AF37] to-[#F0D060] text-[#1a1a2e]'
+            : 'bg-[#D4AF37] text-[#660033]'
+        }`}>
+          {isTheta && <Crown className="w-3 h-3 inline mr-1 -mt-0.5" />}
           {plan.badge}
         </span>
       )}
 
-      <h3 className="text-xl font-bold mb-2 font-playfair">{plan.name}</h3>
+      <h3 className={`text-xl font-bold mb-2 font-playfair ${isTheta ? 'text-[#D4AF37]' : ''}`}>{plan.name}</h3>
       <div className="flex items-baseline gap-1 mb-4">
-        <span className="text-4xl font-bold">{price}</span>
-        <span className={`text-sm ${plan.highlighted ? 'opacity-70' : 'text-[#660033]/60'}`}>
-          {period}
-        </span>
+        <span className={`text-4xl font-bold ${isTheta ? 'text-[#D4AF37]' : ''}`}>{price}</span>
+        {period && (
+          <span className={`text-sm ${plan.highlighted || isTheta ? 'opacity-70' : 'text-[#660033]/60'}`}>
+            {period}
+          </span>
+        )}
       </div>
 
-      <p className={`text-sm mb-6 ${plan.highlighted ? 'opacity-80' : 'text-[#660033]/70'}`}>
+      <p className={`text-sm mb-6 ${plan.highlighted || isTheta ? 'opacity-80' : 'text-[#660033]/70'}`}>
         {plan.description}
       </p>
 
@@ -146,14 +177,14 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
         {plan.features.map((feature, i) => (
           <li key={i} className="flex items-start gap-2 text-sm">
             {feature.included ? (
-              <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'text-green-400' : 'text-green-600'}`} />
+              <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isTheta ? 'text-[#D4AF37]' : plan.highlighted ? 'text-green-400' : 'text-green-600'}`} />
             ) : (
-              <X className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'opacity-40' : 'opacity-30'}`} />
+              <X className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted || isTheta ? 'opacity-40' : 'opacity-30'}`} />
             )}
-            <span className={feature.included ? '' : plan.highlighted ? 'opacity-50' : 'opacity-50'}>
+            <span className={feature.included ? '' : plan.highlighted || isTheta ? 'opacity-50' : 'opacity-50'}>
               {feature.text}
               {feature.teaser && (
-                <span className={`text-xs ml-1 ${plan.highlighted ? 'text-[#D4AF37]' : 'text-amber-600'}`}>
+                <span className={`text-xs ml-1 ${plan.highlighted || isTheta ? 'text-[#D4AF37]' : 'text-amber-600'}`}>
                   ({feature.teaser})
                 </span>
               )}
@@ -166,13 +197,17 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
         onClick={handleClick}
         disabled={isDisabled}
         className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
-          plan.highlighted
-            ? isDisabled
-              ? 'bg-[#F7E6CA]/30 text-[#F7E6CA]/50 cursor-not-allowed'
-              : 'bg-[#F7E6CA] text-[#660033] hover:bg-[#f0d9b8]'
-            : isDisabled
-              ? 'bg-[#660033]/10 text-[#660033]/50 cursor-not-allowed'
-              : 'bg-[#660033] text-[#F7E6CA] hover:bg-[#4a0024]'
+          isTheta
+            ? isCurrentPlan
+              ? 'bg-[#D4AF37]/30 text-[#D4AF37]/50 cursor-not-allowed'
+              : 'bg-gradient-to-r from-[#D4AF37] to-[#F0D060] text-[#1a1a2e] cursor-not-allowed opacity-80'
+            : plan.highlighted
+              ? isDisabled
+                ? 'bg-[#F7E6CA]/30 text-[#F7E6CA]/50 cursor-not-allowed'
+                : 'bg-[#F7E6CA] text-[#660033] hover:bg-[#f0d9b8]'
+              : isDisabled
+                ? 'bg-[#660033]/10 text-[#660033]/50 cursor-not-allowed'
+                : 'bg-[#660033] text-[#F7E6CA] hover:bg-[#4a0024]'
         }`}
       >
         {getButtonText()}
@@ -272,7 +307,7 @@ export default function Pricing() {
 
       {/* Pricing Cards */}
       <div className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 items-start">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 items-start">
           {PRICING_TIERS.map((plan) => (
             <PricingCard
               key={plan.id}

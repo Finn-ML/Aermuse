@@ -9,6 +9,7 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || process.env.T
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || process.env.TEST_STRIPE_PRICE_ID;
 const STRIPE_BETA_PRICE_ID = process.env.STRIPE_BETA_PRICE_ID;
 const STRIPE_ALPHA_PRICE_ID = process.env.STRIPE_ALPHA_PRICE_ID;
+const STRIPE_THETA_PRICE_ID = process.env.STRIPE_THETA_PRICE_ID;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 if (!STRIPE_SECRET_KEY) {
@@ -35,6 +36,7 @@ export const stripeConfig = {
   priceId: STRIPE_PRICE_ID || '',
   betaPriceId: STRIPE_BETA_PRICE_ID || '',
   alphaPriceId: STRIPE_ALPHA_PRICE_ID || '',
+  thetaPriceId: STRIPE_THETA_PRICE_ID || '',
   webhookSecret: STRIPE_WEBHOOK_SECRET || '',
   appUrl: APP_URL,
   currency: 'gbp',
@@ -46,6 +48,7 @@ export const stripeConfig = {
  */
 export function priceIdToTier(priceId: string | null | undefined): SubscriptionTier {
   if (!priceId) return 'free';
+  if (priceId === STRIPE_THETA_PRICE_ID) return 'theta';
   if (priceId === STRIPE_ALPHA_PRICE_ID) return 'alpha';
   if (priceId === STRIPE_BETA_PRICE_ID) return 'beta';
   // Legacy price ID maps to beta for backwards compatibility
@@ -56,7 +59,10 @@ export function priceIdToTier(priceId: string | null | undefined): SubscriptionT
 /**
  * Get Stripe price ID for a tier
  */
-export function tierToPriceId(tier: 'beta' | 'alpha'): string {
+export function tierToPriceId(tier: 'beta' | 'alpha' | 'theta'): string {
+  if (tier === 'theta') {
+    return STRIPE_THETA_PRICE_ID || stripeConfig.priceId;
+  }
   if (tier === 'alpha') {
     return STRIPE_ALPHA_PRICE_ID || stripeConfig.priceId;
   }

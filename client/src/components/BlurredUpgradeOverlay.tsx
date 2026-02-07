@@ -17,6 +17,10 @@ const FEATURE_LABELS: Record<Feature, string> = {
   'ai-missing-clauses': 'Missing Clauses Detection',
   'e-signing': 'E-Signing',
   'templates': 'Contract Templates',
+  'canvas-video-loop': 'Canvas Video Loop',
+  'mailing-list': 'Mailing List',
+  'track-preview-selection': 'Track Preview Selection',
+  'merch-selling': 'Merch Selling',
 };
 
 export function BlurredUpgradeOverlay({
