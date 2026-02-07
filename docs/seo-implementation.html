@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>SEO Implementation for Artist Pages</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #24292e; font-size: 14px; line-height: 1.6; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 24px; }
+  h3 { margin-top: 24px; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; }
+  th { background: #f6f8fa; font-weight: 600; }
+  blockquote { border-left: 4px solid #dfe2e5; margin: 0; padding: 0 16px; color: #6a737d; }
+  a { color: #0366d6; text-decoration: none; }
+  ol, ul { padding-left: 2em; }
+</style>
+</head>
+<body><h1>SEO Implementation for Artist Pages</h1>
+<blockquote>
+<p>Server-side meta tag injection and search engine optimization for <code>/artist/:slug</code> routes</p>
+</blockquote>
+<h2>Overview</h2>
+<p>Artist pages are public-facing landing pages that need to be discoverable by search engines and shareable on social media. This implementation provides:</p>
+<ol>
+<li><strong>Server-side meta tag injection</strong> - Dynamic meta tags rendered at request time</li>
+<li><strong>Sitemap generation</strong> - Automatic XML sitemap for all published pages</li>
+<li><strong>robots.txt</strong> - Crawler directives</li>
+<li><strong>JSON-LD structured data</strong> - Schema.org markup for rich snippets</li>
+<li><strong>Open Graph / Twitter Cards</strong> - Social sharing previews</li>
+</ol>
+<h2>Architecture</h2>
+<h3>Request Flow for Artist Pages</h3>
+<pre><code>Browser/Crawler requests /artist/slug
+         │
+         ▼
+    Express Static Middleware
+         │
+         ▼ (no static file match)
+    Catch-all Handler (server/static.ts)
+         │
+         ├─── Is /artist/:slug route?
+         │         │
+         │         ▼ YES
+         │    Fetch artist from DB
+         │         │
+         │         ▼
+         │    Generate meta tags
+         │         │
+         │         ▼
+         │    Inject into HTML template
+         │         │
+         │         ▼
+         │    Serve modified HTML
+         │
+         └─── NO ──► Serve default index.html
+</code></pre>
+<h2>Endpoints</h2>
+<h3>GET /robots.txt</h3>
+<p>Returns crawler directives:</p>
+<pre><code>User-agent: *
+Allow: /artist/
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /admin
+
+Sitemap: https://yourdomain.com/sitemap.xml
+</code></pre>
+<h3>GET /sitemap.xml</h3>
+<p>Dynamically generates XML sitemap including:</p>
+<ul>
+<li>Homepage</li>
+<li>All published artist landing pages with <code>lastmod</code> dates</li>
+</ul>
+<p>Example response:</p>
+<pre><code class="language-xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;urlset xmlns=&quot;http://www.sitemaps.org/schemas/sitemap/0.9&quot;&gt;
+  &lt;url&gt;
+    &lt;loc&gt;https://yourdomain.com&lt;/loc&gt;
+    &lt;changefreq&gt;daily&lt;/changefreq&gt;
+    &lt;priority&gt;1.0&lt;/priority&gt;
+  &lt;/url&gt;
+  &lt;url&gt;
+    &lt;loc&gt;https://yourdomain.com/artist/artist-slug&lt;/loc&gt;
+    &lt;lastmod&gt;2025-01-20&lt;/lastmod&gt;
+    &lt;changefreq&gt;weekly&lt;/changefreq&gt;
+    &lt;priority&gt;0.8&lt;/priority&gt;
+  &lt;/url&gt;
+&lt;/urlset&gt;
+</code></pre>
+<h2>Meta Tags Injected</h2>
+<p>For artist pages, the following meta tags are dynamically injected:</p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;title&gt;</code></td>
+<td>&quot;Artist Name - Tagline | AERMUSE&quot;</td>
+</tr>
+<tr>
+<td><code>&lt;meta name=&quot;description&quot;&gt;</code></td>
+<td>Artist bio (truncated to 160 chars)</td>
+</tr>
+<tr>
+<td><code>&lt;link rel=&quot;canonical&quot;&gt;</code></td>
+<td>Full canonical URL</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:type&quot;&gt;</code></td>
+<td>&quot;profile&quot;</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:title&quot;&gt;</code></td>
+<td>Artist name</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:description&quot;&gt;</code></td>
+<td>Bio or tagline</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:image&quot;&gt;</code></td>
+<td>Avatar or cover image URL</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:url&quot;&gt;</code></td>
+<td>Canonical URL</td>
+</tr>
+<tr>
+<td><code>&lt;meta property=&quot;og:site_name&quot;&gt;</code></td>
+<td>&quot;AERMUSE&quot;</td>
+</tr>
+<tr>
+<td><code>&lt;meta name=&quot;twitter:card&quot;&gt;</code></td>
+<td>&quot;summary_large_image&quot;</td>
+</tr>
+<tr>
+<td><code>&lt;meta name=&quot;twitter:title&quot;&gt;</code></td>
+<td>Artist name</td>
+</tr>
+<tr>
+<td><code>&lt;meta name=&quot;twitter:description&quot;&gt;</code></td>
+<td>Bio or tagline</td>
+</tr>
+<tr>
+<td><code>&lt;meta name=&quot;twitter:image&quot;&gt;</code></td>
+<td>Avatar or cover image URL</td>
+</tr>
+</tbody>
+</table>
+<h2>JSON-LD Structured Data</h2>
+<p>Client-side injection of Schema.org MusicGroup markup:</p>
+<pre><code class="language-json">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;MusicGroup&quot;,
+  &quot;name&quot;: &quot;Artist Name&quot;,
+  &quot;description&quot;: &quot;Artist bio&quot;,
+  &quot;image&quot;: &quot;https://example.com/avatar.jpg&quot;,
+  &quot;url&quot;: &quot;https://example.com/artist/slug&quot;,
+  &quot;sameAs&quot;: [
+    &quot;https://instagram.com/artist&quot;,
+    &quot;https://twitter.com/artist&quot;
+  ]
+}
+</code></pre>
+<h2>Files Modified</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server/routes.ts</code></td>
+<td>robots.txt and sitemap.xml endpoints</td>
+</tr>
+<tr>
+<td><code>server/storage.ts</code></td>
+<td><code>getAllPublishedLandingPages()</code> method</td>
+</tr>
+<tr>
+<td><code>server/static.ts</code></td>
+<td>Meta tag injection for artist routes</td>
+</tr>
+<tr>
+<td><code>client/index.html</code></td>
+<td>SEO placeholder markers</td>
+</tr>
+<tr>
+<td><code>client/src/pages/ArtistPage.tsx</code></td>
+<td>JSON-LD structured data injection</td>
+</tr>
+</tbody>
+</table>
+<h2>HTML Template Markers</h2>
+<p>The <code>client/index.html</code> file contains placeholder markers:</p>
+<pre><code class="language-html">&lt;!-- SEO_META_TAGS --&gt;
+&lt;title&gt;AERMUSE - Artist Management Platform&lt;/title&gt;
+&lt;meta name=&quot;description&quot; content=&quot;...&quot; /&gt;
+&lt;!-- /SEO_META_TAGS --&gt;
+</code></pre>
+<p>These markers are replaced at request time with artist-specific meta tags for <code>/artist/:slug</code> routes.</p>
+<h2>Verification</h2>
+<h3>Test Meta Tags</h3>
+<pre><code class="language-bash">curl -s https://yourdomain.com/artist/artist-slug | grep -E '&lt;(title|meta|link)'
+</code></pre>
+<h3>Test Sitemap</h3>
+<pre><code class="language-bash">curl https://yourdomain.com/sitemap.xml
+</code></pre>
+<h3>Test robots.txt</h3>
+<pre><code class="language-bash">curl https://yourdomain.com/robots.txt
+</code></pre>
+<h3>Validation Tools</h3>
+<ul>
+<li><a href="https://search.google.com/test/rich-results">Google Rich Results Test</a></li>
+<li><a href="https://developers.facebook.com/tools/debug/">Facebook Sharing Debugger</a></li>
+<li><a href="https://cards-dev.twitter.com/validator">Twitter Card Validator</a></li>
+<li>Google Search Console - Submit sitemap</li>
+</ul>
+<h2>Security Considerations</h2>
+<ul>
+<li>All user-provided content (artist name, bio, tagline) is HTML-escaped before injection</li>
+<li>Only published pages are included in sitemap and receive meta tag injection</li>
+<li>Unpublished pages fall back to default generic HTML</li>
+</ul>
+</body>
+</html>
