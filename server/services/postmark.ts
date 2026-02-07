@@ -936,3 +936,166 @@ export async function sendSplitExpiredEmail(
     return { success: false, error: String(error) };
   }
 }
+
+// ============================================
+// MAILING LIST BROADCAST EMAILS
+// ============================================
+
+interface SubscriptionConfirmationParams {
+  subscriberEmail: string;
+  subscriberName?: string | null;
+  artistName: string;
+  confirmUrl: string;
+}
+
+/**
+ * Send subscription confirmation email (double opt-in)
+ */
+export async function sendSubscriptionConfirmationEmail(
+  params: SubscriptionConfirmationParams
+): Promise<EmailResult> {
+  const { subscriberEmail, subscriberName, artistName, confirmUrl } = params;
+
+  if (!client) {
+    console.log('[EMAIL] Subscription confirmation email (dev mode):');
+    console.log(`  To: ${subscriberEmail}`);
+    console.log(`  Subscriber: ${subscriberName || '(no name)'}`);
+    console.log(`  Artist: ${artistName}`);
+    console.log(`  Confirm URL: ${confirmUrl}`);
+    return { success: true, messageId: 'dev-mode' };
+  }
+
+  try {
+    const result = await client.sendEmail({
+      From: FROM_EMAIL,
+      To: subscriberEmail,
+      Subject: `Confirm your subscription to ${artistName}'s mailing list`,
+      HtmlBody: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <h2 style="color: #1a1a1a; margin-bottom: 16px;">Confirm your subscription</h2>
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+            Hi${subscriberName ? ` ${subscriberName}` : ''},
+          </p>
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+            You requested to join <strong>${artistName}</strong>'s mailing list. Click the button below to confirm:
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${confirmUrl}" style="background-color: #660033; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">
+              Confirm Subscription
+            </a>
+          </div>
+          <p style="color: #888; font-size: 14px;">
+            If you didn't request this, you can safely ignore this email.
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          <p style="color: #aaa; font-size: 12px; text-align: center;">
+            Sent via <a href="https://aermuse.com" style="color: #660033;">Aermuse</a>
+          </p>
+        </div>
+      `,
+      TextBody: `Confirm your subscription to ${artistName}'s mailing list.\n\nClick this link to confirm: ${confirmUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
+      MessageStream: 'broadcast',
+    });
+
+    console.log(`[EMAIL] Subscription confirmation sent to ${subscriberEmail}`);
+    return { success: true, messageId: result.MessageID };
+  } catch (error) {
+    console.error('[EMAIL] Failed to send subscription confirmation:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+interface BroadcastEmailParams {
+  to: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string;
+  artistName: string;
+  artistSlug: string;
+  replyTo?: string;
+  unsubscribeUrl: string;
+}
+
+/**
+ * Send a batch of broadcast emails for a campaign
+ * Postmark supports up to 500 messages per batch call
+ */
+export async function sendBroadcastBatch(
+  emails: BroadcastEmailParams[]
+): Promise<{ sent: number; failed: number; results: EmailResult[] }> {
+  if (!client) {
+    console.log(`[EMAIL] Broadcast batch (dev mode): ${emails.length} emails`);
+    for (const e of emails.slice(0, 3)) {
+      console.log(`  To: ${e.to}, Subject: ${e.subject}`);
+    }
+    if (emails.length > 3) console.log(`  ... and ${emails.length - 3} more`);
+    return {
+      sent: emails.length,
+      failed: 0,
+      results: emails.map(() => ({ success: true, messageId: 'dev-mode' })),
+    };
+  }
+
+  const results: EmailResult[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  // Process in batches of 500 (Postmark limit)
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+    const batch = emails.slice(i, i + BATCH_SIZE);
+
+    try {
+      const messages = batch.map((e) => ({
+        From: `${e.artistName} <${e.artistSlug}@mail.aermuse.com>`,
+        To: e.to,
+        Subject: e.subject,
+        HtmlBody: wrapBroadcastHtml(e.htmlBody, e.unsubscribeUrl),
+        TextBody: `${e.textBody}\n\n---\nUnsubscribe: ${e.unsubscribeUrl}`,
+        ReplyTo: e.replyTo || FROM_EMAIL,
+        MessageStream: 'broadcast' as const,
+        Headers: [
+          { Name: 'List-Unsubscribe', Value: `<${e.unsubscribeUrl}>` },
+          { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+        ],
+      }));
+
+      const batchResults = await client.sendEmailBatch(messages);
+
+      for (const r of batchResults) {
+        if (r.ErrorCode === 0) {
+          sent++;
+          results.push({ success: true, messageId: r.MessageID });
+        } else {
+          failed++;
+          results.push({ success: false, error: r.Message });
+        }
+      }
+    } catch (error) {
+      console.error(`[EMAIL] Broadcast batch failed:`, error);
+      for (let j = 0; j < batch.length; j++) {
+        failed++;
+        results.push({ success: false, error: String(error) });
+      }
+    }
+  }
+
+  console.log(`[EMAIL] Broadcast batch complete: ${sent} sent, ${failed} failed`);
+  return { sent, failed, results };
+}
+
+/**
+ * Wrap campaign HTML body with unsubscribe footer
+ */
+function wrapBroadcastHtml(htmlBody: string, unsubscribeUrl: string): string {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${htmlBody}
+      <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px;" />
+      <p style="color: #999; font-size: 12px; text-align: center;">
+        <a href="${unsubscribeUrl}" style="color: #999; text-decoration: underline;">Unsubscribe</a> from this mailing list.
+        <br />Sent via <a href="https://aermuse.com" style="color: #660033;">Aermuse</a>
+      </p>
+    </div>
+  `;
+}

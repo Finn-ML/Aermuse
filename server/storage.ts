@@ -11,10 +11,20 @@ import {
   type TrackSplit, type InsertTrackSplit, type TrackSplitStatus,
   type ArtistVideo, type InsertArtistVideo,
   type VideoPurchase, type InsertVideoPurchase,
-  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals, artistVideos, videoPurchases
+  type MerchProduct, type InsertMerchProduct,
+  type MerchVariant, type InsertMerchVariant,
+  type MerchOrder, type InsertMerchOrder,
+  type MerchOrderItem, type InsertMerchOrderItem,
+  type MailingListSubscriber, type InsertMailingListSubscriber,
+  type EmailCampaign, type InsertEmailCampaign,
+  type EmailSend, type InsertEmailSend,
+  type EmailLinkClick, type InsertEmailLinkClick,
+  users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals, artistVideos, videoPurchases,
+  merchProducts, merchVariants, merchOrders, merchOrderItems,
+  mailingListSubscribers, emailCampaigns, emailSends, emailLinkClicks
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, type SQL } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, sql, type SQL } from "drizzle-orm";
 
 export type SortField = 'name' | 'createdAt' | 'updatedAt' | 'status' | 'type' | 'expiryDate';
 export type SortOrder = 'asc' | 'desc';
@@ -150,6 +160,69 @@ export interface IStorage {
   getVideoPurchaseBySession(sessionId: string): Promise<VideoPurchase | undefined>;
   getVideoPurchasesByEmail(email: string): Promise<VideoPurchase[]>;
   createVideoPurchase(purchase: InsertVideoPurchase): Promise<VideoPurchase>;
+
+  // Merch Products
+  getProduct(id: string): Promise<MerchProduct | undefined>;
+  getProductsByUser(userId: string): Promise<MerchProduct[]>;
+  getActiveProductsForLandingPage(landingPageId: string): Promise<(MerchProduct & { variants: MerchVariant[] })[]>;
+  createProduct(product: InsertMerchProduct): Promise<MerchProduct>;
+  updateProduct(id: string, data: Partial<InsertMerchProduct>): Promise<MerchProduct | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+
+  // Merch Variants
+  getProductVariant(id: string): Promise<MerchVariant | undefined>;
+  getProductVariants(productId: string): Promise<MerchVariant[]>;
+  createProductVariant(variant: InsertMerchVariant): Promise<MerchVariant>;
+  updateProductVariant(id: string, data: Partial<InsertMerchVariant>): Promise<MerchVariant | undefined>;
+  deleteProductVariant(id: string): Promise<boolean>;
+  decrementVariantInventory(id: string, quantity: number): Promise<boolean>;
+
+  // Merch Orders
+  getOrder(id: string): Promise<MerchOrder | undefined>;
+  getOrdersByArtist(artistId: string): Promise<MerchOrder[]>;
+  getOrderByCheckoutSession(sessionId: string): Promise<MerchOrder | undefined>;
+  createOrder(order: InsertMerchOrder): Promise<MerchOrder>;
+  updateOrder(id: string, data: Partial<InsertMerchOrder>): Promise<MerchOrder | undefined>;
+
+  // Merch Order Items
+  getOrderItems(orderId: string): Promise<MerchOrderItem[]>;
+  createOrderItem(item: InsertMerchOrderItem): Promise<MerchOrderItem>;
+
+  // Mailing List Subscribers
+  getSubscriber(id: string): Promise<MailingListSubscriber | undefined>;
+  getSubscriberByToken(token: string): Promise<MailingListSubscriber | undefined>;
+  getSubscriberByEmail(landingPageId: string, email: string): Promise<MailingListSubscriber | undefined>;
+  getActiveSubscribersByLandingPage(landingPageId: string): Promise<MailingListSubscriber[]>;
+  getSubscribersByLandingPage(landingPageId: string): Promise<MailingListSubscriber[]>;
+  getSubscriberCountsByLandingPage(landingPageId: string): Promise<{ total: number; active: number; unsubscribed: number }>;
+  createSubscriber(subscriber: InsertMailingListSubscriber): Promise<MailingListSubscriber>;
+  updateSubscriber(id: string, data: Partial<InsertMailingListSubscriber>): Promise<MailingListSubscriber | undefined>;
+  deleteSubscriber(id: string): Promise<boolean>;
+
+  // Email Campaigns
+  getCampaign(id: string): Promise<EmailCampaign | undefined>;
+  getCampaignsByUser(userId: string): Promise<EmailCampaign[]>;
+  getScheduledCampaignsDue(): Promise<EmailCampaign[]>;
+  createCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign>;
+  updateCampaign(id: string, data: Partial<InsertEmailCampaign>): Promise<EmailCampaign | undefined>;
+  deleteCampaign(id: string): Promise<boolean>;
+
+  // Email Sends
+  createEmailSend(send: InsertEmailSend): Promise<EmailSend>;
+  createEmailSendsBatch(sends: InsertEmailSend[]): Promise<EmailSend[]>;
+  getEmailSendByPostmarkId(postmarkMessageId: string): Promise<EmailSend | undefined>;
+  updateEmailSend(id: string, data: Partial<InsertEmailSend>): Promise<EmailSend | undefined>;
+  getCampaignAnalytics(campaignId: string): Promise<{
+    recipientCount: number;
+    delivered: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+  }>;
+
+  // Email Link Clicks
+  createLinkClick(click: InsertEmailLinkClick): Promise<EmailLinkClick>;
+  getLinkClicksByCampaign(campaignId: string): Promise<{ url: string; clicks: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -903,6 +976,328 @@ export class DatabaseStorage implements IStorage {
   async createVideoPurchase(purchase: InsertVideoPurchase): Promise<VideoPurchase> {
     const [newPurchase] = await db.insert(videoPurchases).values(purchase).returning();
     return newPurchase;
+  }
+
+  // ============================================
+  // MERCH PRODUCTS (Merch Store Feature)
+  // ============================================
+
+  async getProduct(id: string): Promise<MerchProduct | undefined> {
+    const [product] = await db.select().from(merchProducts).where(eq(merchProducts.id, id));
+    return product;
+  }
+
+  async getProductsByUser(userId: string): Promise<MerchProduct[]> {
+    return db.select()
+      .from(merchProducts)
+      .where(eq(merchProducts.userId, userId))
+      .orderBy(asc(merchProducts.displayOrder), desc(merchProducts.createdAt));
+  }
+
+  async getActiveProductsForLandingPage(landingPageId: string): Promise<(MerchProduct & { variants: MerchVariant[] })[]> {
+    const products = await db.select()
+      .from(merchProducts)
+      .where(and(
+        eq(merchProducts.landingPageId, landingPageId),
+        eq(merchProducts.isActive, true)
+      ))
+      .orderBy(asc(merchProducts.displayOrder), desc(merchProducts.createdAt));
+
+    const result: (MerchProduct & { variants: MerchVariant[] })[] = [];
+    for (const product of products) {
+      const variants = await db.select()
+        .from(merchVariants)
+        .where(and(
+          eq(merchVariants.productId, product.id),
+          eq(merchVariants.isActive, true)
+        ));
+      result.push({ ...product, variants });
+    }
+    return result;
+  }
+
+  async createProduct(product: InsertMerchProduct): Promise<MerchProduct> {
+    const [newProduct] = await db.insert(merchProducts).values(product).returning();
+    return newProduct;
+  }
+
+  async updateProduct(id: string, data: Partial<InsertMerchProduct>): Promise<MerchProduct | undefined> {
+    const [product] = await db.update(merchProducts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(merchProducts.id, id))
+      .returning();
+    return product;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await db.delete(merchProducts).where(eq(merchProducts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ============================================
+  // MERCH VARIANTS (Merch Store Feature)
+  // ============================================
+
+  async getProductVariant(id: string): Promise<MerchVariant | undefined> {
+    const [variant] = await db.select().from(merchVariants).where(eq(merchVariants.id, id));
+    return variant;
+  }
+
+  async getProductVariants(productId: string): Promise<MerchVariant[]> {
+    return db.select()
+      .from(merchVariants)
+      .where(eq(merchVariants.productId, productId));
+  }
+
+  async createProductVariant(variant: InsertMerchVariant): Promise<MerchVariant> {
+    const [newVariant] = await db.insert(merchVariants).values(variant).returning();
+    return newVariant;
+  }
+
+  async updateProductVariant(id: string, data: Partial<InsertMerchVariant>): Promise<MerchVariant | undefined> {
+    const [variant] = await db.update(merchVariants)
+      .set(data)
+      .where(eq(merchVariants.id, id))
+      .returning();
+    return variant;
+  }
+
+  async deleteProductVariant(id: string): Promise<boolean> {
+    const result = await db.delete(merchVariants).where(eq(merchVariants.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async decrementVariantInventory(id: string, quantity: number): Promise<boolean> {
+    const result = await db.execute(
+      `UPDATE merch_variants SET inventory = inventory - ${quantity} WHERE id = '${id}' AND inventory >= ${quantity}`
+    );
+    return (result as any).rowCount > 0;
+  }
+
+  // ============================================
+  // MERCH ORDERS (Merch Store Feature)
+  // ============================================
+
+  async getOrder(id: string): Promise<MerchOrder | undefined> {
+    const [order] = await db.select().from(merchOrders).where(eq(merchOrders.id, id));
+    return order;
+  }
+
+  async getOrdersByArtist(artistId: string): Promise<MerchOrder[]> {
+    return db.select()
+      .from(merchOrders)
+      .where(eq(merchOrders.artistId, artistId))
+      .orderBy(desc(merchOrders.createdAt));
+  }
+
+  async getOrderByCheckoutSession(sessionId: string): Promise<MerchOrder | undefined> {
+    const [order] = await db.select().from(merchOrders).where(eq(merchOrders.stripeCheckoutSessionId, sessionId));
+    return order;
+  }
+
+  async createOrder(order: InsertMerchOrder): Promise<MerchOrder> {
+    const [newOrder] = await db.insert(merchOrders).values(order).returning();
+    return newOrder;
+  }
+
+  async updateOrder(id: string, data: Partial<InsertMerchOrder>): Promise<MerchOrder | undefined> {
+    const [order] = await db.update(merchOrders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(merchOrders.id, id))
+      .returning();
+    return order;
+  }
+
+  // ============================================
+  // MERCH ORDER ITEMS (Merch Store Feature)
+  // ============================================
+
+  async getOrderItems(orderId: string): Promise<MerchOrderItem[]> {
+    return db.select()
+      .from(merchOrderItems)
+      .where(eq(merchOrderItems.orderId, orderId));
+  }
+
+  async createOrderItem(item: InsertMerchOrderItem): Promise<MerchOrderItem> {
+    const [newItem] = await db.insert(merchOrderItems).values(item).returning();
+    return newItem;
+  }
+
+  // ============================================
+  // MAILING LIST SUBSCRIBERS (Mailing List Feature)
+  // ============================================
+
+  async getSubscriber(id: string): Promise<MailingListSubscriber | undefined> {
+    const [sub] = await db.select().from(mailingListSubscribers).where(eq(mailingListSubscribers.id, id));
+    return sub;
+  }
+
+  async getSubscriberByToken(token: string): Promise<MailingListSubscriber | undefined> {
+    const [sub] = await db.select().from(mailingListSubscribers).where(eq(mailingListSubscribers.confirmationToken, token));
+    return sub;
+  }
+
+  async getSubscriberByEmail(landingPageId: string, email: string): Promise<MailingListSubscriber | undefined> {
+    const [sub] = await db.select().from(mailingListSubscribers).where(
+      and(eq(mailingListSubscribers.landingPageId, landingPageId), eq(mailingListSubscribers.email, email))
+    );
+    return sub;
+  }
+
+  async getActiveSubscribersByLandingPage(landingPageId: string): Promise<MailingListSubscriber[]> {
+    return db.select().from(mailingListSubscribers).where(
+      and(eq(mailingListSubscribers.landingPageId, landingPageId), eq(mailingListSubscribers.status, 'active'))
+    );
+  }
+
+  async getSubscribersByLandingPage(landingPageId: string): Promise<MailingListSubscriber[]> {
+    return db.select().from(mailingListSubscribers)
+      .where(eq(mailingListSubscribers.landingPageId, landingPageId))
+      .orderBy(desc(mailingListSubscribers.createdAt));
+  }
+
+  async getSubscriberCountsByLandingPage(landingPageId: string): Promise<{ total: number; active: number; unsubscribed: number }> {
+    const results = await db.select({
+      status: mailingListSubscribers.status,
+      count: count(),
+    }).from(mailingListSubscribers)
+      .where(eq(mailingListSubscribers.landingPageId, landingPageId))
+      .groupBy(mailingListSubscribers.status);
+
+    let total = 0, active = 0, unsubscribed = 0;
+    for (const r of results) {
+      const c = Number(r.count);
+      total += c;
+      if (r.status === 'active') active = c;
+      if (r.status === 'unsubscribed') unsubscribed = c;
+    }
+    return { total, active, unsubscribed };
+  }
+
+  async createSubscriber(subscriber: InsertMailingListSubscriber): Promise<MailingListSubscriber> {
+    const [sub] = await db.insert(mailingListSubscribers).values(subscriber).returning();
+    return sub;
+  }
+
+  async updateSubscriber(id: string, data: Partial<InsertMailingListSubscriber>): Promise<MailingListSubscriber | undefined> {
+    const [sub] = await db.update(mailingListSubscribers).set(data).where(eq(mailingListSubscribers.id, id)).returning();
+    return sub;
+  }
+
+  async deleteSubscriber(id: string): Promise<boolean> {
+    const result = await db.delete(mailingListSubscribers).where(eq(mailingListSubscribers.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // EMAIL CAMPAIGNS (Mailing List Feature)
+  // ============================================
+
+  async getCampaign(id: string): Promise<EmailCampaign | undefined> {
+    const [campaign] = await db.select().from(emailCampaigns).where(eq(emailCampaigns.id, id));
+    return campaign;
+  }
+
+  async getCampaignsByUser(userId: string): Promise<EmailCampaign[]> {
+    return db.select().from(emailCampaigns)
+      .where(eq(emailCampaigns.userId, userId))
+      .orderBy(desc(emailCampaigns.createdAt));
+  }
+
+  async getScheduledCampaignsDue(): Promise<EmailCampaign[]> {
+    return db.select().from(emailCampaigns).where(
+      and(
+        eq(emailCampaigns.status, 'scheduled'),
+        lte(emailCampaigns.scheduledFor, new Date())
+      )
+    );
+  }
+
+  async createCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign> {
+    const [c] = await db.insert(emailCampaigns).values(campaign).returning();
+    return c;
+  }
+
+  async updateCampaign(id: string, data: Partial<InsertEmailCampaign>): Promise<EmailCampaign | undefined> {
+    const [c] = await db.update(emailCampaigns)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(emailCampaigns.id, id))
+      .returning();
+    return c;
+  }
+
+  async deleteCampaign(id: string): Promise<boolean> {
+    const result = await db.delete(emailCampaigns).where(eq(emailCampaigns.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // EMAIL SENDS (Mailing List Feature)
+  // ============================================
+
+  async createEmailSend(send: InsertEmailSend): Promise<EmailSend> {
+    const [s] = await db.insert(emailSends).values(send).returning();
+    return s;
+  }
+
+  async createEmailSendsBatch(sends: InsertEmailSend[]): Promise<EmailSend[]> {
+    if (sends.length === 0) return [];
+    return db.insert(emailSends).values(sends).returning();
+  }
+
+  async getEmailSendByPostmarkId(postmarkMessageId: string): Promise<EmailSend | undefined> {
+    const [s] = await db.select().from(emailSends).where(eq(emailSends.postmarkMessageId, postmarkMessageId));
+    return s;
+  }
+
+  async updateEmailSend(id: string, data: Partial<InsertEmailSend>): Promise<EmailSend | undefined> {
+    const [s] = await db.update(emailSends).set(data).where(eq(emailSends.id, id)).returning();
+    return s;
+  }
+
+  async getCampaignAnalytics(campaignId: string): Promise<{
+    recipientCount: number;
+    delivered: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+  }> {
+    const results = await db.select({
+      total: count(),
+      delivered: sql<number>`count(*) filter (where ${emailSends.status} = 'delivered')`,
+      opened: sql<number>`count(*) filter (where ${emailSends.openedAt} is not null)`,
+      clicked: sql<number>`count(*) filter (where ${emailSends.clickedAt} is not null)`,
+      bounced: sql<number>`count(*) filter (where ${emailSends.status} = 'bounced')`,
+    }).from(emailSends).where(eq(emailSends.campaignId, campaignId));
+
+    const r = results[0];
+    return {
+      recipientCount: Number(r?.total ?? 0),
+      delivered: Number(r?.delivered ?? 0),
+      opened: Number(r?.opened ?? 0),
+      clicked: Number(r?.clicked ?? 0),
+      bounced: Number(r?.bounced ?? 0),
+    };
+  }
+
+  // ============================================
+  // EMAIL LINK CLICKS (Mailing List Feature)
+  // ============================================
+
+  async createLinkClick(click: InsertEmailLinkClick): Promise<EmailLinkClick> {
+    const [c] = await db.insert(emailLinkClicks).values(click).returning();
+    return c;
+  }
+
+  async getLinkClicksByCampaign(campaignId: string): Promise<{ url: string; clicks: number }[]> {
+    return db.select({
+      url: emailLinkClicks.url,
+      clicks: count(),
+    }).from(emailLinkClicks)
+      .innerJoin(emailSends, eq(emailLinkClicks.sendId, emailSends.id))
+      .where(eq(emailSends.campaignId, campaignId))
+      .groupBy(emailLinkClicks.url)
+      .orderBy(desc(count()));
   }
 }
 

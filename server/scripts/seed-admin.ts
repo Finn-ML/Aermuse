@@ -2,6 +2,51 @@ import { storage } from '../storage';
 import { hashPassword } from '../lib/auth';
 
 /**
+ * Seed a Theta-tier test account for development.
+ * Idempotent - will not create duplicates. Only runs in dev.
+ */
+export async function seedThetaTestAccount(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const email = 'dev-theta@aermuse.com';
+  const password = 'Theta123!';
+  const name = 'Theta Tester';
+
+  try {
+    const existing = await storage.getUserByEmail(email);
+    if (existing) {
+      // Ensure it's theta tier
+      if (existing.subscriptionTier !== 'theta' || existing.subscriptionStatus !== 'active') {
+        await storage.updateUser(existing.id, {
+          subscriptionTier: 'theta',
+          subscriptionStatus: 'active',
+          emailVerified: true,
+        } as any);
+        console.log('[SEED] Updated theta test account to active theta tier');
+      }
+      return;
+    }
+
+    const hashedPassword = await hashPassword(password);
+    await storage.createUser({
+      email,
+      password: hashedPassword,
+      name,
+      artistName: 'Theta Artist',
+      role: 'user',
+      emailVerified: true,
+      subscriptionTier: 'theta',
+      subscriptionStatus: 'active',
+      avatarInitials: 'TT',
+    } as any);
+
+    console.log(`[SEED] Created theta test account: ${email} / ${password}`);
+  } catch (error) {
+    console.error('[SEED] Failed to seed theta test account:', error);
+  }
+}
+
+/**
  * Seed an admin user from environment variables.
  * This function is idempotent - it will not create duplicates.
  *

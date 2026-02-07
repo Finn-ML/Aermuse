@@ -23,6 +23,9 @@ import { MusicSalesMetrics } from '@/components/music/MusicSalesMetrics';
 import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
 import { SplitRegistrationForm } from '@/components/music/SplitRegistrationForm';
+import MerchDashboard from '@/components/merch/MerchDashboard';
+import { MailingListContent } from '@/components/mailing-list/MailingListContent';
+import { BlurredUpgradeOverlay } from '@/components/BlurredUpgradeOverlay';
 import { SplitVerificationStatus } from '@/components/music/SplitVerificationStatus';
 import { ContractLimitPrompt } from '@/components/UpgradePrompt';
 import { UpgradeModal } from '@/components/UpgradeModal';
@@ -66,9 +69,10 @@ import {
   CreditCard,
   Pen,
   Shield,
+  ShoppingBag,
 } from 'lucide-react';
 
-type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'settings';
+type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'mailing-list' | 'settings' | 'merch';
 
 interface LinkItem {
   id: string;
@@ -146,7 +150,7 @@ export default function Dashboard() {
   // Templates for proposal-to-contract flow (Story 7.6)
   const { templates } = useTemplates();
   // Premium subscription check
-  const { isPremium, tier } = usePremium();
+  const { isPremium, tier, canAccess } = usePremium();
   // Story 9.9: Check if user has Pro subscription (alias for backwards compat)
   const isPro = isPremium;
 
@@ -589,6 +593,7 @@ export default function Dashboard() {
     suggestedPriceInCents?: number;
     allowFreeStreaming?: boolean;
     hasCollaborators?: boolean;
+    previewStartSeconds?: number;
   }): Promise<Track> => {
     const {
       file,
@@ -599,6 +604,7 @@ export default function Dashboard() {
       minimumPriceInCents,
       suggestedPriceInCents,
       allowFreeStreaming = false,
+      previewStartSeconds,
     } = options;
 
     const formData = new FormData();
@@ -613,6 +619,9 @@ export default function Dashboard() {
       formData.append('suggestedPriceInCents', suggestedPriceInCents.toString());
     }
     formData.append('allowFreeStreaming', allowFreeStreaming.toString());
+    if (previewStartSeconds !== undefined) {
+      formData.append('previewStartSeconds', previewStartSeconds.toString());
+    }
 
     const res = await fetch('/api/landing-page/tracks', {
       method: 'POST',
@@ -692,6 +701,12 @@ export default function Dashboard() {
 
     queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
     toast({ title: 'Cover art updated' });
+  };
+
+  const updateTrackPreview = async (trackId: string, previewStartSeconds: number) => {
+    await apiRequest('PATCH', `/api/tracks/${trackId}/preview`, { previewStartSeconds });
+    queryClient.invalidateQueries({ queryKey: ['/api/landing-page/tracks'] });
+    toast({ title: 'Preview updated', description: 'Track preview has been regenerated.' });
   };
 
   // Video mutations for video tab - uses chunked upload to bypass proxy limits
@@ -994,6 +1009,8 @@ export default function Dashboard() {
     { id: 'templates' as NavId, label: 'Templates', icon: Layout, premium: true },
     { id: 'proposals' as NavId, label: 'Proposals', icon: Mail, badge: unreadProposalCount > 0 ? unreadProposalCount : undefined, premium: true },
     { id: 'landing' as NavId, label: 'Aerival: Artist Launcher', icon: ExternalLink, premium: true },
+    { id: 'merch' as NavId, label: 'Merch Store', icon: ShoppingBag, premium: true },
+    { id: 'mailing-list' as NavId, label: 'Mailing List', icon: Mail, premium: true },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
@@ -1266,6 +1283,8 @@ export default function Dashboard() {
               {activeNav === 'templates' && 'Contract Templates'}
               {activeNav === 'proposals' && 'Proposals'}
               {activeNav === 'landing' && 'Aerival: Artist Launcher'}
+              {activeNav === 'merch' && 'Merch Store'}
+              {activeNav === 'mailing-list' && 'Mailing List'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
             <p className="text-xs sm:text-sm text-[rgba(102,0,51,0.6)] font-medium hidden sm:block">
@@ -1274,6 +1293,8 @@ export default function Dashboard() {
               {activeNav === 'templates' && 'Select a template to create a new contract'}
               {activeNav === 'proposals' && 'Review and respond to proposals from your landing page'}
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
+              {activeNav === 'merch' && 'Manage your merchandise, orders, and track sales'}
+              {activeNav === 'mailing-list' && 'Collect subscribers and send email campaigns to your fans'}
               {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
             </div>
@@ -1995,6 +2016,7 @@ export default function Dashboard() {
                     onDeleteTrack={deleteTrack}
                     onUploadTrackCover={uploadTrackCover}
                     onOpenSplits={(track) => setSplitsModalTrack(track)}
+                    onUpdatePreview={updateTrackPreview}
                     videos={videos}
                     isLoadingVideos={videosLoading}
                     onUploadVideo={uploadVideo}
@@ -2431,6 +2453,16 @@ export default function Dashboard() {
                 </button>
               </div>
             </>
+          )}
+
+          {activeNav === 'merch' && (
+            <MerchDashboard />
+          )}
+
+          {activeNav === 'mailing-list' && (
+            canAccess('mailing-list')
+              ? <MailingListContent />
+              : <BlurredUpgradeOverlay feature="mailing-list"><MailingListContent /></BlurredUpgradeOverlay>
           )}
 
           {showDeleteModal && (

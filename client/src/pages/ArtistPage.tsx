@@ -4,10 +4,13 @@ import { useParams, useSearch, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Lock, Play } from 'lucide-react';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
+import { SubscribeWidget } from '@/components/mailing-list/SubscribeWidget';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { parseVideoUrl } from '@/lib/video-parser';
 import { trackPageView, trackPageEnd, trackLinkClick } from '@/lib/analytics';
 import { PlaylistSection } from '@/components/music/PlaylistSection';
+import MerchStorefront from '@/components/merch/MerchStorefront';
+import CartDrawer from '@/components/merch/CartDrawer';
 import { PurchaseSuccessModal } from '@/components/music/PurchaseSuccessModal';
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { VideoPurchaseModal } from '@/components/video/VideoPurchaseModal';
@@ -427,6 +430,12 @@ export default function ArtistPage() {
     enabled: !!slug,
   });
 
+  // Fetch merch products for this artist
+  const { data: merchProducts = [] } = useQuery<Array<any>>({
+    queryKey: [`/api/artist/${slug}/merch`],
+    enabled: !!slug,
+  });
+
   // Video player state
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [showVideoPurchaseModal, setShowVideoPurchaseModal] = useState(false);
@@ -819,6 +828,17 @@ export default function ArtistPage() {
                 secondaryColor={secondaryColor}
               />
             </motion.div>
+            {/* Mailing List Subscribe Widget */}
+            <motion.div
+              variants={itemVariants}
+              className={`mt-4 ${layout === 'centered' ? 'flex justify-center' : layout === 'right' ? 'flex justify-end' : ''}`}
+            >
+              <SubscribeWidget
+                slug={page.slug}
+                primaryColor={primaryColor}
+                textColor={textColor}
+              />
+            </motion.div>
           </div>
         </div>
       </motion.section>
@@ -1146,6 +1166,24 @@ export default function ArtistPage() {
             className="py-8 px-4"
           />
         </div>
+      )}
+
+      {/* Merch Section */}
+      {merchProducts.length > 0 && slug && (
+        <div className="relative py-8 px-4">
+          <MerchStorefront
+            products={merchProducts}
+            artistSlug={slug}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            textColor={textColor}
+          />
+        </div>
+      )}
+
+      {/* Cart Drawer - only show when merch exists */}
+      {merchProducts.length > 0 && (
+        <CartDrawer primaryColor={primaryColor} secondaryColor={secondaryColor} textColor={textColor} />
       )}
 
       {/* Legacy Social Links (for backwards compatibility) - Enhanced */}

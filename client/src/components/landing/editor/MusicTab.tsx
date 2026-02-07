@@ -2,9 +2,10 @@
 // Music selling feature with spinning disc player
 
 import { useState, useRef } from 'react';
-import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X, Users, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X, Users, Clock, CheckCircle2, AlertTriangle, Scissors } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '@/hooks/useAudioPlayer';
+import PreviewSelector from './PreviewSelector';
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +22,8 @@ interface Track {
   fileFormat: string;
   coverArtPath?: string | null;
   previewFilePath?: string | null;
+  durationSeconds?: number | null;
+  previewStartSeconds?: number | null;
   isPublished: boolean;
   playCount: number;
   purchaseCount: number;
@@ -46,6 +49,7 @@ interface UploadTrackOptions {
   suggestedPriceInCents?: number;
   allowFreeStreaming?: boolean;
   hasCollaborators?: boolean;
+  previewStartSeconds?: number;
 }
 
 interface MusicTabProps {
@@ -56,6 +60,7 @@ interface MusicTabProps {
   onDeleteTrack: (id: string) => Promise<void>;
   onUploadCover: (trackId: string, file: File) => Promise<void>;
   onOpenSplits?: (track: Track) => void;
+  onUpdatePreview?: (trackId: string, previewStartSeconds: number) => Promise<void>;
 }
 
 export function MusicTab({
@@ -66,6 +71,7 @@ export function MusicTab({
   onDeleteTrack,
   onUploadCover,
   onOpenSplits,
+  onUpdatePreview,
 }: MusicTabProps) {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadingTrack, setUploadingTrack] = useState(false);
@@ -85,6 +91,13 @@ export function MusicTab({
   const [suggestedPrice, setSuggestedPrice] = useState('');
   const [allowFreeStreaming, setAllowFreeStreaming] = useState(false);
 
+  // Preview selector state
+  const [showPreviewSelector, setShowPreviewSelector] = useState(false);
+  const [audioObjectUrl, setAudioObjectUrl] = useState<string | null>(null);
+  const [previewStartSeconds, setPreviewStartSeconds] = useState<number | undefined>(undefined);
+  const [editingPreviewTrackId, setEditingPreviewTrackId] = useState<string | null>(null);
+  const [updatingPreview, setUpdatingPreview] = useState(false);
+
   // Collaborators state
   const [hasCollaborators, setHasCollaborators] = useState(false);
 
@@ -102,6 +115,12 @@ export function MusicTab({
       if (!newTrackTitle) {
         setNewTrackTitle(nameWithoutExt);
       }
+      // Create object URL for preview selector
+      if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+      const url = URL.createObjectURL(file);
+      setAudioObjectUrl(url);
+      setShowPreviewSelector(true);
+      setPreviewStartSeconds(undefined);
     }
   };
 
@@ -161,6 +180,7 @@ export function MusicTab({
         suggestedPriceInCents: pricingType === 'pwyw' ? suggestedPriceCents : undefined,
         allowFreeStreaming,
         hasCollaborators,
+        previewStartSeconds,
       });
 
       // Reset form
@@ -175,6 +195,10 @@ export function MusicTab({
       setSuggestedPrice('');
       setAllowFreeStreaming(false);
       setHasCollaborators(false);
+      setShowPreviewSelector(false);
+      setPreviewStartSeconds(undefined);
+      if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+      setAudioObjectUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (newCoverInputRef.current) newCoverInputRef.current.value = '';
 
@@ -292,6 +316,50 @@ export function MusicTab({
               )}
             </button>
           </div>
+
+          {/* Preview Selector (shown after file selected) */}
+          {showPreviewSelector && audioObjectUrl && (
+            <div className="mb-4">
+              <PreviewSelector
+                audioSrc={audioObjectUrl}
+                onConfirm={(startSec) => {
+                  setPreviewStartSeconds(startSec);
+                  setShowPreviewSelector(false);
+                }}
+                onCancel={() => setShowPreviewSelector(false)}
+              />
+              {previewStartSeconds !== undefined && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)]">
+                  <Scissors size={12} />
+                  <span>
+                    Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
+                    {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
+                  </span>
+                  <button
+                    onClick={() => setShowPreviewSelector(true)}
+                    className="text-[#660033] font-semibold hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {!showPreviewSelector && previewStartSeconds !== undefined && selectedFile && (
+            <div className="mb-4 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)] p-3 rounded-lg bg-white/40">
+              <Scissors size={12} className="text-[#660033]" />
+              <span>
+                Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
+                {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
+              </span>
+              <button
+                onClick={() => setShowPreviewSelector(true)}
+                className="text-[#660033] font-semibold hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          )}
 
           {/* Title Input */}
           <div className="mb-4">
@@ -576,8 +644,8 @@ export function MusicTab({
       ) : (
         <div className="space-y-3">
           {tracks.map((track) => (
+            <div key={track.id}>
             <div
-              key={track.id}
               className="flex items-center gap-3 p-3 rounded-xl bg-white/60 hover:bg-white/80 transition-colors"
             >
               {/* Cover Art */}
@@ -741,6 +809,27 @@ export function MusicTab({
                     </TooltipProvider>
                   )}
 
+                  {/* Edit Preview */}
+                  {onUpdatePreview && (track.durationSeconds ?? 0) > 30 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setEditingPreviewTrackId(editingPreviewTrackId === track.id ? null : track.id)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              editingPreviewTrackId === track.id
+                                ? 'text-[#660033] bg-[rgba(102,0,51,0.15)]'
+                                : 'text-[rgba(102,0,51,0.4)] bg-[rgba(102,0,51,0.05)] hover:bg-[rgba(102,0,51,0.1)]'
+                            }`}
+                          >
+                            <Scissors size={16} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit preview snippet</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+
                   {/* Publish Toggle */}
                   <TooltipProvider>
                     <Tooltip>
@@ -791,6 +880,41 @@ export function MusicTab({
                 </div>
               )}
             </div>
+
+            {/* Inline Preview Editor */}
+            {editingPreviewTrackId === track.id && onUpdatePreview && (
+              <div className="mt-2 ml-0">
+                <PreviewSelector
+                  audioSrc={`/api/tracks/${track.id}/preview`}
+                  initialStartSeconds={track.previewStartSeconds ?? 0}
+                  onConfirm={async (startSec) => {
+                    setUpdatingPreview(true);
+                    try {
+                      await onUpdatePreview(track.id, startSec);
+                    } finally {
+                      setUpdatingPreview(false);
+                      setEditingPreviewTrackId(null);
+                    }
+                  }}
+                  onCancel={() => setEditingPreviewTrackId(null)}
+                />
+                {updatingPreview && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-[rgba(102,0,51,0.6)]">
+                    <Loader2 size={12} className="animate-spin" />
+                    Regenerating preview...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Current preview info */}
+            {editingPreviewTrackId !== track.id && (track.previewStartSeconds ?? 0) > 0 && (
+              <div className="mt-1 ml-[68px] flex items-center gap-1.5 text-[10px] text-[rgba(102,0,51,0.4)]">
+                <Scissors size={10} />
+                Preview: {Math.floor((track.previewStartSeconds ?? 0) / 60)}:{((track.previewStartSeconds ?? 0) % 60).toString().padStart(2, '0')} - {Math.floor(((track.previewStartSeconds ?? 0) + 30) / 60)}:{(((track.previewStartSeconds ?? 0) + 30) % 60).toString().padStart(2, '0')}
+              </div>
+            )}
+            </div>
           ))}
         </div>
       )}
@@ -800,7 +924,7 @@ export function MusicTab({
         <p className="font-semibold mb-1">How it works:</p>
         <ul className="list-disc list-inside space-y-0.5">
           <li>Upload MP3 or WAV files (max 50MB)</li>
-          <li>A 30-second preview is generated automatically</li>
+          <li>A 30-second preview is generated automatically (customise with the <Scissors size={10} className="inline" /> icon)</li>
           <li>Fans can preview and purchase tracks on your artist page</li>
           <li>Click on cover art to add album artwork</li>
           <li>Add collaborators with the <Users size={10} className="inline" /> icon to share royalty splits</li>

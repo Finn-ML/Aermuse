@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema } from "@shared/schema";
+import { insertUserSchema, insertContractSchema, insertLandingPageSchema, insertLandingPageLinkSchema, insertMerchProductSchema, insertMerchVariantSchema } from "@shared/schema";
 import { validateFormData, renderTemplateContent, generateHTML, generateText, assignFieldGroups } from "./services/templateRenderer";
 import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
@@ -12,6 +12,9 @@ import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail, sendPurchaseReceiptEmail, sendTrackSoldNotificationEmail, sendVideoPurchaseReceiptEmail, sendVideoSoldNotificationEmail } from "./services/postmark";
 import rateLimit from "express-rate-limit";
 import { requireAdmin, requireAuth, requirePremium } from "./middleware/auth";
+import { requireFeature } from "./middleware/tier";
+import { canAccessFeature } from "@shared/constants/tiers";
+import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles } from "./services/fileStorage";
@@ -19,6 +22,7 @@ import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
+import { stripe } from "./services/stripe";
 import { extractText, truncateForAI } from "./services/extraction";
 import { analyzeContract, generateSpeech, OpenAIError, parseContractFields, type ParsedContractFields } from "./services/openai";
 import { generateAermuseContract } from "./services/contractGenerator";
@@ -33,6 +37,7 @@ import { eq, and, or, desc, count, sql, gte, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { sendSignatureRequestEmail, sendSignatureReminderEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 import { registerAnalyticsRoutes } from "./routes/analytics";
+import { registerMailingListRoutes } from "./routes/mailing-list";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -84,6 +89,9 @@ export async function registerRoutes(
   // Register analytics routes (Epic 10)
   registerAnalyticsRoutes(app);
 
+  // Register mailing list routes (Mailing List Feature)
+  registerMailingListRoutes(app);
+
   // SEO routes
   app.get("/robots.txt", (_req: Request, res: Response) => {
     const robotsTxt = `User-agent: *
@@ -130,6 +138,55 @@ ${urls}
   });
 
   // Auth routes
+
+  // Dev login - creates/logs in a theta test account (development only)
+  app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    try {
+      const devEmail = "dev-theta@aermuse.com";
+      let user = await storage.getUserByEmail(devEmail);
+
+      if (!user) {
+        const hashedPw = await hashPassword("DevTheta123!");
+        user = await storage.createUser({
+          email: devEmail,
+          password: hashedPw,
+          name: "Theta Dev Artist",
+          artistName: "Theta Dev Artist",
+          avatarInitials: "TD",
+          emailVerified: true,
+          subscriptionTier: "theta",
+        } as any);
+
+        // Create landing page for the dev user
+        await storage.createLandingPage({
+          userId: user.id,
+          slug: `theta-dev-${user.id.slice(0, 8)}`,
+          artistName: "Theta Dev Artist",
+          tagline: "Testing Merch Store",
+          bio: "A test artist account for development.",
+          socialLinks: JSON.stringify([]),
+          isPublished: true,
+        });
+      }
+
+      // Ensure theta tier
+      if (user.subscriptionTier !== "theta") {
+        await storage.updateUser(user.id, { subscriptionTier: "theta" } as any);
+      }
+
+      (req.session as any).userId = user.id;
+      const { password: _, ...safeUser } = user;
+      res.json({ user: { ...safeUser, subscriptionTier: "theta" } });
+    } catch (error) {
+      console.error("Dev login error:", error);
+      res.status(500).json({ error: "Dev login failed" });
+    }
+  });
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const data = insertUserSchema.parse(req.body);
@@ -240,6 +297,24 @@ ${urls}
       res.status(500).json({ error: "Failed to login" });
     }
   });
+
+  // Dev-only quick login for test accounts (skips password check)
+  if (process.env.NODE_ENV !== 'production') {
+    app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
+      try {
+        const user = await storage.getUserByEmail('dev-theta@aermuse.com');
+        if (!user) {
+          return res.status(404).json({ error: "Dev theta account not found. Restart server to seed." });
+        }
+        (req.session as any).userId = user.id;
+        const { password: _, ...safeUser } = user;
+        res.json({ user: safeUser });
+      } catch (error) {
+        console.error("Dev login error:", error);
+        res.status(500).json({ error: "Failed to dev login" });
+      }
+    });
+  }
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy((err) => {
@@ -2297,7 +2372,8 @@ ${urls}
         pricingType = 'fixed', // 'fixed' | 'pwyw'
         minimumPriceInCents = 0,
         suggestedPriceInCents,
-        allowFreeStreaming = false
+        allowFreeStreaming = false,
+        previewStartSeconds
       } = req.body;
 
       if (!title) {
@@ -2353,7 +2429,8 @@ ${urls}
       // Generate and upload preview
       let previewPath: string | undefined;
       try {
-        const preview = await generatePreview(file.buffer, fileFormat);
+        const parsedPreviewStart = previewStartSeconds !== undefined ? parseInt(previewStartSeconds, 10) : undefined;
+        const preview = await generatePreview(file.buffer, fileFormat, 30, isNaN(parsedPreviewStart!) ? undefined : parsedPreviewStart);
         const previewUpload = await uploadTrackPreview(userId, trackId, preview.buffer, fileFormat);
         previewPath = previewUpload.path;
       } catch (err) {
@@ -2400,6 +2477,7 @@ ${urls}
         fileFormat,
         fileSizeBytes: file.buffer.length,
         durationSeconds: durationSeconds || null,
+        previewStartSeconds: (previewStartSeconds !== undefined ? parseInt(previewStartSeconds, 10) : 0) || 0,
         stripeProductId: stripeProductId || null,
         stripePriceId: stripePriceId || null,
         displayOrder: 0,
@@ -2474,6 +2552,47 @@ ${urls}
     } catch (error) {
       console.error("Update track error:", error);
       res.status(500).json({ error: "Failed to update track" });
+    }
+  });
+
+  // Update track preview (regenerate with new start time)
+  app.patch("/api/tracks/:id/preview", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const track = await storage.getTrack(req.params.id);
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const { previewStartSeconds } = req.body;
+      if (previewStartSeconds === undefined || typeof previewStartSeconds !== "number") {
+        return res.status(400).json({ error: "previewStartSeconds is required and must be a number" });
+      }
+
+      const duration = track.durationSeconds || 0;
+      if (duration > 30 && (previewStartSeconds < 0 || previewStartSeconds > duration - 30)) {
+        return res.status(400).json({ error: `previewStartSeconds must be between 0 and ${Math.max(0, duration - 30)}` });
+      }
+
+      // Download original file and regenerate preview
+      const originalBuffer = await downloadTrackFile(track.originalFilePath);
+      const fileFormat = (track.fileFormat || 'mp3') as 'mp3' | 'wav';
+      const preview = await generatePreview(originalBuffer, fileFormat, 30, previewStartSeconds);
+      const previewUpload = await uploadTrackPreview(userId, track.id, preview.buffer, fileFormat);
+
+      const updatedTrack = await storage.updateTrack(req.params.id, {
+        previewFilePath: previewUpload.path,
+        previewStartSeconds,
+      });
+
+      res.json(updatedTrack);
+    } catch (error) {
+      console.error("Update preview error:", error);
+      res.status(500).json({ error: "Failed to update preview" });
     }
   });
 
@@ -8218,6 +8337,412 @@ Sent at: ${new Date().toISOString()}
         error: error?.message || 'Failed to re-parse contract',
         details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
       });
+    }
+  });
+
+  // ============================================
+  // MERCH PRODUCT CRUD (Theta tier gated)
+  // ============================================
+
+  // Get all products for the authenticated artist
+  app.get("/api/merch/products", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const products = await storage.getProductsByUser(userId);
+      const productsWithVariants = await Promise.all(
+        products.map(async (product) => {
+          const variants = await storage.getProductVariants(product.id);
+          return { ...product, variants };
+        })
+      );
+      res.json(productsWithVariants);
+    } catch (error) {
+      console.error("Error fetching merch products:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+
+  // Create a new merch product
+  app.post("/api/merch/products", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(400).json({ error: "You must create a landing page before adding merch" });
+      }
+
+      const data = insertMerchProductSchema.parse({
+        ...req.body,
+        userId,
+        landingPageId: landingPage.id,
+      });
+
+      const product = await storage.createProduct(data);
+      res.status(201).json(product);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("Error creating merch product:", error);
+      res.status(500).json({ error: "Failed to create product" });
+    }
+  });
+
+  // Update a merch product
+  app.patch("/api/merch/products/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const updated = await storage.updateProduct(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating merch product:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  // Delete a merch product
+  app.delete("/api/merch/products/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting merch product:", error);
+      res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  // Create a variant for a product
+  app.post("/api/merch/products/:id/variants", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const data = insertMerchVariantSchema.parse({
+        ...req.body,
+        productId: product.id,
+      });
+
+      const variant = await storage.createProductVariant(data);
+      res.status(201).json(variant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("Error creating variant:", error);
+      res.status(500).json({ error: "Failed to create variant" });
+    }
+  });
+
+  // Update a variant
+  app.patch("/api/merch/variants/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const variant = await storage.getProductVariant(req.params.id);
+      if (!variant) {
+        return res.status(404).json({ error: "Variant not found" });
+      }
+      const product = await storage.getProduct(variant.productId);
+      if (!product || product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const updated = await storage.updateProductVariant(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating variant:", error);
+      res.status(500).json({ error: "Failed to update variant" });
+    }
+  });
+
+  // Delete a variant
+  app.delete("/api/merch/variants/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const variant = await storage.getProductVariant(req.params.id);
+      if (!variant) {
+        return res.status(404).json({ error: "Variant not found" });
+      }
+      const product = await storage.getProduct(variant.productId);
+      if (!product || product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      await storage.deleteProductVariant(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting variant:", error);
+      res.status(500).json({ error: "Failed to delete variant" });
+    }
+  });
+
+  // ============================================
+  // PUBLIC STOREFRONT (No auth)
+  // ============================================
+
+  // Get active merch products for an artist's public page
+  app.get("/api/artist/:slug/merch", async (req: Request, res: Response) => {
+    try {
+      const landingPage = await storage.getLandingPageBySlug(req.params.slug);
+      if (!landingPage || !landingPage.isPublished) {
+        return res.json([]);
+      }
+
+      const user = await storage.getUser(landingPage.userId);
+      if (!user) {
+        return res.json([]);
+      }
+
+      // Check if user has theta tier with active subscription
+      const isActive = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
+      const userTier: SubscriptionTier = isActive ? (user.subscriptionTier as SubscriptionTier) || 'free' : 'free';
+      if (!canAccessFeature(userTier, 'merch-selling')) {
+        return res.json([]);
+      }
+
+      // Check if Stripe Connect is ready
+      if (!user.stripeConnectAccountId) {
+        return res.json([]);
+      }
+      const accountReady = await isAccountReady(user.stripeConnectAccountId);
+      if (!accountReady) {
+        return res.json([]);
+      }
+
+      const products = await storage.getActiveProductsForLandingPage(landingPage.id);
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching public merch:", error);
+      res.status(500).json({ error: "Failed to fetch merch" });
+    }
+  });
+
+  // ============================================
+  // MERCH CHECKOUT (No auth - public buyers)
+  // ============================================
+
+  app.post("/api/merch/checkout", async (req: Request, res: Response) => {
+    try {
+      const { items, artistSlug } = req.body as {
+        items: Array<{ productId: string; variantId?: string; quantity: number }>;
+        artistSlug: string;
+      };
+
+      if (!items || !items.length || !artistSlug) {
+        return res.status(400).json({ error: "Items and artistSlug are required" });
+      }
+
+      // Get artist's landing page and user
+      const landingPage = await storage.getLandingPageBySlug(artistSlug);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Artist not found" });
+      }
+
+      const user = await storage.getUser(landingPage.userId);
+      if (!user || !user.stripeConnectAccountId) {
+        return res.status(400).json({ error: "Artist is not set up for payments" });
+      }
+
+      // Build line items and compute total
+      const lineItems: Array<{
+        price_data: {
+          currency: string;
+          product_data: { name: string; description?: string };
+          unit_amount: number;
+        };
+        quantity: number;
+      }> = [];
+      let totalAmount = 0;
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product || !product.isActive) {
+          return res.status(400).json({ error: `Product ${item.productId} not found or inactive` });
+        }
+
+        let unitPrice = product.basePrice;
+        let itemName = product.name;
+
+        if (item.variantId) {
+          const variant = await storage.getProductVariant(item.variantId);
+          if (!variant || !variant.isActive) {
+            return res.status(400).json({ error: `Variant ${item.variantId} not found or inactive` });
+          }
+          if (variant.priceOverride) {
+            unitPrice = variant.priceOverride;
+          }
+          itemName = `${product.name} - ${variant.name}`;
+
+          // Check inventory
+          if (variant.inventory !== null && variant.inventory < item.quantity) {
+            return res.status(400).json({ error: `Insufficient stock for ${itemName}` });
+          }
+        }
+
+        lineItems.push({
+          price_data: {
+            currency: product.currency || 'gbp',
+            product_data: {
+              name: itemName,
+              ...(product.description ? { description: product.description } : {}),
+            },
+            unit_amount: unitPrice,
+          },
+          quantity: item.quantity,
+        });
+
+        totalAmount += unitPrice * item.quantity;
+      }
+
+      const platformFee = calculatePlatformFee(totalAmount);
+
+      const APP_URL = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        shipping_address_collection: {
+          allowed_countries: ['GB', 'US', 'CA', 'AU', 'DE', 'FR', 'NL', 'IE'],
+        },
+        success_url: `${APP_URL}/artist/${artistSlug}?merch_purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${APP_URL}/artist/${artistSlug}?merch_purchase=cancelled`,
+        payment_intent_data: {
+          application_fee_amount: platformFee,
+          transfer_data: {
+            destination: user.stripeConnectAccountId,
+          },
+        },
+        metadata: {
+          type: 'merch_purchase',
+          artistId: user.id,
+          items: JSON.stringify(items.map(i => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+          }))),
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating merch checkout:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // ============================================
+  // MERCH ORDERS (Theta tier gated)
+  // ============================================
+
+  // Get all orders for the authenticated artist
+  app.get("/api/merch/orders", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const orders = await storage.getOrdersByArtist(req.user!.id);
+      res.json(orders);
+    } catch (error) {
+      console.error("Error fetching merch orders:", error);
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
+  // Get a single order with items
+  app.get("/api/merch/orders/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (order.artistId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const items = await storage.getOrderItems(order.id);
+      res.json({ ...order, items });
+    } catch (error) {
+      console.error("Error fetching merch order:", error);
+      res.status(500).json({ error: "Failed to fetch order" });
+    }
+  });
+
+  // Update an order (status, tracking, notes)
+  app.patch("/api/merch/orders/:id", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (order.artistId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { status, trackingNumber, trackingUrl, notes } = req.body;
+      const updateData: Record<string, any> = {};
+
+      if (status !== undefined) updateData.status = status;
+      if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber;
+      if (trackingUrl !== undefined) updateData.trackingUrl = trackingUrl;
+      if (notes !== undefined) updateData.notes = notes;
+
+      // Set timestamps based on status changes
+      if (status === 'shipped' && order.status !== 'shipped') {
+        updateData.shippedAt = new Date();
+      }
+      if (status === 'delivered' && order.status !== 'delivered') {
+        updateData.deliveredAt = new Date();
+      }
+
+      const updated = await storage.updateOrder(req.params.id, updateData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating merch order:", error);
+      res.status(500).json({ error: "Failed to update order" });
+    }
+  });
+
+  // Get merch analytics for the authenticated artist
+  app.get("/api/merch/analytics", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const orders = await storage.getOrdersByArtist(req.user!.id);
+
+      const paidStatuses = ['paid', 'shipped', 'delivered'];
+      const totalRevenue = orders
+        .filter(o => paidStatuses.includes(o.status))
+        .reduce((sum, o) => sum + o.total, 0);
+      const totalOrders = orders.filter(o => o.status !== 'cancelled').length;
+      const pendingShipment = orders.filter(o => o.status === 'paid').length;
+      const delivered = orders.filter(o => o.status === 'delivered').length;
+
+      res.json({
+        totalRevenue,
+        totalOrders,
+        pendingShipment,
+        delivered,
+      });
+    } catch (error) {
+      console.error("Error fetching merch analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
     }
   });
 

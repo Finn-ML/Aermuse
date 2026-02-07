@@ -53,7 +53,8 @@ export async function getAudioMetadata(buffer: Buffer): Promise<AudioMetadata> {
 export async function generatePreview(
   inputBuffer: Buffer,
   format: 'mp3' | 'wav',
-  previewDuration: number = 30
+  previewDuration: number = 30,
+  startSeconds?: number
 ): Promise<PreviewResult> {
   // First get the duration to determine start position
   let metadata: AudioMetadata;
@@ -74,8 +75,12 @@ export async function generatePreview(
     // Track is shorter than preview length, use entire track
     actualDuration = trackDuration;
     startTime = 0;
+  } else if (startSeconds !== undefined) {
+    // User-specified start position
+    const maxStart = Math.max(0, trackDuration - previewDuration);
+    startTime = Math.max(0, Math.min(startSeconds, maxStart));
   } else if (trackDuration > 45) {
-    // Start 15 seconds in for longer tracks
+    // Auto-select: start 15 seconds in for longer tracks
     startTime = 15;
     // Make sure we don't go past the end
     if (startTime + previewDuration > trackDuration) {

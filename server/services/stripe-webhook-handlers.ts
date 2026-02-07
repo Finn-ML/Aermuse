@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { mapStripeStatus } from './stripe.types';
 import { priceIdToTier } from './stripe';
 import type { SubscriptionUpdate } from '../../shared/types/subscription';
+import { storage } from '../storage';
 
 // Type helpers for Stripe API v2024+ where some properties moved
 interface InvoiceWithSubscription extends Stripe.Invoice {
@@ -56,6 +57,12 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`[STRIPE WEBHOOK] Checkout completed: ${session.id}`);
+
+  // Check if this is a merch purchase
+  if (session.metadata?.type === 'merch_purchase') {
+    await handleMerchCheckoutCompleted(session);
+    return;
+  }
 
   // Check both metadata.userId (API-created sessions) and client_reference_id (Payment Links)
   const userId = session.metadata?.userId || session.client_reference_id;
@@ -177,6 +184,75 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   });
 
   // TODO: Send notification email to user about failed payment
+}
+
+// ============================================
+// MERCH CHECKOUT HANDLER
+// ============================================
+
+async function handleMerchCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const artistId = session.metadata?.artistId;
+  const itemsJson = session.metadata?.items;
+  if (!artistId || !itemsJson) {
+    console.error('[STRIPE WEBHOOK] Merch checkout missing metadata');
+    return;
+  }
+
+  // Check for duplicate
+  const existing = await storage.getOrderByCheckoutSession(session.id);
+  if (existing) {
+    console.log('[STRIPE WEBHOOK] Merch order already exists for session', session.id);
+    return;
+  }
+
+  const items = JSON.parse(itemsJson) as Array<{ productId: string; variantId?: string; quantity: number }>;
+
+  // Create order
+  const order = await storage.createOrder({
+    artistId,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId: typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id || null,
+    status: 'paid',
+    customerEmail: session.customer_details?.email || session.customer_email || '',
+    customerName: session.customer_details?.name || '',
+    shippingAddress: (session as any).shipping_details?.address
+      ? JSON.stringify((session as any).shipping_details.address)
+      : null,
+    subtotal: session.amount_subtotal || 0,
+    shippingCost: session.total_details?.amount_shipping || 0,
+    platformFee: 0, // calculated by Stripe via application_fee_amount
+    total: session.amount_total || 0,
+    currency: session.currency || 'gbp',
+    paidAt: new Date(),
+  });
+
+  // Create order items and decrement inventory
+  for (const item of items) {
+    const product = await storage.getProduct(item.productId);
+    const variant = item.variantId ? await storage.getProductVariant(item.variantId) : null;
+
+    const unitPrice = variant?.priceOverride || product?.basePrice || 0;
+
+    await storage.createOrderItem({
+      orderId: order.id,
+      productId: item.productId,
+      variantId: item.variantId || null,
+      productName: product?.name || 'Unknown Product',
+      variantName: variant?.name || null,
+      quantity: item.quantity,
+      unitPrice,
+      total: unitPrice * item.quantity,
+    });
+
+    // Decrement inventory
+    if (item.variantId) {
+      await storage.decrementVariantInventory(item.variantId, item.quantity);
+    }
+  }
+
+  console.log(`[STRIPE WEBHOOK] Merch order created: ${order.id} for artist ${artistId}`);
 }
 
 // ============================================

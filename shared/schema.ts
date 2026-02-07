@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, inet, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, integer, index, uniqueIndex, inet, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { TemplateContent, TemplateField, OptionalClause, TemplateFormData, PersonaGroup } from "./types/templates";
@@ -581,6 +581,7 @@ export const tracks = pgTable("tracks", {
   fileFormat: varchar("file_format", { length: 10 }).notNull(), // 'mp3' | 'wav'
   fileSizeBytes: integer("file_size_bytes").notNull(),
   durationSeconds: integer("duration_seconds"),
+  previewStartSeconds: integer("preview_start_seconds").default(0),
 
   // Stripe integration
   stripeProductId: varchar("stripe_product_id", { length: 50 }),
@@ -914,3 +915,215 @@ export const videoPurchasesRelations = relations(videoPurchases, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ============================================
+// MERCH PRODUCTS TABLE (Merch Store Feature)
+// ============================================
+
+export const merchProducts = pgTable("merch_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("other"),
+  images: jsonb("images").default([]),
+  basePrice: integer("base_price").notNull(),
+  currency: text("currency").default("gbp"),
+  weight: integer("weight"),
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
+  stripeProductId: text("stripe_product_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMerchProductSchema = createInsertSchema(merchProducts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMerchProduct = z.infer<typeof insertMerchProductSchema>;
+export type MerchProduct = typeof merchProducts.$inferSelect;
+
+// ============================================
+// MERCH VARIANTS TABLE (Merch Store Feature)
+// ============================================
+
+export const merchVariants = pgTable("merch_variants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => merchProducts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  size: text("size"),
+  color: text("color"),
+  sku: text("sku"),
+  priceOverride: integer("price_override"),
+  inventory: integer("inventory").default(0).notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMerchVariantSchema = createInsertSchema(merchVariants).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMerchVariant = z.infer<typeof insertMerchVariantSchema>;
+export type MerchVariant = typeof merchVariants.$inferSelect;
+
+// ============================================
+// MERCH ORDERS TABLE (Merch Store Feature)
+// ============================================
+
+export const merchOrders = pgTable("merch_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  artistId: varchar("artist_id").notNull().references(() => users.id),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  status: text("status").notNull().default("pending"),
+  customerEmail: text("customer_email").notNull(),
+  customerName: text("customer_name"),
+  shippingAddress: jsonb("shipping_address"),
+  subtotal: integer("subtotal").notNull(),
+  shippingCost: integer("shipping_cost").default(0),
+  platformFee: integer("platform_fee").default(0),
+  total: integer("total").notNull(),
+  currency: text("currency").default("gbp"),
+  trackingNumber: text("tracking_number"),
+  trackingUrl: text("tracking_url"),
+  notes: text("notes"),
+  paidAt: timestamp("paid_at"),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+  refundedAt: timestamp("refunded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMerchOrderSchema = createInsertSchema(merchOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMerchOrder = z.infer<typeof insertMerchOrderSchema>;
+export type MerchOrder = typeof merchOrders.$inferSelect;
+
+// ============================================
+// MERCH ORDER ITEMS TABLE (Merch Store Feature)
+// ============================================
+
+export const merchOrderItems = pgTable("merch_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => merchOrders.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").notNull().references(() => merchProducts.id),
+  variantId: varchar("variant_id").references(() => merchVariants.id),
+  productName: text("product_name").notNull(),
+  variantName: text("variant_name"),
+  quantity: integer("quantity").notNull(),
+  unitPrice: integer("unit_price").notNull(),
+  total: integer("total").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMerchOrderItemSchema = createInsertSchema(merchOrderItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMerchOrderItem = z.infer<typeof insertMerchOrderItemSchema>;
+export type MerchOrderItem = typeof merchOrderItems.$inferSelect;
+
+// ============================================
+// MAILING LIST SUBSCRIBERS TABLE (Mailing List Feature)
+// ============================================
+
+export const mailingListSubscribers = pgTable("mailing_list_subscribers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  landingPageId: varchar("landing_page_id").notNull().references(() => landingPages.id),
+  email: text("email").notNull(),
+  name: text("name"),
+  status: text("status").default("pending"), // pending | active | unsubscribed
+  confirmationToken: varchar("confirmation_token", { length: 64 }),
+  subscribedAt: timestamp("subscribed_at"),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("mailing_list_subscribers_page_email_idx").on(table.landingPageId, table.email),
+]);
+
+export const insertMailingListSubscriberSchema = createInsertSchema(mailingListSubscribers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMailingListSubscriber = z.infer<typeof insertMailingListSubscriberSchema>;
+export type MailingListSubscriber = typeof mailingListSubscribers.$inferSelect;
+
+// ============================================
+// EMAIL CAMPAIGNS TABLE (Mailing List Feature)
+// ============================================
+
+export const emailCampaigns = pgTable("email_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  previewText: text("preview_text"),
+  status: text("status").default("draft"), // draft | scheduled | sending | sent | failed
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  recipientCount: integer("recipient_count"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+
+// ============================================
+// EMAIL SENDS TABLE (Mailing List Feature)
+// ============================================
+
+export const emailSends = pgTable("email_sends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull().references(() => emailCampaigns.id),
+  subscriberId: varchar("subscriber_id").notNull().references(() => mailingListSubscribers.id),
+  postmarkMessageId: varchar("postmark_message_id"),
+  status: text("status").default("queued"), // queued | sent | delivered | bounced | failed
+  sentAt: timestamp("sent_at"),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+});
+
+export const insertEmailSendSchema = createInsertSchema(emailSends).omit({
+  id: true,
+});
+
+export type InsertEmailSend = z.infer<typeof insertEmailSendSchema>;
+export type EmailSend = typeof emailSends.$inferSelect;
+
+// ============================================
+// EMAIL LINK CLICKS TABLE (Mailing List Feature)
+// ============================================
+
+export const emailLinkClicks = pgTable("email_link_clicks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sendId: varchar("send_id").notNull().references(() => emailSends.id),
+  url: text("url").notNull(),
+  clickedAt: timestamp("clicked_at").defaultNow(),
+});
+
+export const insertEmailLinkClickSchema = createInsertSchema(emailLinkClicks).omit({
+  id: true,
+});
+
+export type InsertEmailLinkClick = z.infer<typeof insertEmailLinkClickSchema>;
+export type EmailLinkClick = typeof emailLinkClicks.$inferSelect;

@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import ShaderAnimation from '@/components/ShaderAnimation';
 import GrainOverlay from '@/components/GrainOverlay';
-import { Eye, EyeOff, Loader2, X, Mail, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, X, Mail, CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword } from '@shared/passwordValidation';
+import { queryClient } from '@/lib/queryClient';
 
 // Forgot Password Modal Component
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
@@ -511,6 +512,36 @@ export default function Auth() {
                 <>Already have an account? <button type="button" className="link" onClick={() => setActiveTab('login')} data-testid="link-signin">Sign in</button></>
               )}
             </p>
+
+            {/* Dev quick-login buttons - only in development */}
+            {import.meta.env.DEV && (
+              <div className="mt-6 pt-4 border-t border-[rgba(102,0,51,0.1)]">
+                <p className="text-xs text-center text-[rgba(102,0,51,0.4)] mb-3 uppercase tracking-wider font-medium">Dev Quick Login</p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    try {
+                      const res = await fetch('/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                      if (!res.ok) throw new Error('Dev login failed');
+                      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                      toast({ title: 'Dev Login', description: 'Logged in as Theta test account' });
+                      setLocation('/dashboard');
+                    } catch (e: any) {
+                      toast({ title: 'Error', description: e.message || 'Failed to login', variant: 'destructive' });
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full bg-purple-700 text-white py-3 rounded-full font-semibold text-sm hover:bg-purple-800 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  <Zap size={16} />
+                  {isSubmitting && <Loader2 className="animate-spin" size={16} />}
+                  Theta Tier (dev-theta@aermuse.com)
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

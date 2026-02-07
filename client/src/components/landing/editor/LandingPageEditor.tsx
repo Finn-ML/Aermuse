@@ -113,6 +113,7 @@ interface LandingPageEditorProps {
   onDeleteTrack?: (id: string) => Promise<void>;
   onUploadTrackCover?: (trackId: string, file: File) => Promise<void>;
   onOpenSplits?: (track: Track) => void;
+  onUpdatePreview?: (trackId: string, previewStartSeconds: number) => Promise<void>;
   // Video tab props
   videos?: VideoItem[];
   isLoadingVideos?: boolean;
@@ -162,6 +163,7 @@ export function LandingPageEditor({
   onDeleteTrack,
   onUploadTrackCover,
   onOpenSplits,
+  onUpdatePreview,
   videos = [],
   isLoadingVideos = false,
   onUploadVideo,
@@ -301,6 +303,7 @@ export function LandingPageEditor({
                 onDeleteTrack={onDeleteTrack}
                 onUploadCover={onUploadTrackCover}
                 onOpenSplits={onOpenSplits}
+                onUpdatePreview={onUpdatePreview}
               />
             ) : (
               <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
