@@ -2555,13 +2555,10 @@ ${urls}
     }
   });
 
-  // Update track preview (regenerate with new start time)
-  app.patch("/api/tracks/:id/preview", async (req: Request, res: Response) => {
+  // Update track preview (regenerate with new start time) — Theta tier only
+  app.patch("/api/tracks/:id/preview", requireAuth, requireFeature('track-preview-selection'), async (req: Request, res: Response) => {
     try {
-      const userId = (req.session as any).userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
+      const userId = req.user!.id;
 
       const track = await storage.getTrack(req.params.id);
       if (!track || track.userId !== userId) {
@@ -8726,10 +8723,11 @@ Sent at: ${new Date().toISOString()}
     try {
       const orders = await storage.getOrdersByArtist(req.user!.id);
 
-      const paidStatuses = ['paid', 'shipped', 'delivered'];
+      const revenueStatuses = ['paid', 'shipped', 'delivered'];
       const totalRevenue = orders
-        .filter(o => paidStatuses.includes(o.status))
-        .reduce((sum, o) => sum + o.total, 0);
+        .filter(o => revenueStatuses.includes(o.status))
+        .reduce((sum, o) => sum + o.total, 0)
+        - orders.filter(o => o.status === 'refunded').reduce((sum, o) => sum + o.total, 0);
       const totalOrders = orders.filter(o => o.status !== 'cancelled').length;
       const pendingShipment = orders.filter(o => o.status === 'paid').length;
       const delivered = orders.filter(o => o.status === 'delivered').length;

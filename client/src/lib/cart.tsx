@@ -128,8 +128,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.url) {
+        clearCart();
         window.location.href = data.url;
       }
+    } catch {
+      // checkout error handled by caller
     } finally {
       setIsCheckingOut(false);
     }

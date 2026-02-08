@@ -1068,10 +1068,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async decrementVariantInventory(id: string, quantity: number): Promise<boolean> {
-    const result = await db.execute(
-      `UPDATE merch_variants SET inventory = inventory - ${quantity} WHERE id = '${id}' AND inventory >= ${quantity}`
-    );
-    return (result as any).rowCount > 0;
+    const result = await db.update(merchVariants)
+      .set({ inventory: sql`${merchVariants.inventory} - ${quantity}` })
+      .where(and(eq(merchVariants.id, id), gte(merchVariants.inventory, quantity)))
+      .returning();
+    return result.length > 0;
   }
 
   // ============================================

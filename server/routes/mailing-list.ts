@@ -3,6 +3,7 @@ import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { storage } from "../storage";
 import { requireAuth } from "../middleware/auth";
+import { requireFeature } from "../middleware/tier";
 import {
   sendSubscriptionConfirmationEmail,
   sendBroadcastBatch,
@@ -237,7 +238,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 4. GET /api/mailing-list/subscribers — List subscribers for the authenticated user's landing page
   app.get(
     "/api/mailing-list/subscribers",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -263,7 +264,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 5. DELETE /api/mailing-list/subscribers/:id — Delete a subscriber
   app.delete(
     "/api/mailing-list/subscribers/:id",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -301,7 +302,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 6. GET /api/mailing-list/campaigns — List campaigns for authenticated user
   app.get(
     "/api/mailing-list/campaigns",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -317,7 +318,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 7. POST /api/mailing-list/campaigns — Create a new campaign
   app.post(
     "/api/mailing-list/campaigns",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -350,7 +351,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 8. GET /api/mailing-list/campaigns/:id — Get campaign detail
   app.get(
     "/api/mailing-list/campaigns/:id",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -376,7 +377,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 9. PATCH /api/mailing-list/campaigns/:id — Update a draft/scheduled campaign
   app.patch(
     "/api/mailing-list/campaigns/:id",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -416,7 +417,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 10. DELETE /api/mailing-list/campaigns/:id — Delete a draft campaign
   app.delete(
     "/api/mailing-list/campaigns/:id",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -450,7 +451,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 11. POST /api/mailing-list/campaigns/:id/send — Send a campaign immediately
   app.post(
     "/api/mailing-list/campaigns/:id/send",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -549,7 +550,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 12. POST /api/mailing-list/campaigns/:id/schedule — Schedule a campaign
   app.post(
     "/api/mailing-list/campaigns/:id/schedule",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -606,7 +607,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 13. POST /api/mailing-list/campaigns/:id/cancel-schedule — Cancel a scheduled campaign
   app.post(
     "/api/mailing-list/campaigns/:id/cancel-schedule",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
@@ -648,7 +649,7 @@ export function registerMailingListRoutes(app: Express): void {
   // 14. GET /api/mailing-list/campaigns/:id/analytics — Get campaign analytics
   app.get(
     "/api/mailing-list/campaigns/:id/analytics",
-    requireAuth,
+    requireAuth, requireFeature('mailing-list'),
     async (req: Request, res: Response) => {
       try {
         const userId = req.session.userId!;
