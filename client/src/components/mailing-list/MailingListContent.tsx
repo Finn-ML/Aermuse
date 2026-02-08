@@ -18,7 +18,8 @@ export function MailingListContent() {
     queryKey: ['/api/mailing-list/campaigns'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/mailing-list/campaigns');
-      return res.json();
+      const data = await res.json();
+      return data.campaigns;
     },
   });
 

@@ -60,7 +60,8 @@ export function CampaignComposer({ campaignId, onBack }: CampaignComposerProps) 
     queryKey: ['/api/mailing-list/campaigns', campaignId],
     queryFn: async () => {
       const res = await apiRequest('GET', `/api/mailing-list/campaigns/${campaignId}`);
-      return res.json();
+      const data = await res.json();
+      return data.campaign;
     },
     enabled: !!campaignId,
   });
@@ -104,7 +105,8 @@ export function CampaignComposer({ campaignId, onBack }: CampaignComposerProps) 
   const createMutation = useMutation({
     mutationFn: async (data: { subject: string; body: string; previewText?: string }) => {
       const res = await apiRequest('POST', '/api/mailing-list/campaigns', data);
-      return res.json() as Promise<EmailCampaign>;
+      const result = await res.json();
+      return result.campaign as EmailCampaign;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mailing-list/campaigns'] });

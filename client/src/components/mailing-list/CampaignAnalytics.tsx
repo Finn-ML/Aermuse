@@ -31,7 +31,8 @@ export function CampaignAnalytics({ campaignId, onBack }: CampaignAnalyticsProps
     queryKey: ['/api/mailing-list/campaigns', campaignId, 'analytics'],
     queryFn: async () => {
       const res = await apiRequest('GET', `/api/mailing-list/campaigns/${campaignId}/analytics`);
-      return res.json();
+      const data = await res.json();
+      return { ...data.analytics, linkClicks: data.linkClicks };
     },
   });
 
@@ -39,7 +40,8 @@ export function CampaignAnalytics({ campaignId, onBack }: CampaignAnalyticsProps
     queryKey: ['/api/mailing-list/campaigns', campaignId],
     queryFn: async () => {
       const res = await apiRequest('GET', `/api/mailing-list/campaigns/${campaignId}`);
-      return res.json();
+      const data = await res.json();
+      return data.campaign;
     },
   });
 
