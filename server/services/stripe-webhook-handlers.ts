@@ -269,6 +269,8 @@ function buildSubscriptionUpdate(subscription: Stripe.Subscription): Subscriptio
   const metadataTier = subscription.metadata?.tier as 'beta' | 'alpha' | 'theta' | undefined;
   const tier = metadataTier || priceIdToTier(priceId);
 
+  console.log(`[STRIPE WEBHOOK] Tier mapping: metadata=${metadataTier}, priceId=${priceId}, final=${tier}`);
+
   // Only set tier if subscription is active/trialing
   const isActive = status === 'active' || status === 'trialing';
 
