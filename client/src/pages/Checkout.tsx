@@ -22,12 +22,6 @@ export default function Checkout() {
       return;
     }
 
-    // Theta tier is not yet available for checkout
-    if (tier === 'theta') {
-      setLocation('/pricing');
-      return;
-    }
-
     // Build payment link URL with prefilled email and client reference
     const billingKey = billing === 'annual' ? 'yearly' : 'monthly';
     const paymentLink = STRIPE_PAYMENT_LINKS[tier][billingKey];

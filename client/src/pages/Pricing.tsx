@@ -84,8 +84,8 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'theta',
     name: 'AERMUSE Theta',
-    monthlyPrice: 'Coming Soon',
-    annualPrice: 'Coming Soon',
+    monthlyPrice: '£27.02',
+    annualPrice: '£270',
     description: 'The ultimate artist platform',
     features: [
       { text: 'Everything in Alpha', included: true },
@@ -94,7 +94,7 @@ const PRICING_TIERS: PricingTier[] = [
       { text: 'Track Preview Selection', included: true },
       { text: 'Merch Selling', included: true },
     ],
-    cta: 'Contact Us',
+    cta: 'Go Theta',
     highlighted: false,
     badge: 'Exclusive',
   },
@@ -105,7 +105,7 @@ interface PricingCardProps {
   currentTier: SubscriptionTier;
   isLoggedIn: boolean;
   billingPeriod: BillingPeriod;
-  onSubscribe: (tier: 'beta' | 'alpha', billingPeriod: BillingPeriod) => void;
+  onSubscribe: (tier: 'beta' | 'alpha' | 'theta', billingPeriod: BillingPeriod) => void;
 }
 
 function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe }: PricingCardProps) {
@@ -115,28 +115,24 @@ function PricingCard({ plan, currentTier, isLoggedIn, billingPeriod, onSubscribe
   const isTheta = plan.id === 'theta';
 
   const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
-  const period = plan.id === 'free' ? 'forever' : isTheta ? '' : billingPeriod === 'monthly' ? '/month' : '/year';
+  const period = plan.id === 'free' ? 'forever' : billingPeriod === 'monthly' ? '/month' : '/year';
 
   const handleClick = () => {
     if (plan.id === 'free') {
       window.location.href = isLoggedIn ? '/dashboard' : '/auth';
-    } else if (isTheta) {
-      // Theta is coming soon - no checkout yet
-      return;
     } else if (canUpgrade) {
-      onSubscribe(plan.id as 'beta' | 'alpha', billingPeriod);
+      onSubscribe(plan.id as 'beta' | 'alpha' | 'theta', billingPeriod);
     }
   };
 
   const getButtonText = () => {
     if (isCurrentPlan) return 'Current Plan';
     if (isHigherTier) return 'Included';
-    if (isTheta && !isCurrentPlan) return 'Coming Soon';
     if (!isLoggedIn) return plan.cta;
     return canUpgrade ? 'Upgrade' : plan.cta;
   };
 
-  const isDisabled = isCurrentPlan || isHigherTier || (isTheta && !isCurrentPlan);
+  const isDisabled = isCurrentPlan || isHigherTier;
 
   return (
     <div
@@ -221,7 +217,7 @@ export default function Pricing() {
   const { tier } = usePremium();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
 
-  const handleSubscribe = (targetTier: 'beta' | 'alpha', period: BillingPeriod) => {
+  const handleSubscribe = (targetTier: 'beta' | 'alpha' | 'theta', period: BillingPeriod) => {
     if (!user) {
       window.location.href = `/auth?redirect=/pricing&tier=${targetTier}&billing=${period}`;
       return;

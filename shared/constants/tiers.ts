@@ -72,8 +72,8 @@ export const STRIPE_PAYMENT_LINKS = {
     yearly: 'https://buy.stripe.com/aFa28jfWJ4UY4t01kQ4Rq06',
   },
   theta: {
-    monthly: '',
-    yearly: '',
+    monthly: 'https://buy.stripe.com/aFa14f9ylcnq6B8bZu4Rq07',
+    yearly: 'https://buy.stripe.com/5kQbITcKx9becZwgfK4Rq08',
   },
 } as const;
 
