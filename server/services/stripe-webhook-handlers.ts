@@ -3,7 +3,7 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { mapStripeStatus } from './stripe.types';
-import { priceIdToTier } from './stripe';
+import { priceIdToTier, stripe } from './stripe';
 import type { SubscriptionUpdate } from '../../shared/types/subscription';
 import { storage } from '../storage';
 
@@ -86,6 +86,31 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       .where(eq(users.id, userId));
 
     console.log(`[STRIPE WEBHOOK] Linked customer ${customerId} to user ${userId}`);
+  }
+
+  // Transfer tier metadata from session to subscription (Payment Links don't auto-transfer metadata)
+  const sessionTier = session.metadata?.tier as 'beta' | 'alpha' | 'theta' | undefined;
+  const subscriptionId = session.subscription as string | undefined;
+
+  if (sessionTier && subscriptionId) {
+    console.log(`[STRIPE WEBHOOK] Transferring tier metadata: ${sessionTier} to subscription ${subscriptionId}`);
+
+    try {
+      // Update subscription metadata with the tier from the session
+      await stripe.subscriptions.update(subscriptionId, {
+        metadata: { tier: sessionTier }
+      });
+
+      // Also update the user's tier directly since we have all the info we need
+      await db
+        .update(users)
+        .set({ subscriptionTier: sessionTier })
+        .where(eq(users.id, userId));
+
+      console.log(`[STRIPE WEBHOOK] Updated user ${userId} to tier: ${sessionTier}`);
+    } catch (error) {
+      console.error(`[STRIPE WEBHOOK] Failed to transfer tier metadata:`, error);
+    }
   }
 }
 

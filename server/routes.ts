@@ -2234,7 +2234,27 @@ ${urls}
         });
       }
 
-      const status = await getAccountStatus(user.stripeConnectAccountId);
+      let status;
+      try {
+        status = await getAccountStatus(user.stripeConnectAccountId);
+      } catch (stripeError: any) {
+        // Handle invalid/revoked account - clear the stale ID and let user reconnect
+        if (stripeError.code === 'account_invalid' || stripeError.type === 'invalid_request_error') {
+          console.log(`[STRIPE CONNECT] Account ${user.stripeConnectAccountId} is invalid/revoked, clearing from user ${userId}`);
+          await storage.updateUser(userId, {
+            stripeConnectAccountId: null,
+            stripeConnectOnboardingComplete: false,
+          });
+          return res.json({
+            connected: false,
+            onboardingComplete: false,
+            chargesEnabled: false,
+            payoutsEnabled: false,
+            accountRevoked: true,
+          });
+        }
+        throw stripeError;
+      }
 
       // Update onboarding status if it changed
       if (status.detailsSubmitted && !user.stripeConnectOnboardingComplete) {
@@ -2269,7 +2289,21 @@ ${urls}
         return res.status(400).json({ error: "No Stripe Connect account" });
       }
 
-      const loginLink = await createLoginLink(user.stripeConnectAccountId);
+      let loginLink;
+      try {
+        loginLink = await createLoginLink(user.stripeConnectAccountId);
+      } catch (stripeError: any) {
+        // Handle invalid/revoked account
+        if (stripeError.code === 'account_invalid' || stripeError.type === 'invalid_request_error') {
+          console.log(`[STRIPE CONNECT] Account ${user.stripeConnectAccountId} is invalid/revoked, clearing from user ${userId}`);
+          await storage.updateUser(userId, {
+            stripeConnectAccountId: null,
+            stripeConnectOnboardingComplete: false,
+          });
+          return res.status(400).json({ error: "Stripe account was disconnected. Please reconnect." });
+        }
+        throw stripeError;
+      }
       res.json({ url: loginLink.url });
     } catch (error) {
       console.error("Stripe Connect dashboard error:", error);

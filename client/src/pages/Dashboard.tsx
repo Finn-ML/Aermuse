@@ -2460,13 +2460,13 @@ export default function Dashboard() {
           {activeNav === 'merch' && (
             canAccess('merch-selling')
               ? <MerchDashboard />
-              : <BlurredUpgradeOverlay feature="merch-selling"><MerchDashboard /></BlurredUpgradeOverlay>
+              : <PremiumFeatureGate feature="merch-selling" />
           )}
 
           {activeNav === 'mailing-list' && (
             canAccess('mailing-list')
               ? <MailingListContent />
-              : <BlurredUpgradeOverlay feature="mailing-list"><MailingListContent /></BlurredUpgradeOverlay>
+              : <PremiumFeatureGate feature="mailing-list" />
           )}
 
           {showDeleteModal && (

@@ -1,8 +1,8 @@
 import { Link } from 'wouter';
-import { Lock, Sparkles, ExternalLink, Mail, BarChart3, FileText } from 'lucide-react';
+import { Lock, Sparkles, ExternalLink, Mail, BarChart3, FileText, ShoppingBag, Users } from 'lucide-react';
 
 interface PremiumFeatureGateProps {
-  feature: 'landing' | 'proposals' | 'analytics' | 'contract-templates';
+  feature: 'landing' | 'proposals' | 'analytics' | 'contract-templates' | 'merch-selling' | 'mailing-list';
   children?: React.ReactNode;
 }
 
@@ -11,6 +11,8 @@ const featureInfo = {
     title: 'Landing Page Builder',
     description: 'Create a stunning artist page with your bio, links, and media. Share it with fans and industry contacts.',
     icon: ExternalLink,
+    tier: 'Beta' as const,
+    price: '£10/month',
     benefits: [
       'Custom artist bio and avatar',
       'Add unlimited links (music, social, merchandise)',
@@ -23,6 +25,8 @@ const featureInfo = {
     title: 'Proposal Inbox',
     description: 'Receive and manage collaboration proposals directly from your landing page.',
     icon: Mail,
+    tier: 'Beta' as const,
+    price: '£10/month',
     benefits: [
       'Receive proposals from your landing page',
       'Organized inbox with status tracking',
@@ -35,6 +39,8 @@ const featureInfo = {
     title: 'Analytics Dashboard',
     description: 'Track your landing page performance with detailed visitor analytics.',
     icon: BarChart3,
+    tier: 'Beta' as const,
+    price: '£10/month',
     benefits: [
       'Page view tracking',
       'Unique visitor counts',
@@ -47,6 +53,8 @@ const featureInfo = {
     title: 'Contract Templates',
     description: 'Access professionally-crafted music industry contract templates to streamline your workflow.',
     icon: FileText,
+    tier: 'Beta' as const,
+    price: '£10/month',
     benefits: [
       'Artist collaboration agreements',
       'Sync licensing contracts',
@@ -55,6 +63,36 @@ const featureInfo = {
       'Distribution agreements',
       'Pre-filled custom fields',
       'Legally reviewed templates',
+    ],
+  },
+  'merch-selling': {
+    title: 'Merch Store',
+    description: 'Sell merchandise directly to your fans with your own integrated store.',
+    icon: ShoppingBag,
+    tier: 'Theta' as const,
+    price: '£30/month',
+    benefits: [
+      'Create and manage products',
+      'Set your own prices and variants',
+      'Track orders and inventory',
+      'Sell directly from your artist page',
+      'Keep more of your earnings',
+      'Automated order notifications',
+    ],
+  },
+  'mailing-list': {
+    title: 'Mailing List',
+    description: 'Build and engage your fanbase with email collection and campaign tools.',
+    icon: Users,
+    tier: 'Theta' as const,
+    price: '£30/month',
+    benefits: [
+      'Collect fan email addresses',
+      'Build your subscriber list',
+      'Send email campaigns to fans',
+      'Track subscriber growth',
+      'Export your mailing list',
+      'Embed signup on your artist page',
     ],
   },
 };
@@ -94,7 +132,7 @@ export function PremiumFeatureGate({ feature, children }: PremiumFeatureGateProp
           <div className="bg-[rgba(102,0,51,0.03)] rounded-xl p-6 mb-8 text-left">
             <h3 className="font-semibold text-[#660033] mb-4 flex items-center gap-2">
               <Icon className="h-5 w-5" />
-              What you'll get with Premium
+              What you'll get with {info.tier}
             </h3>
             <ul className="space-y-3">
               {info.benefits.map((benefit, index) => (
@@ -112,7 +150,7 @@ export function PremiumFeatureGate({ feature, children }: PremiumFeatureGateProp
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#660033] text-[#F7E6CA] rounded-xl font-semibold text-lg hover:bg-[#4a0024] transition-all hover:scale-105"
           >
             <Sparkles className="h-5 w-5" />
-            Upgrade to Premium - £10/month
+            Upgrade to {info.tier} - {info.price}
           </Link>
 
           <p className="mt-4 text-sm text-[rgba(102,0,51,0.5)]">
