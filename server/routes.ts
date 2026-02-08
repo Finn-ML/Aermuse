@@ -5380,6 +5380,45 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
+  // Admin update user subscription tier
+  app.patch("/api/admin/users/:id/tier", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { tier } = req.body;
+
+      if (!tier || !['free', 'beta', 'alpha', 'theta'].includes(tier)) {
+        return res.status(400).json({ error: "Invalid tier. Must be 'free', 'beta', 'alpha', or 'theta'" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.deletedAt) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updated = await storage.updateUser(id, { subscriptionTier: tier } as any);
+      if (!updated) {
+        return res.status(500).json({ error: "Failed to update user tier" });
+      }
+
+      // Log the activity
+      await logAdminActivity({
+        adminId: (req.session as any).userId,
+        action: "user_tier_change",
+        entityType: "user",
+        entityId: id,
+        details: { oldTier: user.subscriptionTier, newTier: tier, userEmail: user.email },
+        req,
+      });
+
+      const { password, ...safeUser } = updated;
+      console.log(`[ADMIN] User ${id} tier changed to ${tier} by ${(req.session as any).userId}`);
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Admin update user tier error:", error);
+      res.status(500).json({ error: "Failed to update user tier" });
+    }
+  });
+
   // Admin dashboard overview stats
   app.get("/api/admin/overview", requireAdmin, async (req: Request, res: Response) => {
     try {

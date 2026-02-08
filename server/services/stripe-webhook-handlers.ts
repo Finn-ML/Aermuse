@@ -6,6 +6,8 @@ import { mapStripeStatus } from './stripe.types';
 import { priceIdToTier, stripe } from './stripe';
 import type { SubscriptionUpdate } from '../../shared/types/subscription';
 import { storage } from '../storage';
+import { TIER_HIERARCHY } from '@shared/constants/tiers';
+import type { SubscriptionTier } from '@shared/schema';
 
 // Type helpers for Stripe API v2024+ where some properties moved
 interface InvoiceWithSubscription extends Stripe.Invoice {
@@ -92,24 +94,36 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const sessionTier = session.metadata?.tier as 'beta' | 'alpha' | 'theta' | undefined;
   const subscriptionId = session.subscription as string | undefined;
 
-  if (sessionTier && subscriptionId) {
-    console.log(`[STRIPE WEBHOOK] Transferring tier metadata: ${sessionTier} to subscription ${subscriptionId}`);
+  console.log(`[STRIPE WEBHOOK] Checkout session metadata:`, JSON.stringify(session.metadata));
+  console.log(`[STRIPE WEBHOOK] Session tier: ${sessionTier}, subscriptionId: ${subscriptionId}`);
 
+  if (subscriptionId) {
     try {
-      // Update subscription metadata with the tier from the session
-      await stripe.subscriptions.update(subscriptionId, {
-        metadata: { tier: sessionTier }
-      });
+      // Always update the user's tier and subscription status directly from checkout
+      // This prevents race conditions with subscription.created event
+      const tierToSet = sessionTier || 'beta'; // Default to beta if no tier specified
 
-      // Also update the user's tier directly since we have all the info we need
+      console.log(`[STRIPE WEBHOOK] Setting user ${userId} tier to: ${tierToSet}`);
+
       await db
         .update(users)
-        .set({ subscriptionTier: sessionTier })
+        .set({
+          subscriptionTier: tierToSet,
+          subscriptionStatus: 'active',
+          stripeSubscriptionId: subscriptionId,
+        })
         .where(eq(users.id, userId));
 
-      console.log(`[STRIPE WEBHOOK] Updated user ${userId} to tier: ${sessionTier}`);
+      // Also update subscription metadata for future reference
+      if (sessionTier) {
+        await stripe.subscriptions.update(subscriptionId, {
+          metadata: { tier: sessionTier }
+        });
+      }
+
+      console.log(`[STRIPE WEBHOOK] Updated user ${userId} to tier: ${tierToSet}`);
     } catch (error) {
-      console.error(`[STRIPE WEBHOOK] Failed to transfer tier metadata:`, error);
+      console.error(`[STRIPE WEBHOOK] Failed to set tier:`, error);
     }
   }
 }
@@ -314,7 +328,7 @@ async function updateUserByCustomerId(
   update: SubscriptionUpdate
 ): Promise<void> {
   const [user] = await db
-    .select({ id: users.id })
+    .select({ id: users.id, subscriptionTier: users.subscriptionTier })
     .from(users)
     .where(eq(users.stripeCustomerId, customerId));
 
@@ -323,10 +337,22 @@ async function updateUserByCustomerId(
     return;
   }
 
+  // Prevent downgrading tier due to race conditions with checkout.session.completed
+  // Only allow tier changes if: going to a higher tier, or subscription is being cancelled
+  if (update.subscriptionTier && user.subscriptionTier) {
+    const currentLevel = TIER_HIERARCHY[user.subscriptionTier as SubscriptionTier] || 0;
+    const newLevel = TIER_HIERARCHY[update.subscriptionTier as SubscriptionTier] || 0;
+
+    if (newLevel < currentLevel && update.subscriptionStatus === 'active') {
+      console.log(`[STRIPE WEBHOOK] Preventing tier downgrade from ${user.subscriptionTier} to ${update.subscriptionTier} for user ${user.id}`);
+      delete update.subscriptionTier;
+    }
+  }
+
   await db
     .update(users)
     .set(update)
     .where(eq(users.id, user.id));
 
-  console.log(`[STRIPE WEBHOOK] Updated user ${user.id}:`, update.subscriptionStatus);
+  console.log(`[STRIPE WEBHOOK] Updated user ${user.id}:`, update.subscriptionStatus, update.subscriptionTier || '(tier unchanged)');
 }
