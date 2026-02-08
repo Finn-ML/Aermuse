@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
+import { Link } from "wouter";
 import type { BackgroundType, BackgroundOverlay, GradientConfig, GradientDirection } from "@shared/themes";
 import { GRADIENT_DIRECTIONS, generateGradientCSS, parseGradientCSS } from "@shared/themes";
 import { ColorPicker } from "./ColorPicker";
 import { ImageCropModal } from "@/components/ImageCropModal";
-import { Play, Film, Loader2 } from "lucide-react";
+import { Play, Film, Loader2, Lock, Sparkles } from "lucide-react";
 
 interface BackgroundEditorProps {
   backgroundType: BackgroundType;
@@ -64,11 +65,6 @@ export function BackgroundEditor({
   canAccessVideo = false,
 }: BackgroundEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
-
-  // Filter background types based on feature access
-  const availableBackgroundTypes = BACKGROUND_TYPES.filter(
-    type => type.id !== 'video' || canAccessVideo
-  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -225,31 +221,69 @@ export function BackgroundEditor({
         <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-3">
           Background Type
         </label>
-        <div className={`grid gap-2 ${availableBackgroundTypes.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-          {availableBackgroundTypes.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              onClick={() => {
-                onBackgroundTypeChange(type.id);
-                // Set default value for new type
-                if (type.id === 'solid' && backgroundType !== 'solid') {
-                  onBackgroundValueChange('#660033');
-                } else if (type.id === 'gradient' && backgroundType !== 'gradient') {
-                  onBackgroundValueChange(generateGradientCSS({ color1: '#660033', color2: '#8B0045', direction: 'to-bottom' }));
-                }
-              }}
-              className={`p-3 rounded-lg border-2 transition-all text-center ${
-                backgroundType === type.id
-                  ? 'border-[#660033] bg-[rgba(102,0,51,0.05)]'
-                  : 'border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)]'
-              }`}
-            >
-              <p className="text-sm font-semibold">{type.name}</p>
-              <p className="text-[10px] text-[rgba(102,0,51,0.5)]">{type.description}</p>
-            </button>
-          ))}
+        <div className="grid gap-2 grid-cols-4">
+          {BACKGROUND_TYPES.map((type) => {
+            const isVideo = type.id === 'video';
+            const isLocked = isVideo && !canAccessVideo;
+
+            return (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => {
+                  if (isLocked) return; // Don't allow selection for locked options
+                  onBackgroundTypeChange(type.id);
+                  // Set default value for new type
+                  if (type.id === 'solid' && backgroundType !== 'solid') {
+                    onBackgroundValueChange('#660033');
+                  } else if (type.id === 'gradient' && backgroundType !== 'gradient') {
+                    onBackgroundValueChange(generateGradientCSS({ color1: '#660033', color2: '#8B0045', direction: 'to-bottom' }));
+                  }
+                }}
+                className={`p-3 rounded-lg border-2 transition-all text-center relative ${
+                  isLocked
+                    ? 'border-[#D4AF37]/30 bg-gradient-to-br from-[#1a1a2e]/5 to-[#16213e]/10 cursor-not-allowed'
+                    : backgroundType === type.id
+                      ? 'border-[#660033] bg-[rgba(102,0,51,0.05)]'
+                      : 'border-[rgba(102,0,51,0.1)] hover:border-[rgba(102,0,51,0.3)]'
+                }`}
+              >
+                {isLocked && (
+                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#F0D060] flex items-center justify-center">
+                    <Lock size={10} className="text-[#1a1a2e]" />
+                  </div>
+                )}
+                <p className={`text-sm font-semibold ${isLocked ? 'text-[#D4AF37]' : ''}`}>{type.name}</p>
+                <p className={`text-[10px] ${isLocked ? 'text-[#D4AF37]/60' : 'text-[rgba(102,0,51,0.5)]'}`}>
+                  {isLocked ? 'Theta tier' : type.description}
+                </p>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Video Background Upgrade CTA */}
+        {!canAccessVideo && (
+          <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-[#1a1a2e]/5 to-[#16213e]/10 border border-[#D4AF37]/20">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#F0D060] flex items-center justify-center flex-shrink-0">
+                <Film size={18} className="text-[#1a1a2e]" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-[#660033] mb-1">Video Background</h4>
+                <p className="text-xs text-[rgba(102,0,51,0.6)] mb-3">
+                  Add eye-catching looping video backgrounds to your artist page. Perfect for music videos, visualizers, or artistic loops.
+                </p>
+                <Link href="/pricing">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1a1a2e] bg-gradient-to-r from-[#D4AF37] to-[#F0D060] rounded-lg hover:shadow-md transition-shadow">
+                    <Sparkles size={12} />
+                    Upgrade to Theta
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Solid Color Picker */}
