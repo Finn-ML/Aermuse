@@ -1,9 +1,26 @@
 import { Link } from 'wouter';
 import { Unlock, Sparkles } from 'lucide-react';
+import { TIER_FEATURES, type Feature } from '@shared/constants/tiers';
 
 interface AnimatedUpgradeCTAProps {
   feature: string;
+  featureKey?: Feature;
   count?: number;
+}
+
+// Determine the minimum tier required for a feature
+function getRequiredTier(featureKey?: Feature): 'Beta' | 'Alpha' | 'Theta' {
+  if (!featureKey) return 'Alpha'; // Default fallback
+
+  const tiers = TIER_FEATURES[featureKey];
+  if (!tiers) return 'Alpha';
+
+  // Check from lowest to highest - return the lowest tier that has access
+  if (tiers.includes('beta')) return 'Beta';
+  if (tiers.includes('alpha')) return 'Alpha';
+  if (tiers.includes('theta')) return 'Theta';
+
+  return 'Alpha';
 }
 
 function FloatingParticles() {
@@ -37,7 +54,9 @@ function FloatingParticles() {
   );
 }
 
-export function AnimatedUpgradeCTA({ feature, count }: AnimatedUpgradeCTAProps) {
+export function AnimatedUpgradeCTA({ feature, featureKey, count }: AnimatedUpgradeCTAProps) {
+  const requiredTier = getRequiredTier(featureKey);
+
   return (
     <Link href="/pricing">
       <div className="animated-cta relative p-4 sm:p-6 rounded-2xl cursor-pointer group">
@@ -89,7 +108,7 @@ export function AnimatedUpgradeCTA({ feature, count }: AnimatedUpgradeCTAProps) 
             style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
           >
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Unlock with Alpha
+            Unlock with {requiredTier}
           </button>
         </div>
       </div>

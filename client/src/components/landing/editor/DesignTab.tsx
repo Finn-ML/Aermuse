@@ -219,9 +219,10 @@ interface DesignTabProps {
   onBackgroundRemove?: () => void;
   onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
   onVideoRemove?: () => void;
+  canAccessVideo?: boolean;
 }
 
-export function DesignTab({ landingPageData, onUpdate, onImageUpload, onAvatarUpload, onAvatarRemove, onBackgroundRemove, onVideoUpload, onVideoRemove }: DesignTabProps) {
+export function DesignTab({ landingPageData, onUpdate, onImageUpload, onAvatarUpload, onAvatarRemove, onBackgroundRemove, onVideoUpload, onVideoRemove, canAccessVideo = false }: DesignTabProps) {
   return (
     <div className="space-y-6">
       {/* Avatar Upload & Position */}
@@ -403,6 +404,7 @@ export function DesignTab({ landingPageData, onUpdate, onImageUpload, onAvatarUp
           onImageRemove={onBackgroundRemove}
           onVideoUpload={onVideoUpload}
           onVideoRemove={onVideoRemove}
+          canAccessVideo={canAccessVideo}
         />
       </div>
     </div>

@@ -2008,6 +2008,8 @@ export default function Dashboard() {
                       // Refresh landing page data
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
+                    canAccessVideo={canAccess('canvas-video-loop')}
+                    canAccessPreviewSelection={canAccess('track-preview-selection')}
                     onNavigateToUpgrade={() => setLocation('/pricing')}
                     tracks={tracks}
                     isLoadingTracks={tracksLoading}
@@ -2456,7 +2458,9 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'merch' && (
-            <MerchDashboard />
+            canAccess('merch-selling')
+              ? <MerchDashboard />
+              : <BlurredUpgradeOverlay feature="merch-selling"><MerchDashboard /></BlurredUpgradeOverlay>
           )}
 
           {activeNav === 'mailing-list' && (

@@ -45,6 +45,7 @@ export function BlurredUpgradeOverlay({
       <div className="absolute inset-0 flex items-center justify-center bg-white/20 rounded-[20px]">
         <AnimatedUpgradeCTA
           feature={featureLabel}
+          featureKey={feature}
           count={count}
         />
       </div>

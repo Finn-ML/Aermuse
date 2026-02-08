@@ -2,7 +2,8 @@
 // Music selling feature with spinning disc player
 
 import { useState, useRef } from 'react';
-import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X, Users, Clock, CheckCircle2, AlertTriangle, Scissors } from 'lucide-react';
+import { Link } from 'wouter';
+import { Plus, Music, Trash2, Upload, Loader2, Play, Pause, ImagePlus, DollarSign, Eye, EyeOff, X, Users, Clock, CheckCircle2, AlertTriangle, Scissors, Sparkles, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '@/hooks/useAudioPlayer';
 import PreviewSelector from './PreviewSelector';
@@ -61,6 +62,7 @@ interface MusicTabProps {
   onUploadCover: (trackId: string, file: File) => Promise<void>;
   onOpenSplits?: (track: Track) => void;
   onUpdatePreview?: (trackId: string, previewStartSeconds: number) => Promise<void>;
+  canAccessPreviewSelection?: boolean;
 }
 
 export function MusicTab({
@@ -72,6 +74,7 @@ export function MusicTab({
   onUploadCover,
   onOpenSplits,
   onUpdatePreview,
+  canAccessPreviewSelection = false,
 }: MusicTabProps) {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadingTrack, setUploadingTrack] = useState(false);
@@ -317,48 +320,75 @@ export function MusicTab({
             </button>
           </div>
 
-          {/* Preview Selector (shown after file selected) */}
-          {showPreviewSelector && audioObjectUrl && (
-            <div className="mb-4">
-              <PreviewSelector
-                audioSrc={audioObjectUrl}
-                onConfirm={(startSec) => {
-                  setPreviewStartSeconds(startSec);
-                  setShowPreviewSelector(false);
-                }}
-                onCancel={() => setShowPreviewSelector(false)}
-              />
-              {previewStartSeconds !== undefined && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)]">
-                  <Scissors size={12} />
-                  <span>
-                    Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
-                    {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
-                  </span>
-                  <button
-                    onClick={() => setShowPreviewSelector(true)}
-                    className="text-[#660033] font-semibold hover:underline"
-                  >
-                    Change
-                  </button>
+          {/* Preview Selector (shown after file selected) - Theta tier only */}
+          {selectedFile && audioObjectUrl && (
+            canAccessPreviewSelection ? (
+              <>
+                {showPreviewSelector && (
+                  <div className="mb-4">
+                    <PreviewSelector
+                      audioSrc={audioObjectUrl}
+                      onConfirm={(startSec) => {
+                        setPreviewStartSeconds(startSec);
+                        setShowPreviewSelector(false);
+                      }}
+                      onCancel={() => setShowPreviewSelector(false)}
+                    />
+                    {previewStartSeconds !== undefined && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)]">
+                        <Scissors size={12} />
+                        <span>
+                          Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
+                          {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
+                        </span>
+                        <button
+                          onClick={() => setShowPreviewSelector(true)}
+                          className="text-[#660033] font-semibold hover:underline"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!showPreviewSelector && previewStartSeconds !== undefined && (
+                  <div className="mb-4 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)] p-3 rounded-lg bg-white/40">
+                    <Scissors size={12} className="text-[#660033]" />
+                    <span>
+                      Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
+                      {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
+                    </span>
+                    <button
+                      onClick={() => setShowPreviewSelector(true)}
+                      className="text-[#660033] font-semibold hover:underline"
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Upgrade CTA for non-Theta users */
+              <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-[#1a1a2e]/5 to-[#16213e]/10 border border-[#D4AF37]/20">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#F0D060] flex items-center justify-center flex-shrink-0">
+                    <Lock size={18} className="text-[#1a1a2e]" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-[#660033] mb-1">Custom Preview Selection</h4>
+                    <p className="text-xs text-[rgba(102,0,51,0.6)] mb-3">
+                      Choose exactly which 30 seconds of your track plays as the preview. Available with Theta membership.
+                    </p>
+                    <Link href="/pricing">
+                      <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1a1a2e] bg-gradient-to-r from-[#D4AF37] to-[#F0D060] rounded-lg hover:shadow-md transition-shadow">
+                        <Sparkles size={12} />
+                        Upgrade to Theta
+                      </button>
+                    </Link>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
-          {!showPreviewSelector && previewStartSeconds !== undefined && selectedFile && (
-            <div className="mb-4 flex items-center gap-2 text-xs text-[rgba(102,0,51,0.6)] p-3 rounded-lg bg-white/40">
-              <Scissors size={12} className="text-[#660033]" />
-              <span>
-                Preview: {Math.floor(previewStartSeconds / 60)}:{(previewStartSeconds % 60).toString().padStart(2, '0')} -{' '}
-                {Math.floor((previewStartSeconds + 30) / 60)}:{((previewStartSeconds + 30) % 60).toString().padStart(2, '0')}
-              </span>
-              <button
-                onClick={() => setShowPreviewSelector(true)}
-                className="text-[#660033] font-semibold hover:underline"
-              >
-                Change
-              </button>
-            </div>
+              </div>
+            )
           )}
 
           {/* Title Input */}
@@ -809,8 +839,8 @@ export function MusicTab({
                     </TooltipProvider>
                   )}
 
-                  {/* Edit Preview */}
-                  {onUpdatePreview && (track.durationSeconds ?? 0) > 30 && (
+                  {/* Edit Preview - Theta tier feature */}
+                  {onUpdatePreview && canAccessPreviewSelection && (track.durationSeconds ?? 0) > 30 && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -882,7 +912,7 @@ export function MusicTab({
             </div>
 
             {/* Inline Preview Editor */}
-            {editingPreviewTrackId === track.id && onUpdatePreview && (
+            {editingPreviewTrackId === track.id && onUpdatePreview && canAccessPreviewSelection && (
               <div className="mt-2 ml-0">
                 <PreviewSelector
                   audioSrc={`/api/tracks/${track.id}/preview`}

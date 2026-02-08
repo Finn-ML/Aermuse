@@ -18,6 +18,7 @@ interface BackgroundEditorProps {
   onImageRemove?: () => void;
   onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
   onVideoRemove?: () => void;
+  canAccessVideo?: boolean;
 }
 
 // Parse video background value JSON
@@ -60,8 +61,14 @@ export function BackgroundEditor({
   onImageRemove,
   onVideoUpload,
   onVideoRemove,
+  canAccessVideo = false,
 }: BackgroundEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
+
+  // Filter background types based on feature access
+  const availableBackgroundTypes = BACKGROUND_TYPES.filter(
+    type => type.id !== 'video' || canAccessVideo
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -218,8 +225,8 @@ export function BackgroundEditor({
         <label className="block text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)] mb-3">
           Background Type
         </label>
-        <div className="grid grid-cols-3 gap-2">
-          {BACKGROUND_TYPES.map((type) => (
+        <div className={`grid gap-2 ${availableBackgroundTypes.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {availableBackgroundTypes.map((type) => (
             <button
               key={type.id}
               type="button"

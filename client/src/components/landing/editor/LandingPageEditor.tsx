@@ -94,6 +94,8 @@ interface LandingPageEditorProps {
   onBackgroundRemove?: () => void; // Story 9.13
   onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>; // Video Canvas
   onVideoRemove?: () => void; // Video Canvas
+  canAccessVideo?: boolean; // Theta tier feature
+  canAccessPreviewSelection?: boolean; // Theta tier feature
   onNavigateToUpgrade: () => void;
   // Music tab props
   tracks?: Track[];
@@ -155,6 +157,8 @@ export function LandingPageEditor({
   onBackgroundRemove,
   onVideoUpload,
   onVideoRemove,
+  canAccessVideo = false,
+  canAccessPreviewSelection = false,
   onNavigateToUpgrade,
   tracks = [],
   isLoadingTracks = false,
@@ -281,6 +285,7 @@ export function LandingPageEditor({
               onBackgroundRemove={onBackgroundRemove}
               onVideoUpload={onVideoUpload}
               onVideoRemove={onVideoRemove}
+              canAccessVideo={canAccessVideo}
             />
           )}
           {activeTab === 'links' && (
@@ -304,6 +309,7 @@ export function LandingPageEditor({
                 onUploadCover={onUploadTrackCover}
                 onOpenSplits={onOpenSplits}
                 onUpdatePreview={onUpdatePreview}
+                canAccessPreviewSelection={canAccessPreviewSelection}
               />
             ) : (
               <div className="text-center py-8 text-[rgba(102,0,51,0.5)]">
