@@ -8,8 +8,11 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || process.env.TEST_STRI
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || process.env.TEST_STRIPE_WEBHOOK_SECRET;
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || process.env.TEST_STRIPE_PRICE_ID;
 const STRIPE_BETA_PRICE_ID = process.env.STRIPE_BETA_PRICE_ID;
+const STRIPE_BETA_YEARLY_PRICE_ID = process.env.STRIPE_BETA_YEARLY_PRICE_ID;
 const STRIPE_ALPHA_PRICE_ID = process.env.STRIPE_ALPHA_PRICE_ID;
+const STRIPE_ALPHA_YEARLY_PRICE_ID = process.env.STRIPE_ALPHA_YEARLY_PRICE_ID;
 const STRIPE_THETA_PRICE_ID = process.env.STRIPE_THETA_PRICE_ID;
+const STRIPE_THETA_YEARLY_PRICE_ID = process.env.STRIPE_THETA_YEARLY_PRICE_ID;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 if (!STRIPE_SECRET_KEY) {
@@ -35,8 +38,11 @@ export { stripe };
 export const stripeConfig = {
   priceId: STRIPE_PRICE_ID || '',
   betaPriceId: STRIPE_BETA_PRICE_ID || '',
+  betaYearlyPriceId: STRIPE_BETA_YEARLY_PRICE_ID || '',
   alphaPriceId: STRIPE_ALPHA_PRICE_ID || '',
+  alphaYearlyPriceId: STRIPE_ALPHA_YEARLY_PRICE_ID || '',
   thetaPriceId: STRIPE_THETA_PRICE_ID || '',
+  thetaYearlyPriceId: STRIPE_THETA_YEARLY_PRICE_ID || '',
   webhookSecret: STRIPE_WEBHOOK_SECRET || '',
   appUrl: APP_URL,
   currency: 'gbp',
@@ -45,14 +51,24 @@ export const stripeConfig = {
 
 /**
  * Map Stripe price ID to subscription tier
+ * Supports both monthly and yearly price IDs for each tier
  */
 export function priceIdToTier(priceId: string | null | undefined): SubscriptionTier {
   if (!priceId) return 'free';
-  if (priceId === STRIPE_THETA_PRICE_ID) return 'theta';
-  if (priceId === STRIPE_ALPHA_PRICE_ID) return 'alpha';
-  if (priceId === STRIPE_BETA_PRICE_ID) return 'beta';
+
+  // Theta tier (monthly or yearly)
+  if (priceId === STRIPE_THETA_PRICE_ID || priceId === STRIPE_THETA_YEARLY_PRICE_ID) return 'theta';
+
+  // Alpha tier (monthly or yearly)
+  if (priceId === STRIPE_ALPHA_PRICE_ID || priceId === STRIPE_ALPHA_YEARLY_PRICE_ID) return 'alpha';
+
+  // Beta tier (monthly or yearly)
+  if (priceId === STRIPE_BETA_PRICE_ID || priceId === STRIPE_BETA_YEARLY_PRICE_ID) return 'beta';
+
   // Legacy price ID maps to beta for backwards compatibility
   if (priceId === STRIPE_PRICE_ID) return 'beta';
+
+  console.warn(`[STRIPE] Unknown price ID: ${priceId} - defaulting to free`);
   return 'free';
 }
 
