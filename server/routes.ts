@@ -1797,6 +1797,16 @@ ${urls}
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Verify link exists and belongs to this user's landing page
+      const link = await storage.getLandingPageLink(req.params.id);
+      if (!link) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      const userPage = await storage.getLandingPageByUser(userId);
+      if (!userPage || link.landingPageId !== userPage.id) {
+        return res.status(403).json({ error: "Not authorized to modify this link" });
+      }
+
       const updatedLink = await storage.updateLandingPageLink(req.params.id, req.body);
       res.json(updatedLink);
     } catch (error) {
@@ -1810,6 +1820,16 @@ ${urls}
       const userId = (req.session as any).userId;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Verify link exists and belongs to this user's landing page
+      const link = await storage.getLandingPageLink(req.params.id);
+      if (!link) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      const userPage = await storage.getLandingPageByUser(userId);
+      if (!userPage || link.landingPageId !== userPage.id) {
+        return res.status(403).json({ error: "Not authorized to modify this link" });
       }
 
       await storage.deleteLandingPageLink(req.params.id);
