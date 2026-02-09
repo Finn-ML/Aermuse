@@ -1746,7 +1746,12 @@ ${urls}
         return res.status(404).json({ error: "Landing page not found" });
       }
 
-      const updatedPage = await storage.updateLandingPage(page.id, req.body);
+      const allowedPageFields = ['title', 'subtitle', 'description', 'artistName', 'theme', 'customColors', 'socialLinks', 'isPublished', 'showGrain', 'backgroundType', 'fontFamily', 'accentColor'];
+      const pageUpdates: Record<string, unknown> = {};
+      for (const key of allowedPageFields) {
+        if (req.body[key] !== undefined) pageUpdates[key] = req.body[key];
+      }
+      const updatedPage = await storage.updateLandingPage(page.id, pageUpdates);
       res.json(updatedPage);
     } catch (error) {
       console.error("Update landing page error:", error);
@@ -2556,7 +2561,12 @@ ${urls}
         }
       }
 
-      const updatedTrack = await storage.updateTrack(req.params.id, req.body);
+      const allowedTrackFields = ['title', 'artistName', 'description', 'priceInCents', 'isPublished', 'displayOrder', 'genre', 'isPayWhatYouWant', 'minimumPriceInCents', 'stripePriceId'];
+      const trackUpdates: Record<string, unknown> = {};
+      for (const key of allowedTrackFields) {
+        if (req.body[key] !== undefined) trackUpdates[key] = req.body[key];
+      }
+      const updatedTrack = await storage.updateTrack(req.params.id, trackUpdates);
       res.json(updatedTrack);
     } catch (error) {
       console.error("Update track error:", error);
