@@ -254,11 +254,23 @@ ${urls}
         console.error("[AUTH] Failed to link pending signatories/splits on registration:", linkError);
       }
 
-      // Set session
-      (req.session as any).userId = user.id;
-
-      const { password, ...safeUser } = user;
-      res.json({ user: safeUser });
+      // Regenerate session to prevent session fixation attacks
+      const userId = user.id;
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error('Session regeneration failed:', err);
+          return res.status(500).json({ error: "Authentication error" });
+        }
+        (req.session as any).userId = userId;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save failed:', saveErr);
+            return res.status(500).json({ error: "Authentication error" });
+          }
+          const { password, ...safeUser } = user;
+          res.json({ user: safeUser });
+        });
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
@@ -288,10 +300,23 @@ ${urls}
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      (req.session as any).userId = user.id;
-
-      const { password: _, ...safeUser } = user;
-      res.json({ user: safeUser });
+      // Regenerate session to prevent session fixation attacks
+      const userId = user.id;
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error('Session regeneration failed:', err);
+          return res.status(500).json({ error: "Authentication error" });
+        }
+        (req.session as any).userId = userId;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save failed:', saveErr);
+            return res.status(500).json({ error: "Authentication error" });
+          }
+          const { password: _, ...safeUser } = user;
+          res.json({ user: safeUser });
+        });
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ error: "Failed to login" });
