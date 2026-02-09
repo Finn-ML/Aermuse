@@ -786,7 +786,12 @@ ${urls}
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      const updatedContract = await storage.updateContract(req.params.id, req.body);
+      const allowedFields = ['name', 'type', 'partnerName', 'value', 'expiryDate', 'folderId', 'notes', 'status'];
+      const updates: Record<string, unknown> = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) updates[key] = req.body[key];
+      }
+      const updatedContract = await storage.updateContract(req.params.id, updates);
       res.json(updatedContract);
     } catch (error) {
       console.error("Update contract error:", error);
