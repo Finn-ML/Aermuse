@@ -3755,7 +3755,19 @@ ${urls}
   // Serve video thumbnail
   app.get("/api/videos/:id/thumbnail/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['videos/', 'thumbnails/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
       const buffer = await downloadArtistVideoFile(filePath);
