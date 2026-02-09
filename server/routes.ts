@@ -7325,6 +7325,11 @@ Sent at: ${new Date().toISOString()}
           console.log(`[WEBHOOK] Using signedContent from webhook payload`);
           signedPdfBuffer = Buffer.from(signedContent, 'base64');
         } else if (signedPdfUrl) {
+          // Validate URL before fetching to prevent SSRF
+          if (!signedPdfUrl.startsWith('https://')) {
+            console.error('[WEBHOOK] Blocked non-HTTPS signed PDF URL');
+            return res.status(400).json({ error: 'Invalid document URL' });
+          }
           // Download from the URL provided in the webhook
           console.log(`[WEBHOOK] Downloading signed PDF from URL: ${signedPdfUrl}`);
           const response = await fetch(signedPdfUrl);
