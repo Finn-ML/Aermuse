@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, useLocation } from 'wouter';
 import { ArrowLeft, Download, FileText, Sparkles, Shield, AlertTriangle, DollarSign, FileSearch, Clock, Calendar, History, Send, Volume2, VolumeX, Loader2, Edit3, X } from 'lucide-react';
 import { ContractSummary } from '../components/contracts/ContractSummary';
@@ -635,7 +636,7 @@ export default function ContractView() {
                       prose-table:border-collapse prose-table:w-full
                       prose-th:bg-[rgba(102,0,51,0.05)] prose-th:text-[#660033] prose-th:p-3 prose-th:text-left prose-th:border prose-th:border-[rgba(102,0,51,0.1)]
                       prose-td:p-3 prose-td:border prose-td:border-[rgba(102,0,51,0.1)]"
-                    dangerouslySetInnerHTML={{ __html: contract.renderedContent }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(contract.renderedContent) }}
                   />
                 </div>
               </div>
