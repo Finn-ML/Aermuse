@@ -4759,9 +4759,13 @@ ${urls}
   // Process expired split deadlines (internal/cron endpoint)
   app.post("/api/internal/splits/process-deadlines", async (req: Request, res: Response) => {
     try {
-      // This could be protected by an API key in production
+      // Require API key — reject if not configured or mismatched
       const apiKey = req.headers['x-api-key'];
-      if (process.env.INTERNAL_API_KEY && apiKey !== process.env.INTERNAL_API_KEY) {
+      const expectedKey = process.env.INTERNAL_API_KEY;
+      if (!expectedKey) {
+        return res.status(503).json({ error: "Internal API not configured" });
+      }
+      if (apiKey !== expectedKey) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
