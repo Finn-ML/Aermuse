@@ -2,7 +2,7 @@
 // Story 9.10: Landing Page Editor Redesign
 
 import { useState, useRef, useCallback } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ShoppingBag } from 'lucide-react';
 import { LayoutSelector, type Layout, type LinkWidth } from '@/components/landing/LayoutSelector';
 import { ShareSection } from './ShareSection';
 
@@ -13,6 +13,7 @@ interface SettingsTabProps {
     bio?: string | null;
     slug?: string | null;
     isPublished?: boolean | null;
+    showMerch?: boolean | null;
     layout?: string | null;
     linkWidth?: string | null;
   };
@@ -96,6 +97,37 @@ export function SettingsTab({ landingPageData, onUpdate }: SettingsTabProps) {
           onLayoutChange={(layout) => onUpdate({ layout })}
           onLinkWidthChange={(linkWidth) => onUpdate({ linkWidth })}
         />
+      </div>
+
+      {/* Merch Store Visibility */}
+      <div className="p-4 rounded-xl bg-white/60">
+        <h4 className="text-sm font-bold text-[#660033] mb-4">Merch Store</h4>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag size={14} className="text-[rgba(102,0,51,0.5)]" />
+            <label className="text-xs font-semibold uppercase tracking-wide text-[rgba(102,0,51,0.5)]">
+              Show on page
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => onUpdate({ showMerch: !(landingPageData.showMerch !== false) })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              landingPageData.showMerch !== false ? 'bg-[#660033]' : 'bg-[rgba(102,0,51,0.2)]'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                landingPageData.showMerch !== false ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-[rgba(102,0,51,0.5)] mt-2">
+          {landingPageData.showMerch !== false
+            ? 'Merch section is visible to visitors'
+            : 'Merch section is hidden from visitors'}
+        </p>
       </div>
 
       {/* Publish Status */}

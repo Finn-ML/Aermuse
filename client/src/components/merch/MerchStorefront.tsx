@@ -10,6 +10,7 @@ interface MerchStorefrontProps {
   primaryColor: string;
   secondaryColor: string;
   textColor: string;
+  checkoutEnabled?: boolean;
 }
 
 const containerVariants = {
@@ -36,6 +37,7 @@ export default function MerchStorefront({
   primaryColor,
   secondaryColor,
   textColor,
+  checkoutEnabled = true,
 }: MerchStorefrontProps) {
   const [selectedProduct, setSelectedProduct] = useState<
     (MerchProduct & { variants: MerchVariant[] }) | null
@@ -140,6 +142,7 @@ export default function MerchStorefront({
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
           textColor={textColor}
+          checkoutEnabled={checkoutEnabled}
         />
       )}
     </div>

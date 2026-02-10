@@ -431,10 +431,12 @@ export default function ArtistPage() {
   });
 
   // Fetch merch products for this artist
-  const { data: merchProducts = [] } = useQuery<Array<any>>({
+  const { data: merchData } = useQuery<{ products: Array<any>; checkoutEnabled: boolean }>({
     queryKey: [`/api/artist/${slug}/merch`],
     enabled: !!slug,
   });
+  const merchProducts = merchData?.products ?? [];
+  const merchCheckoutEnabled = merchData?.checkoutEnabled ?? false;
 
   // Video player state
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
@@ -1177,12 +1179,13 @@ export default function ArtistPage() {
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
             textColor={textColor}
+            checkoutEnabled={merchCheckoutEnabled}
           />
         </div>
       )}
 
-      {/* Cart Drawer - only show when merch exists */}
-      {merchProducts.length > 0 && (
+      {/* Cart Drawer - only show when merch exists and checkout is enabled */}
+      {merchProducts.length > 0 && merchCheckoutEnabled && (
         <CartDrawer primaryColor={primaryColor} secondaryColor={secondaryColor} textColor={textColor} />
       )}
 

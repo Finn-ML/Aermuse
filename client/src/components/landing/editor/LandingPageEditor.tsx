@@ -57,6 +57,7 @@ interface LandingPageData {
   backgroundPosition?: string | null; // Story 9.13
   socialIcons?: SocialIcon[] | null;
   showSocialBar?: boolean | null;
+  showMerch?: boolean | null;
   layout?: string | null;
   avatarPosition?: string | null;
   linkWidth?: string | null;

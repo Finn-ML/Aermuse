@@ -19,6 +19,7 @@ interface ProductDetailProps {
   primaryColor: string;
   secondaryColor: string;
   textColor: string;
+  checkoutEnabled?: boolean;
 }
 
 export default function ProductDetail({
@@ -29,6 +30,7 @@ export default function ProductDetail({
   primaryColor,
   secondaryColor,
   textColor,
+  checkoutEnabled = true,
 }: ProductDetailProps) {
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -205,13 +207,19 @@ export default function ProductDetail({
           <span className="text-xl font-bold" style={{ color: primaryColor }}>
             {`\u00A3${(price / 100).toFixed(2)}`}
           </span>
-          <button
-            onClick={handleAddToCart}
-            className="px-6 py-2.5 rounded-lg font-semibold text-sm transition-all hover:opacity-90"
-            style={{ backgroundColor: primaryColor, color: secondaryColor }}
-          >
-            Add to Cart
-          </button>
+          {checkoutEnabled ? (
+            <button
+              onClick={handleAddToCart}
+              className="px-6 py-2.5 rounded-lg font-semibold text-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: primaryColor, color: secondaryColor }}
+            >
+              Add to Cart
+            </button>
+          ) : (
+            <span className="text-xs font-medium opacity-60" style={{ color: textColor }}>
+              Coming soon
+            </span>
+          )}
         </div>
       </DialogContent>
     </Dialog>

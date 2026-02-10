@@ -8504,32 +8504,34 @@ Sent at: ${new Date().toISOString()}
     try {
       const landingPage = await storage.getLandingPageBySlug(req.params.slug);
       if (!landingPage || !landingPage.isPublished) {
-        return res.json([]);
+        return res.json({ products: [], checkoutEnabled: false });
+      }
+
+      // Respect showMerch toggle
+      if (landingPage.showMerch === false) {
+        return res.json({ products: [], checkoutEnabled: false });
       }
 
       const user = await storage.getUser(landingPage.userId);
       if (!user) {
-        return res.json([]);
+        return res.json({ products: [], checkoutEnabled: false });
       }
 
       // Check if user has theta tier with active subscription
       const isActive = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
       const userTier: SubscriptionTier = isActive ? (user.subscriptionTier as SubscriptionTier) || 'free' : 'free';
       if (!canAccessFeature(userTier, 'merch-selling')) {
-        return res.json([]);
+        return res.json({ products: [], checkoutEnabled: false });
       }
 
-      // Check if Stripe Connect is ready
-      if (!user.stripeConnectAccountId) {
-        return res.json([]);
-      }
-      const accountReady = await isAccountReady(user.stripeConnectAccountId);
-      if (!accountReady) {
-        return res.json([]);
+      // Check if Stripe Connect is ready (for checkout, not for display)
+      let checkoutEnabled = false;
+      if (user.stripeConnectAccountId) {
+        checkoutEnabled = await isAccountReady(user.stripeConnectAccountId);
       }
 
       const products = await storage.getActiveProductsForLandingPage(landingPage.id);
-      res.json(products);
+      res.json({ products, checkoutEnabled });
     } catch (error) {
       console.error("Error fetching public merch:", error);
       res.status(500).json({ error: "Failed to fetch merch" });

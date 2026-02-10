@@ -205,6 +205,7 @@ export const landingPages = pgTable("landing_pages", {
   // Epic 9.6: Social icons bar
   socialIcons: jsonb("social_icons").default([]),
   showSocialBar: boolean("show_social_bar").default(true),
+  showMerch: boolean("show_merch").default(true),
   // Epic 9.8: Layout options
   layout: text("layout").default("centered"), // 'centered' | 'left' | 'right'
   avatarPosition: text("avatar_position").default("top"), // 'top' | 'left' | 'hidden'
