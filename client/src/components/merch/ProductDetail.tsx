@@ -89,13 +89,13 @@ export default function ProductDetail({
         className="max-w-sm sm:max-w-md max-h-[85vh] overflow-y-auto"
         style={{
           backgroundColor: secondaryColor,
-          color: textColor,
-          border: `1px solid ${textColor}20`,
+          color: primaryColor,
+          border: `1px solid ${primaryColor}20`,
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg" style={{ color: textColor }}>{product.name}</DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm" style={{ color: `${textColor}80` }}>
+          <DialogTitle className="text-base sm:text-lg" style={{ color: primaryColor }}>{product.name}</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm" style={{ color: `${primaryColor}90` }}>
             {product.description || 'Merchandise item'}
           </DialogDescription>
         </DialogHeader>
@@ -103,7 +103,7 @@ export default function ProductDetail({
         {/* Product Image */}
         <div
           className="w-full max-h-48 sm:max-h-64 rounded-lg overflow-hidden mb-3"
-          style={{ backgroundColor: `${textColor}08` }}
+          style={{ backgroundColor: `${primaryColor}08` }}
         >
           {firstImage ? (
             <img
@@ -113,7 +113,7 @@ export default function ProductDetail({
             />
           ) : (
             <div className="w-full h-48 sm:h-64 flex items-center justify-center">
-              <Package className="w-12 h-12 opacity-30" style={{ color: textColor }} />
+              <Package className="w-12 h-12 opacity-30" style={{ color: primaryColor }} />
             </div>
           )}
         </div>
@@ -121,7 +121,7 @@ export default function ProductDetail({
         {/* Size Selector */}
         {sizes.length > 0 && (
           <div className="mb-2">
-            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
+            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${primaryColor}90` }}>
               Size
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -131,9 +131,9 @@ export default function ProductDetail({
                   onClick={() => setSelectedSize(size)}
                   className="px-2.5 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all"
                   style={{
-                    backgroundColor: selectedSize === size ? primaryColor : `${textColor}10`,
-                    color: selectedSize === size ? secondaryColor : textColor,
-                    border: `1px solid ${selectedSize === size ? primaryColor : `${textColor}20`}`,
+                    backgroundColor: selectedSize === size ? primaryColor : `${primaryColor}10`,
+                    color: selectedSize === size ? secondaryColor : primaryColor,
+                    border: `1px solid ${selectedSize === size ? primaryColor : `${primaryColor}20`}`,
                   }}
                 >
                   {size}
@@ -146,7 +146,7 @@ export default function ProductDetail({
         {/* Color Selector */}
         {colors.length > 0 && (
           <div className="mb-2">
-            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
+            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${primaryColor}90` }}>
               Color
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -156,9 +156,9 @@ export default function ProductDetail({
                   onClick={() => setSelectedColor(color)}
                   className="px-2.5 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all"
                   style={{
-                    backgroundColor: selectedColor === color ? primaryColor : `${textColor}10`,
-                    color: selectedColor === color ? secondaryColor : textColor,
-                    border: `1px solid ${selectedColor === color ? primaryColor : `${textColor}20`}`,
+                    backgroundColor: selectedColor === color ? primaryColor : `${primaryColor}10`,
+                    color: selectedColor === color ? secondaryColor : primaryColor,
+                    border: `1px solid ${selectedColor === color ? primaryColor : `${primaryColor}20`}`,
                   }}
                 >
                   {color}
@@ -170,7 +170,7 @@ export default function ProductDetail({
 
         {/* Quantity Selector */}
         <div className="mb-3">
-          <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
+          <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${primaryColor}90` }}>
             Quantity
           </label>
           <div className="flex items-center gap-2">
@@ -178,23 +178,23 @@ export default function ProductDetail({
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all"
               style={{
-                backgroundColor: `${textColor}10`,
-                color: textColor,
-                border: `1px solid ${textColor}20`,
+                backgroundColor: `${primaryColor}10`,
+                color: primaryColor,
+                border: `1px solid ${primaryColor}20`,
               }}
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            <span className="text-base sm:text-lg font-semibold w-8 text-center" style={{ color: textColor }}>
+            <span className="text-base sm:text-lg font-semibold w-8 text-center" style={{ color: primaryColor }}>
               {quantity}
             </span>
             <button
               onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all"
               style={{
-                backgroundColor: `${textColor}10`,
-                color: textColor,
-                border: `1px solid ${textColor}20`,
+                backgroundColor: `${primaryColor}10`,
+                color: primaryColor,
+                border: `1px solid ${primaryColor}20`,
               }}
             >
               <Plus className="w-3.5 h-3.5" />
@@ -203,7 +203,7 @@ export default function ProductDetail({
         </div>
 
         {/* Price + Add to Cart */}
-        <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${textColor}15` }}>
+        <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${primaryColor}15` }}>
           <span className="text-lg sm:text-xl font-bold" style={{ color: primaryColor }}>
             {`\u00A3${(price / 100).toFixed(2)}`}
           </span>
@@ -216,7 +216,7 @@ export default function ProductDetail({
               Add to Cart
             </button>
           ) : (
-            <span className="text-xs font-medium opacity-60" style={{ color: textColor }}>
+            <span className="text-xs font-medium opacity-60" style={{ color: primaryColor }}>
               Coming soon
             </span>
           )}
