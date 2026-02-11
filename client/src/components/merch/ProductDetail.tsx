@@ -86,7 +86,7 @@ export default function ProductDetail({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
-        className="max-w-lg"
+        className="max-w-sm sm:max-w-md max-h-[85vh] overflow-y-auto"
         style={{
           backgroundColor: secondaryColor,
           color: textColor,
@@ -94,15 +94,15 @@ export default function ProductDetail({
         }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: textColor }}>{product.name}</DialogTitle>
-          <DialogDescription style={{ color: `${textColor}80` }}>
+          <DialogTitle className="text-base sm:text-lg" style={{ color: textColor }}>{product.name}</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm" style={{ color: `${textColor}80` }}>
             {product.description || 'Merchandise item'}
           </DialogDescription>
         </DialogHeader>
 
         {/* Product Image */}
         <div
-          className="aspect-square rounded-lg overflow-hidden mb-4"
+          className="w-full max-h-48 sm:max-h-64 rounded-lg overflow-hidden mb-3"
           style={{ backgroundColor: `${textColor}08` }}
         >
           {firstImage ? (
@@ -112,24 +112,24 @@ export default function ProductDetail({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package className="w-16 h-16 opacity-30" style={{ color: textColor }} />
+            <div className="w-full h-48 sm:h-64 flex items-center justify-center">
+              <Package className="w-12 h-12 opacity-30" style={{ color: textColor }} />
             </div>
           )}
         </div>
 
         {/* Size Selector */}
         {sizes.length > 0 && (
-          <div className="mb-3">
-            <label className="text-sm font-medium mb-1.5 block" style={{ color: `${textColor}90` }}>
+          <div className="mb-2">
+            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
               Size
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {sizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                  className="px-2.5 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all"
                   style={{
                     backgroundColor: selectedSize === size ? primaryColor : `${textColor}10`,
                     color: selectedSize === size ? secondaryColor : textColor,
@@ -145,16 +145,16 @@ export default function ProductDetail({
 
         {/* Color Selector */}
         {colors.length > 0 && (
-          <div className="mb-3">
-            <label className="text-sm font-medium mb-1.5 block" style={{ color: `${textColor}90` }}>
+          <div className="mb-2">
+            <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
               Color
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {colors.map((color) => (
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                  className="px-2.5 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all"
                   style={{
                     backgroundColor: selectedColor === color ? primaryColor : `${textColor}10`,
                     color: selectedColor === color ? secondaryColor : textColor,
@@ -169,48 +169,48 @@ export default function ProductDetail({
         )}
 
         {/* Quantity Selector */}
-        <div className="mb-4">
-          <label className="text-sm font-medium mb-1.5 block" style={{ color: `${textColor}90` }}>
+        <div className="mb-3">
+          <label className="text-xs sm:text-sm font-medium mb-1 block" style={{ color: `${textColor}90` }}>
             Quantity
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all"
               style={{
                 backgroundColor: `${textColor}10`,
                 color: textColor,
                 border: `1px solid ${textColor}20`,
               }}
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3.5 h-3.5" />
             </button>
-            <span className="text-lg font-semibold w-8 text-center" style={{ color: textColor }}>
+            <span className="text-base sm:text-lg font-semibold w-8 text-center" style={{ color: textColor }}>
               {quantity}
             </span>
             <button
               onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all"
               style={{
                 backgroundColor: `${textColor}10`,
                 color: textColor,
                 border: `1px solid ${textColor}20`,
               }}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Price + Add to Cart */}
-        <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${textColor}15` }}>
-          <span className="text-xl font-bold" style={{ color: primaryColor }}>
+        <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${textColor}15` }}>
+          <span className="text-lg sm:text-xl font-bold" style={{ color: primaryColor }}>
             {`\u00A3${(price / 100).toFixed(2)}`}
           </span>
           {checkoutEnabled ? (
             <button
               onClick={handleAddToCart}
-              className="px-6 py-2.5 rounded-lg font-semibold text-sm transition-all hover:opacity-90"
+              className="px-4 sm:px-6 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all hover:opacity-90"
               style={{ backgroundColor: primaryColor, color: secondaryColor }}
             >
               Add to Cart
