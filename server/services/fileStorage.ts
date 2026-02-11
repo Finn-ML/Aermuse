@@ -275,6 +275,54 @@ export function getAudioContentType(format: string): string {
 }
 
 // ============================================
+// MERCH PRODUCT IMAGE STORAGE
+// ============================================
+
+/**
+ * Upload a merch product image
+ */
+export async function uploadMerchImage(
+  userId: string,
+  productId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `merch/${userId}/${productId}/${timestamp}.${extension}`;
+
+  await getStorage().uploadFromBytes(path, buffer);
+
+  return {
+    path,
+    size: buffer.length
+  };
+}
+
+/**
+ * Download a merch product image
+ */
+export async function downloadMerchImage(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+
+  if (result.error) {
+    throw new Error(`Failed to download merch image: ${result.error.message}`);
+  }
+
+  return result.value![0];
+}
+
+/**
+ * Delete a merch product image
+ */
+export async function deleteMerchImage(path: string): Promise<void> {
+  try {
+    await getStorage().delete(path);
+  } catch {
+    // Ignore errors for files that don't exist
+  }
+}
+
+// ============================================
 // PROPOSAL CONTRACT STORAGE (Epic 13)
 // ============================================
 

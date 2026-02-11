@@ -87,9 +87,9 @@ export function startMailingListScheduler() {
 
           // Mark campaign as sent
           await storage.updateCampaign(campaign.id, {
-            status: 'sent',
+            status: batchResult.sent > 0 ? 'sent' : 'failed',
             sentAt: new Date(),
-            recipientCount: subscribers.length,
+            recipientCount: batchResult.sent,
           });
 
           console.log(`[SCHEDULER] Campaign ${campaign.id} sent to ${batchResult.sent} subscribers`);

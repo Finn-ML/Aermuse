@@ -17,7 +17,7 @@ import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
@@ -8415,6 +8415,95 @@ Sent at: ${new Date().toISOString()}
   // ============================================
 
   // Get all products for the authenticated artist
+  // Upload a merch product image
+  app.post("/api/merch/products/:id/images", requireAuth, requireFeature('merch-selling'), imageUpload.single("image"), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const result = await uploadMerchImage(userId, product.id, file.buffer, extension);
+      const url = `/api/merch/images/${encodeURIComponent(result.path)}`;
+
+      // Add URL to the product's images array
+      const currentImages = (product.images as string[]) || [];
+      currentImages.push(url);
+      await storage.updateProduct(product.id, { images: currentImages });
+
+      res.json({ success: true, url, path: result.path });
+    } catch (error) {
+      console.error("Merch image upload error:", error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 15MB." });
+        }
+      }
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  });
+
+  // Serve a merch product image
+  app.get("/api/merch/images/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
+      const buffer = await downloadMerchImage(filePath);
+
+      res.set('Content-Type', getImageContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Merch image download error:", error);
+      res.status(404).json({ error: "Image not found" });
+    }
+  });
+
+  // Delete a merch product image
+  app.delete("/api/merch/products/:id/images", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "Image URL required" });
+      }
+
+      // Remove from product's images array
+      const currentImages = (product.images as string[]) || [];
+      const updatedImages = currentImages.filter((img: string) => img !== url);
+      await storage.updateProduct(product.id, { images: updatedImages });
+
+      // Delete from object storage
+      const pathMatch = url.match(/\/api\/merch\/images\/(.+)/);
+      if (pathMatch) {
+        await deleteMerchImage(decodeURIComponent(pathMatch[1]));
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Merch image delete error:", error);
+      res.status(500).json({ error: "Failed to delete image" });
+    }
+  });
+
   app.get("/api/merch/products", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;

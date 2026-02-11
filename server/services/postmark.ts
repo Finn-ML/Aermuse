@@ -1062,12 +1062,14 @@ export async function sendBroadcastBatch(
 
       const batchResults = await client.sendEmailBatch(messages);
 
-      for (const r of batchResults) {
+      for (let j = 0; j < batchResults.length; j++) {
+        const r = batchResults[j];
         if (r.ErrorCode === 0) {
           sent++;
           results.push({ success: true, messageId: r.MessageID });
         } else {
           failed++;
+          console.error(`[EMAIL] Broadcast send failed for ${batch[j]?.to}: ErrorCode=${r.ErrorCode}, Message="${r.Message}"`);
           results.push({ success: false, error: r.Message });
         }
       }

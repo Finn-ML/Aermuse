@@ -70,7 +70,7 @@ const featureInfo = {
     description: 'Sell merchandise directly to your fans with your own integrated store.',
     icon: ShoppingBag,
     tier: 'Theta' as const,
-    price: '£30/month',
+    price: '£27.02/month',
     benefits: [
       'Create and manage products',
       'Set your own prices and variants',
@@ -85,7 +85,7 @@ const featureInfo = {
     description: 'Build and engage your fanbase with email collection and campaign tools.',
     icon: Users,
     tier: 'Theta' as const,
-    price: '£30/month',
+    price: '£27.02/month',
     benefits: [
       'Collect fan email addresses',
       'Build your subscriber list',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Edit, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Edit, Package, ChevronDown, ChevronUp, Upload, X, ImageIcon } from 'lucide-react';
 import type { MerchProduct, MerchVariant } from '@shared/schema';
 
 interface ProductWithVariants extends MerchProduct {
@@ -27,16 +27,22 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
   const [basePrice, setBasePrice] = useState(product ? (product.basePrice / 100).toFixed(2) : '');
   const [category, setCategory] = useState(product?.category ?? 'other');
   const [weight, setWeight] = useState(product?.weight?.toString() ?? '');
-  const [images, setImages] = useState(
-    product?.images ? (product.images as string[]).join('\n') : ''
+  const [uploadedImages, setUploadedImages] = useState<string[]>(
+    product?.images ? (product.images as string[]) : []
   );
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Track the product ID for uploading images (needed for new products)
+  const [createdProductId, setCreatedProductId] = useState<string | null>(product?.id ?? null);
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest('POST', '/api/merch/products', data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setCreatedProductId(data.id);
       queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
       toast({ title: 'Product created' });
       onClose();
@@ -61,16 +67,91 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
     },
   });
 
+  const handleImageUpload = async (file: File) => {
+    const productId = createdProductId || product?.id;
+    if (!productId) {
+      setUploadError('Please save the product first before uploading images.');
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Please select a JPG, PNG, or WebP image.');
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadError('File too large. Maximum size is 15MB.');
+      return;
+    }
+
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await fetch(`/api/merch/products/${productId}/images`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      const data = await response.json();
+      setUploadedImages(prev => [...prev, data.url]);
+      queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      setUploadError('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = async (url: string) => {
+    const productId = createdProductId || product?.id;
+    if (!productId) return;
+
+    try {
+      const response = await fetch(`/api/merch/products/${productId}/images`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+      setUploadedImages(prev => prev.filter(img => img !== url));
+      queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
+    } catch (err) {
+      console.error('Image delete failed:', err);
+      toast({ title: 'Error', description: 'Failed to remove image.', variant: 'destructive' });
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const imageList = images.split('\n').map(s => s.trim()).filter(Boolean);
     const data: Record<string, unknown> = {
       name,
       description,
       basePrice: Math.round(parseFloat(basePrice) * 100),
       category,
       weight: weight ? parseInt(weight) : null,
-      images: imageList,
+      images: uploadedImages,
     };
     if (isEdit) {
       updateMutation.mutate(data);
@@ -80,6 +161,7 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const canUpload = !!createdProductId;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,10 +198,74 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
         <Label htmlFor="weight">Weight (grams)</Label>
         <Input id="weight" type="number" min="0" value={weight} onChange={e => setWeight(e.target.value)} placeholder="200" />
       </div>
+
+      {/* Image Upload Section */}
       <div>
-        <Label htmlFor="images">Image URLs (one per line)</Label>
-        <Textarea id="images" value={images} onChange={e => setImages(e.target.value)} placeholder="https://example.com/image.jpg" rows={3} />
+        <Label>Product Images</Label>
+
+        {/* Uploaded image previews */}
+        {uploadedImages.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-2 mb-3">
+            {uploadedImages.map((url, idx) => (
+              <div key={idx} className="relative group rounded-lg overflow-hidden bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)]">
+                <img src={url} alt={`Product ${idx + 1}`} className="w-full h-20 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(url)}
+                  className="absolute top-1 right-1 p-0.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload area */}
+        {canUpload ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="merch-image-upload"
+            />
+            <label
+              htmlFor="merch-image-upload"
+              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                isUploading
+                  ? 'border-[rgba(102,0,51,0.3)] bg-[rgba(102,0,51,0.02)]'
+                  : 'border-[rgba(102,0,51,0.15)] hover:border-[rgba(102,0,51,0.3)] hover:bg-[rgba(102,0,51,0.02)]'
+              }`}
+            >
+              {isUploading ? (
+                <span className="text-sm text-[rgba(102,0,51,0.6)]">Uploading...</span>
+              ) : (
+                <>
+                  <Upload size={16} className="text-[rgba(102,0,51,0.4)]" />
+                  <span className="text-sm text-[rgba(102,0,51,0.5)]">
+                    Click to upload image (JPG, PNG, WebP)
+                  </span>
+                </>
+              )}
+            </label>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 w-full p-4 border-2 border-dashed rounded-lg border-[rgba(102,0,51,0.1)] bg-[rgba(102,0,51,0.01)]">
+            <ImageIcon size={16} className="text-[rgba(102,0,51,0.3)]" />
+            <span className="text-sm text-[rgba(102,0,51,0.4)]">
+              Save the product first, then add images
+            </span>
+          </div>
+        )}
+
+        {uploadError && (
+          <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
+        )}
       </div>
+
       <div className="flex justify-end gap-2 pt-2">
         <button
           type="button"
