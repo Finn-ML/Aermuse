@@ -40,11 +40,10 @@ export function SpinningDiscPlayer({
   className,
 }: SpinningDiscPlayerProps) {
   // Determine audio source: full stream if free streaming enabled, otherwise preview
+  // The preview endpoint falls back to original file if no preview is generated yet
   const audioUrl = track.allowFreeStreaming
     ? `/api/tracks/${track.id}/stream`
-    : track.previewFilePath
-      ? `/api/tracks/${track.id}/preview`
-      : undefined;
+    : `/api/tracks/${track.id}/preview`;
 
   const coverArtUrl = track.coverArtPath
     ? `/api/tracks/${track.id}/cover/${encodeURIComponent(track.coverArtPath)}`
