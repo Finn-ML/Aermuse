@@ -33,9 +33,11 @@ export async function getAudioMetadata(buffer: Buffer): Promise<AudioMetadata> {
         }
 
         const format = metadata.format;
-        const duration = Math.round(format.duration || 0);
+        const rawDuration = Number(format.duration);
+        const duration = isFinite(rawDuration) && rawDuration > 0 ? Math.round(rawDuration) : 0;
         const formatName = format.format_name || 'unknown';
-        const bitrate = format.bit_rate ? Math.round(format.bit_rate / 1000) : undefined;
+        const rawBitrate = Number(format.bit_rate);
+        const bitrate = isFinite(rawBitrate) && rawBitrate > 0 ? Math.round(rawBitrate / 1000) : undefined;
 
         resolve({
           duration,

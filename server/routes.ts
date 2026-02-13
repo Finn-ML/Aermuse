@@ -2502,7 +2502,11 @@ ${urls}
           // Get audio metadata (duration)
           try {
             const metadata = await getAudioMetadata(audioBuffer);
-            updates.durationSeconds = metadata.duration;
+            if (isFinite(metadata.duration) && metadata.duration > 0) {
+              updates.durationSeconds = metadata.duration;
+            } else {
+              console.warn("[TRACKS] Background: Invalid duration value:", metadata.duration);
+            }
           } catch (err) {
             console.warn("[TRACKS] Background: Failed to get audio duration:", err);
           }
@@ -2788,7 +2792,11 @@ ${urls}
 
           try {
             const audioMeta = await getAudioMetadata(audioBuffer);
-            updates.durationSeconds = audioMeta.duration;
+            if (isFinite(audioMeta.duration) && audioMeta.duration > 0) {
+              updates.durationSeconds = audioMeta.duration;
+            } else {
+              console.warn("[AUDIO CHUNKED] Background: Invalid duration value:", audioMeta.duration);
+            }
           } catch (err) {
             console.warn("[AUDIO CHUNKED] Background: Failed to get audio duration:", err);
           }
