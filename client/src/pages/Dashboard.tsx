@@ -583,6 +583,9 @@ export default function Dashboard() {
   };
 
   // Track mutations for music tab
+  // Track upload uses chunked upload to bypass proxy body-size limits
+  const AUDIO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
   const uploadTrack = async (options: {
     file: File;
     title: string;
@@ -607,34 +610,84 @@ export default function Dashboard() {
       previewStartSeconds,
     } = options;
 
-    const formData = new FormData();
-    formData.append('audio', file);
-    formData.append('title', title);
-    formData.append('priceInCents', priceInCents.toString());
-    formData.append('pricingType', pricingType);
-    if (minimumPriceInCents !== undefined) {
-      formData.append('minimumPriceInCents', minimumPriceInCents.toString());
-    }
-    if (suggestedPriceInCents !== undefined) {
-      formData.append('suggestedPriceInCents', suggestedPriceInCents.toString());
-    }
-    formData.append('allowFreeStreaming', allowFreeStreaming.toString());
-    if (previewStartSeconds !== undefined) {
-      formData.append('previewStartSeconds', previewStartSeconds.toString());
-    }
+    const totalChunks = Math.ceil(file.size / AUDIO_CHUNK_SIZE);
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'mp3';
 
-    const res = await fetch('/api/landing-page/tracks', {
+    console.log(`[AUDIO UPLOAD] Starting chunked upload: ${file.name} (${file.size} bytes, ${totalChunks} chunks)`);
+
+    // Step 1: Initialize upload
+    const initRes = await fetch('/api/landing-page/tracks/init-upload', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
+      body: JSON.stringify({
+        totalChunks,
+        fileName: file.name,
+        fileFormat: fileExtension,
+        title,
+        priceInCents,
+        pricingType,
+        minimumPriceInCents,
+        suggestedPriceInCents,
+        allowFreeStreaming,
+        previewStartSeconds,
+        currency: 'gbp',
+      }),
     });
 
-    if (!res.ok) {
-      const errorMessage = await parseErrorResponse(res, 'Failed to upload track');
+    if (!initRes.ok) {
+      const errorMessage = await parseErrorResponse(initRes, 'Failed to initialize upload');
       throw new Error(errorMessage);
     }
 
-    const track = await res.json();
+    const { uploadId } = await initRes.json();
+    console.log(`[AUDIO UPLOAD] Upload initialized: ${uploadId}`);
+
+    // Step 2: Upload chunks
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * AUDIO_CHUNK_SIZE;
+      const end = Math.min(start + AUDIO_CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+      const chunkBuffer = await chunk.arrayBuffer();
+
+      console.log(`[AUDIO UPLOAD] Uploading chunk ${i + 1}/${totalChunks} (${end - start} bytes)`);
+
+      const chunkRes = await fetch('/api/landing-page/tracks/chunk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-Upload-Id': uploadId,
+          'X-Chunk-Index': i.toString(),
+        },
+        credentials: 'include',
+        body: chunkBuffer,
+      });
+
+      if (!chunkRes.ok) {
+        const errorMessage = await parseErrorResponse(chunkRes, `Failed to upload chunk ${i + 1}`);
+        throw new Error(errorMessage);
+      }
+
+      const chunkResult = await chunkRes.json();
+      console.log(`[AUDIO UPLOAD] Chunk ${i + 1} received: ${chunkResult.received}/${chunkResult.total}`);
+    }
+
+    // Step 3: Complete upload
+    console.log(`[AUDIO UPLOAD] Completing upload...`);
+    const completeRes = await fetch('/api/landing-page/tracks/complete-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ uploadId }),
+    });
+
+    if (!completeRes.ok) {
+      const errorMessage = await parseErrorResponse(completeRes, 'Failed to complete upload');
+      throw new Error(errorMessage);
+    }
+
+    const track = await completeRes.json();
+    console.log(`[AUDIO UPLOAD] Upload completed: ${track.id}`);
 
     // Upload cover art if provided
     if (coverFile && track.id) {
