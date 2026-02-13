@@ -32,7 +32,10 @@ export async function uploadContractFile(
   const filename = versionSuffix ? `${versionSuffix}.${extension}` : `original.${extension}`;
   const path = `contracts/${userId}/${contractId}/${filename}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload contract file: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -75,7 +78,10 @@ export async function uploadSignedPdf(
 ): Promise<UploadResult> {
   const path = `signed/${contractId}/${filename}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload signed PDF: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -97,7 +103,10 @@ export async function uploadBackgroundImage(
   const timestamp = Date.now();
   const path = `landing-pages/${userId}/${landingPageId}/background-${timestamp}.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload background image: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -135,7 +144,10 @@ export async function uploadAvatarImage(
   const timestamp = Date.now();
   const path = `avatars/${userId}/${landingPageId}-${timestamp}.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload avatar image: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -168,7 +180,10 @@ export async function uploadTrackAudio(
 ): Promise<UploadResult> {
   const path = `tracks/${userId}/${trackId}/original.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload track audio: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -187,7 +202,10 @@ export async function uploadTrackPreview(
 ): Promise<UploadResult> {
   const path = `tracks/${userId}/${trackId}/preview.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload track preview: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -207,7 +225,10 @@ export async function uploadTrackCover(
   const timestamp = Date.now();
   const path = `tracks/${userId}/${trackId}/cover-${timestamp}.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload track cover: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -290,7 +311,10 @@ export async function uploadMerchImage(
   const timestamp = Date.now();
   const path = `merch/${userId}/${productId}/${timestamp}.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload merch image: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -338,7 +362,10 @@ export async function uploadProposalContract(
   const sanitizedFilename = originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_');
   const path = `proposals/${proposalId}/${sanitizedFilename}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload proposal contract: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -386,7 +413,10 @@ export async function uploadBackgroundVideo(
   const timestamp = Date.now();
   const path = `landing-pages/${userId}/${landingPageId}/background-video-${timestamp}.${format}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload background video: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -405,7 +435,10 @@ export async function uploadBackgroundVideoFallback(
   const timestamp = Date.now();
   const path = `landing-pages/${userId}/${landingPageId}/background-video-fallback-${timestamp}.mp4`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload video fallback: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -424,7 +457,10 @@ export async function uploadBackgroundVideoPoster(
   const timestamp = Date.now();
   const path = `landing-pages/${userId}/${landingPageId}/background-video-poster-${timestamp}.jpg`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload video poster: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -623,7 +659,10 @@ export async function uploadArtistVideo(
 ): Promise<UploadResult> {
   const path = `videos/${userId}/${videoId}/original.${format}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload artist video: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -642,7 +681,10 @@ export async function uploadArtistVideoPreview(
 ): Promise<UploadResult> {
   const path = `videos/${userId}/${videoId}/preview.${format}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload artist video preview: ${result.error.message}`);
+  }
 
   return {
     path,
@@ -661,7 +703,10 @@ export async function uploadArtistVideoThumbnail(
 ): Promise<UploadResult> {
   const path = `videos/${userId}/${videoId}/thumbnail.${extension}`;
 
-  await getStorage().uploadFromBytes(path, buffer);
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload artist video thumbnail: ${result.error.message}`);
+  }
 
   return {
     path,

@@ -2738,7 +2738,9 @@ ${urls}
       const previewStartSeconds = metadata.previewStartSeconds;
 
       // Upload original file to storage
+      console.log(`[AUDIO CHUNKED] Uploading ${completeBuffer.length} bytes to storage...`);
       const uploadResult = await uploadTrackAudio(userId, trackId, completeBuffer, fileFormat);
+      console.log(`[AUDIO CHUNKED] Upload successful: ${uploadResult.path}`);
 
       // Get landing page for artist name fallback
       const landingPage = await storage.getLandingPage(landingPageId);
