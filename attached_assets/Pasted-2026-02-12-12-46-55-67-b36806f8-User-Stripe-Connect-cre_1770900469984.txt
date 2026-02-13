@@ -1,0 +1,108 @@
+2026-02-12 12:46:55.67
+b36806f8
+User
+Stripe Connect create error: im [Error]: Please review the responsibilities of managing losses for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.
+2026-02-12 12:46:55.67
+b36806f8
+User
+at am (/home/runner/workspace/dist/index.cjs:132:92780)
+2026-02-12 12:46:55.67
+b36806f8
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+2026-02-12 12:46:55.67
+b36806f8
+User
+'access-control-expose-headers': 'Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required',
+2026-02-12 12:46:55.67
+b36806f8
+User
+vary: 'Origin',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'x-stripe-priority-routing-enabled': 'true',
+2026-02-12 12:46:55.67
+b36806f8
+User
+requestId: 'req_CqMgjFAmiyH5rQ'
+2026-02-12 12:46:55.67
+b36806f8
+User
+'access-control-allow-methods': 'GET, HEAD, PUT, PATCH, POST, DELETE',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'access-control-expose-headers': 'Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required',
+2026-02-12 12:46:55.67
+b36806f8
+User
+server: 'nginx',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'stripe-should-retry': 'false',
+2026-02-12 12:46:55.67
+b36806f8
+User
+Stripe Connect create error: im [Error]: Please review the responsibilities of managing losses for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.
+2026-02-12 12:46:55.67
+b36806f8
+User
+at s.toJSON.then.vu.message (/home/runner/workspace/dist/index.cjs:132:97544)
+2026-02-12 12:46:55.67
+b36806f8
+User
+'content-length': '337',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'idempotency-key': 'stripe-node-retry-97b2cce5-20be-4529-9651-493867bdcf66',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'access-control-allow-origin': '*',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'content-type': 'application/json',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'content-security-policy': "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=MWGBGm7kZzCQrN2mkA-B6yxXxKpjf7FLX9i1Jcq6x1UUlhyxPCijZtKEkF1LJEy_HMrjWDypzXkHtWZt",
+2026-02-12 12:46:55.67
+b36806f8
+User
+code: undefined,
+2026-02-12 12:46:55.67
+b36806f8
+User
+'cache-control': 'no-cache, no-store',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'stripe-version': '2023-10-16',
+2026-02-12 12:46:55.67
+b36806f8
+User
+connection: 'keep-alive',
+2026-02-12 12:46:55.67
+b36806f8
+User
+rawType: 'invalid_request_error',
+2026-02-12 12:46:55.67
+b36806f8
+User
+type: 'invalid_request_error',
+2026-02-12 12:46:55.67
+b36806f8
+User
+message: 'Please review the responsibilities of managing losses for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.',
+2026-02-12 12:46:55.67
+b36806f8
+User
+'strict-transport-security': 'max-age=63072000; includeSubDomains; preload'
+2026-02-12 12:46:55.67
+b36806f8
+User
+'ac
