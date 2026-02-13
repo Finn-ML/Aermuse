@@ -2448,49 +2448,11 @@ ${urls}
       // Generate track ID
       const trackId = crypto.randomUUID();
 
-      // Get audio metadata (duration)
-      let durationSeconds: number | undefined;
-      try {
-        const metadata = await getAudioMetadata(file.buffer);
-        durationSeconds = metadata.duration;
-      } catch (err) {
-        console.warn("[TRACKS] Failed to get audio duration:", err);
-      }
-
-      // Upload original file
+      // Upload original file first (must complete before responding)
       const uploadResult = await uploadTrackAudio(userId, trackId, file.buffer, fileFormat);
 
-      // Generate and upload preview
-      let previewPath: string | undefined;
-      try {
-        const parsedPreviewStart = previewStartSeconds !== undefined ? parseInt(previewStartSeconds, 10) : undefined;
-        const preview = await generatePreview(file.buffer, fileFormat, 30, isNaN(parsedPreviewStart!) ? undefined : parsedPreviewStart);
-        const previewUpload = await uploadTrackPreview(userId, trackId, preview.buffer, fileFormat);
-        previewPath = previewUpload.path;
-      } catch (err) {
-        console.warn("[TRACKS] Failed to generate preview:", err);
-        // Continue without preview - we can generate it later
-      }
-
-      // Create Stripe product and price
-      let stripeProductId: string | undefined;
-      let stripePriceId: string | undefined;
-      try {
-        const stripeResult = await createTrackProduct({
-          trackId,
-          title,
-          artistName: artistName || landingPage.artistName,
-          priceInCents: price,
-          currency,
-        });
-        stripeProductId = stripeResult.productId;
-        stripePriceId = stripeResult.priceId;
-      } catch (err) {
-        console.error("[TRACKS] Failed to create Stripe product:", err);
-        // Continue without Stripe - can be set up later
-      }
-
-      // Create track record in database
+      // Create track record in database immediately so client gets a fast response
+      // Preview, metadata, and Stripe product are generated in the background
       const track = await storage.createTrack({
         id: trackId,
         landingPageId: landingPage.id,
@@ -2505,20 +2467,70 @@ ${urls}
         suggestedPriceInCents: suggestedPrice,
         allowFreeStreaming: isFreeStreaming,
         originalFilePath: uploadResult.path,
-        previewFilePath: previewPath || null,
+        previewFilePath: null,
         coverArtPath: null,
         originalFileName: file.originalname,
         fileFormat,
         fileSizeBytes: file.buffer.length,
-        durationSeconds: durationSeconds || null,
+        durationSeconds: null,
         previewStartSeconds: (previewStartSeconds !== undefined ? parseInt(previewStartSeconds, 10) : 0) || 0,
-        stripeProductId: stripeProductId || null,
-        stripePriceId: stripePriceId || null,
+        stripeProductId: null,
+        stripePriceId: null,
         displayOrder: 0,
         isPublished: false,
       });
 
+      // Respond immediately so the client doesn't hang
       res.json(track);
+
+      // Process heavy tasks in the background (preview generation, metadata, Stripe)
+      const audioBuffer = file.buffer;
+      setImmediate(async () => {
+        try {
+          const updates: Record<string, any> = {};
+
+          // Get audio metadata (duration)
+          try {
+            const metadata = await getAudioMetadata(audioBuffer);
+            updates.durationSeconds = metadata.duration;
+          } catch (err) {
+            console.warn("[TRACKS] Background: Failed to get audio duration:", err);
+          }
+
+          // Generate and upload preview
+          try {
+            const parsedPreviewStart = previewStartSeconds !== undefined ? parseInt(previewStartSeconds, 10) : undefined;
+            const preview = await generatePreview(audioBuffer, fileFormat, 30, isNaN(parsedPreviewStart!) ? undefined : parsedPreviewStart);
+            const previewUpload = await uploadTrackPreview(userId, trackId, preview.buffer, fileFormat);
+            updates.previewFilePath = previewUpload.path;
+          } catch (err) {
+            console.warn("[TRACKS] Background: Failed to generate preview:", err);
+          }
+
+          // Create Stripe product and price
+          try {
+            const stripeResult = await createTrackProduct({
+              trackId,
+              title,
+              artistName: artistName || landingPage.artistName,
+              priceInCents: price,
+              currency,
+            });
+            updates.stripeProductId = stripeResult.productId;
+            updates.stripePriceId = stripeResult.priceId;
+          } catch (err) {
+            console.error("[TRACKS] Background: Failed to create Stripe product:", err);
+          }
+
+          // Update track with background-processed data
+          if (Object.keys(updates).length > 0) {
+            await storage.updateTrack(trackId, updates);
+            console.log(`[TRACKS] Background processing complete for track ${trackId}:`, Object.keys(updates));
+          }
+        } catch (err) {
+          console.error(`[TRACKS] Background processing failed for track ${trackId}:`, err);
+        }
+      });
     } catch (error) {
       console.error("Upload track error:", error);
       if (error instanceof multer.MulterError) {
