@@ -44,9 +44,10 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
     };
 
     const handleLoadedMetadata = () => {
+      const dur = audio.duration;
       setState(s => ({
         ...s,
-        duration: audio.duration,
+        duration: isFinite(dur) ? dur : 0,
         isLoading: false,
       }));
     };
@@ -67,7 +68,7 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
 
     const handleEnded = () => {
       setState(s => ({ ...s, isPlaying: false, currentTime: 0 }));
-      audio.currentTime = 0;
+      try { audio.currentTime = 0; } catch {}
     };
 
     const handleError = () => {
@@ -156,7 +157,7 @@ export function useAudioPlayer(initialUrl?: string): UseAudioPlayerReturn {
   }, [state.isPlaying, play, pause]);
 
   const seek = useCallback((time: number) => {
-    if (audioRef.current) {
+    if (audioRef.current && isFinite(time)) {
       audioRef.current.currentTime = time;
       setState(s => ({ ...s, currentTime: time }));
     }

@@ -199,7 +199,7 @@ export function SpinningDiscPlayer({
       {audioUrl && (
         <AudioProgressBar
           currentTime={currentTime}
-          duration={duration || track.durationSeconds || 0}
+          duration={(isFinite(duration) && duration > 0 ? duration : null) || track.durationSeconds || 0}
           buffered={buffered}
           onSeek={seek}
           onSeekStart={() => setIsSeeking(true)}
