@@ -120,7 +120,7 @@ export const BACKGROUND_IMAGE_CONSTANTS = {
 
 const ALLOWED_AUDIO_EXTENSIONS = ['.mp3', '.wav'];
 const ALLOWED_AUDIO_MIMES = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/wave'];
-const MAX_AUDIO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_AUDIO_SIZE = 200 * 1024 * 1024; // 200MB - WAV files are uncompressed and need a higher limit
 
 export const audioUpload = multer({
   storage,

@@ -2364,8 +2364,18 @@ ${urls}
     }
   });
 
-  // Upload a new track
-  app.post("/api/landing-page/tracks", audioUpload.single("audio"), async (req: Request, res: Response) => {
+  // Upload a new track — wraps multer to catch its errors at the route level
+  app.post("/api/landing-page/tracks", (req: Request, res: Response, next) => {
+    audioUpload.single("audio")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({ error: "File too large. Maximum size is 200MB." });
+        }
+        return res.status(400).json({ error: err.message || "Upload failed" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -2533,11 +2543,6 @@ ${urls}
       });
     } catch (error) {
       console.error("Upload track error:", error);
-      if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: "File too large. Maximum size is 50MB." });
-        }
-      }
       res.status(500).json({ error: "Failed to upload track" });
     }
   });

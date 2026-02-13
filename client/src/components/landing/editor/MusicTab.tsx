@@ -209,8 +209,9 @@ export function MusicTab({
       if (hasCollaborators && uploadedTrack && onOpenSplits) {
         onOpenSplits(uploadedTrack);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload failed:', error);
+      alert(error?.message || 'Upload failed. Please try again.');
     } finally {
       setUploadingTrack(false);
     }
@@ -314,7 +315,7 @@ export function MusicTab({
                 <>
                   <Upload size={24} className="text-[rgba(102,0,51,0.4)]" />
                   <span className="text-sm text-[rgba(102,0,51,0.6)]">Click to select audio file</span>
-                  <span className="text-xs text-[rgba(102,0,51,0.4)]">Max 50MB</span>
+                  <span className="text-xs text-[rgba(102,0,51,0.4)]">MP3 or WAV, max 200MB</span>
                 </>
               )}
             </button>
@@ -953,7 +954,7 @@ export function MusicTab({
       <div className="p-3 rounded-lg bg-[rgba(102,0,51,0.05)] text-xs text-[rgba(102,0,51,0.6)]">
         <p className="font-semibold mb-1">How it works:</p>
         <ul className="list-disc list-inside space-y-0.5">
-          <li>Upload MP3 or WAV files (max 50MB)</li>
+          <li>Upload MP3 or WAV files (max 200MB)</li>
           <li>A 30-second preview is generated automatically (customise with the <Scissors size={10} className="inline" /> icon)</li>
           <li>Fans can preview and purchase tracks on your artist page</li>
           <li>Click on cover art to add album artwork</li>
