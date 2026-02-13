@@ -846,13 +846,13 @@ export default function ArtistPage() {
       </motion.section>
 
       {/* Links Section with Cinematic Cards */}
-      {page.links && page.links.length > 0 && (
+      {(page.links?.length > 0 || paywalledVideos.length > 0) && (
         <section className="py-4 md:py-8 px-4 relative">
           <div className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
             {(() => {
-              const videoLinks = page.links.filter(l => l.type === 'video_embed' && l.enabled && l.videoUrl);
-              const regularLinks = page.links.filter(l => l.type !== 'video_embed' && l.enabled);
-              const headers = page.links.filter(l => l.type === 'header' && l.title?.trim());
+              const videoLinks = (page.links || []).filter(l => l.type === 'video_embed' && l.enabled && l.videoUrl);
+              const regularLinks = (page.links || []).filter(l => l.type !== 'video_embed' && l.enabled);
+              const headers = (page.links || []).filter(l => l.type === 'header' && l.title?.trim());
 
               return (
                 <>

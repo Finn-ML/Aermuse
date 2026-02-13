@@ -1,9 +1,11 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
+import ffprobePath from '@ffprobe-installer/ffprobe';
 import { Readable, PassThrough } from 'stream';
 
-// Set FFmpeg path
+// Set FFmpeg and FFprobe paths
 ffmpeg.setFfmpegPath(ffmpegPath.path);
+ffmpeg.setFfprobePath(ffprobePath.path);
 
 export interface VideoMetadata {
   duration: number; // seconds
