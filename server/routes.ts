@@ -57,6 +57,15 @@ const proposalRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiter for purchase verify endpoints (10 per minute per IP)
+const purchaseVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: 'Too many verification requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /**
  * Get the base URL from the request for constructing email links.
  * Uses the Origin header, X-Forwarded-Host, or Host header to dynamically
@@ -1737,7 +1746,12 @@ ${urls}
         return res.status(404).json({ error: "Landing page not found" });
       }
 
-      const updatedPage = await storage.updateLandingPage(page.id, req.body);
+      const allowedPageFields = ['title', 'subtitle', 'description', 'artistName', 'theme', 'customColors', 'socialLinks', 'isPublished', 'showGrain', 'backgroundType', 'fontFamily', 'accentColor'];
+      const pageUpdates: Record<string, unknown> = {};
+      for (const key of allowedPageFields) {
+        if (req.body[key] !== undefined) pageUpdates[key] = req.body[key];
+      }
+      const updatedPage = await storage.updateLandingPage(page.id, pageUpdates);
       res.json(updatedPage);
     } catch (error) {
       console.error("Update landing page error:", error);
@@ -2581,7 +2595,12 @@ ${urls}
         }
       }
 
-      const updatedTrack = await storage.updateTrack(req.params.id, req.body);
+      const allowedTrackFields = ['title', 'artistName', 'description', 'priceInCents', 'isPublished', 'displayOrder', 'genre', 'isPayWhatYouWant', 'minimumPriceInCents', 'stripePriceId'];
+      const trackUpdates: Record<string, unknown> = {};
+      for (const key of allowedTrackFields) {
+        if (req.body[key] !== undefined) trackUpdates[key] = req.body[key];
+      }
+      const updatedTrack = await storage.updateTrack(req.params.id, trackUpdates);
       res.json(updatedTrack);
     } catch (error) {
       console.error("Update track error:", error);
@@ -2944,7 +2963,7 @@ ${urls}
   });
 
   // Verify purchase and get download token
-  app.get("/api/tracks/purchase/verify", async (req: Request, res: Response) => {
+  app.get("/api/tracks/purchase/verify", purchaseVerifyLimiter, async (req: Request, res: Response) => {
     try {
       const { session_id } = req.query;
       if (!session_id || typeof session_id !== 'string') {
@@ -2977,23 +2996,38 @@ ${urls}
       const downloadExpires = new Date();
       downloadExpires.setDate(downloadExpires.getDate() + 30); // 30 days
 
-      const purchase = await storage.createTrackPurchase({
-        trackId: details.trackId,
-        buyerEmail: details.buyerEmail,
-        buyerName: details.buyerName || null,
-        stripePaymentIntentId: details.paymentIntentId || null,
-        stripeCheckoutSessionId: session_id,
-        amountPaidCents: details.amountPaid,
-        currency: details.currency,
-        downloadToken,
-        downloadCount: 0,
-        maxDownloads: 5,
-        downloadExpiresAt: downloadExpires,
-        status: 'completed',
-      });
+      let purchase;
+      try {
+        purchase = await storage.createTrackPurchase({
+          trackId: details.trackId,
+          buyerEmail: details.buyerEmail,
+          buyerName: details.buyerName || null,
+          stripePaymentIntentId: details.paymentIntentId || null,
+          stripeCheckoutSessionId: session_id,
+          amountPaidCents: details.amountPaid,
+          currency: details.currency,
+          downloadToken,
+          downloadCount: 0,
+          maxDownloads: 5,
+          downloadExpiresAt: downloadExpires,
+          status: 'completed',
+        });
 
-      // Increment purchase count
-      await storage.incrementTrackPurchaseCount(details.trackId);
+        // Increment purchase count
+        await storage.incrementTrackPurchaseCount(details.trackId);
+      } catch (err: any) {
+        if (err.code === '23505') { // unique constraint violation
+          const existing = await storage.getTrackPurchaseBySession(session_id);
+          if (existing) {
+            return res.json({
+              success: true,
+              downloadToken: existing.downloadToken,
+              trackId: existing.trackId,
+            });
+          }
+        }
+        throw err;
+      }
 
       // Get track and artist details for emails
       const track = await storage.getTrack(details.trackId);
@@ -4039,7 +4073,7 @@ ${urls}
   });
 
   // Verify video purchase and get access token
-  app.get("/api/videos/purchase/verify", async (req: Request, res: Response) => {
+  app.get("/api/videos/purchase/verify", purchaseVerifyLimiter, async (req: Request, res: Response) => {
     try {
       const { session_id } = req.query;
       if (!session_id || typeof session_id !== 'string') {
@@ -4072,20 +4106,35 @@ ${urls}
       const accessExpires = new Date();
       accessExpires.setDate(accessExpires.getDate() + 30);
 
-      const purchase = await storage.createVideoPurchase({
-        videoId: details.videoId,
-        buyerEmail: details.buyerEmail,
-        buyerName: details.buyerName || null,
-        stripePaymentIntentId: details.paymentIntentId || null,
-        stripeCheckoutSessionId: session_id,
-        amountPaidCents: details.amountPaid,
-        currency: details.currency,
-        accessToken,
-        accessExpiresAt: accessExpires,
-        status: 'completed',
-      });
+      let purchase;
+      try {
+        purchase = await storage.createVideoPurchase({
+          videoId: details.videoId,
+          buyerEmail: details.buyerEmail,
+          buyerName: details.buyerName || null,
+          stripePaymentIntentId: details.paymentIntentId || null,
+          stripeCheckoutSessionId: session_id,
+          amountPaidCents: details.amountPaid,
+          currency: details.currency,
+          accessToken,
+          accessExpiresAt: accessExpires,
+          status: 'completed',
+        });
 
-      await storage.incrementVideoPurchaseCount(details.videoId);
+        await storage.incrementVideoPurchaseCount(details.videoId);
+      } catch (err: any) {
+        if (err.code === '23505') { // unique constraint violation
+          const existing = await storage.getVideoPurchaseBySession(session_id);
+          if (existing) {
+            return res.json({
+              success: true,
+              accessToken: existing.accessToken,
+              videoId: existing.videoId,
+            });
+          }
+        }
+        throw err;
+      }
 
       // Send purchase receipt and artist notification emails (async, don't block response)
       const video = await storage.getArtistVideo(details.videoId);
