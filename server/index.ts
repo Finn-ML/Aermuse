@@ -38,10 +38,17 @@ if (process.env.NODE_ENV === "production" || process.env.REPL_ID) {
   app.set("trust proxy", 1);
 }
 
+// Require SESSION_SECRET — refuse to start with a hardcoded fallback
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  console.error("FATAL: SESSION_SECRET environment variable is not set. Refusing to start.");
+  process.exit(1);
+}
+
 // Session middleware with PostgreSQL store for persistence across restarts
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "aermuse-secret-key-change-in-production",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: new PgStore({
@@ -159,7 +166,10 @@ app.use((req, res, next) => {
  * Background job scheduler for periodic tasks
  */
 function startScheduledJobs() {
-  const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-api-key';
+  const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+  if (!INTERNAL_API_KEY) {
+    console.warn("WARNING: INTERNAL_API_KEY not set. Internal endpoints will reject all requests.");
+  }
   const APP_URL = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
 
   // Process split deadlines every hour
