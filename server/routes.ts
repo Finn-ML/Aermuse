@@ -786,7 +786,12 @@ ${urls}
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      const updatedContract = await storage.updateContract(req.params.id, req.body);
+      const allowedFields = ['name', 'type', 'partnerName', 'value', 'expiryDate', 'folderId', 'notes', 'status'];
+      const updates: Record<string, unknown> = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) updates[key] = req.body[key];
+      }
+      const updatedContract = await storage.updateContract(req.params.id, updates);
       res.json(updatedContract);
     } catch (error) {
       console.error("Update contract error:", error);
@@ -4788,9 +4793,13 @@ ${urls}
   // Process expired split deadlines (internal/cron endpoint)
   app.post("/api/internal/splits/process-deadlines", async (req: Request, res: Response) => {
     try {
-      // This could be protected by an API key in production
+      // Require API key — reject if not configured or mismatched
       const apiKey = req.headers['x-api-key'];
-      if (process.env.INTERNAL_API_KEY && apiKey !== process.env.INTERNAL_API_KEY) {
+      const expectedKey = process.env.INTERNAL_API_KEY;
+      if (!expectedKey) {
+        return res.status(503).json({ error: "Internal API not configured" });
+      }
+      if (apiKey !== expectedKey) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
