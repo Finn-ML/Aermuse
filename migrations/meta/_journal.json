@@ -8,6 +8,13 @@
       "when": 1769731596748,
       "tag": "0000_serious_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771339704940,
+      "tag": "0001_fuzzy_aqueduct",
+      "breakpoints": true
     }
   ]
 }

@@ -38,6 +38,7 @@ import crypto from "crypto";
 import { sendSignatureRequestEmail, sendSignatureReminderEmail, sendSignatureCancelledEmail, sendSignatureConfirmationEmail, sendDocumentCompletedEmail } from "./services/postmark";
 import { registerAnalyticsRoutes } from "./routes/analytics";
 import { registerMailingListRoutes } from "./routes/mailing-list";
+import { registerVentureApiRoutes } from "./routes/ventureApi";
 
 // Rate limiter for resend verification (1 per 5 minutes)
 const resendLimiter = rateLimit({
@@ -91,6 +92,9 @@ export async function registerRoutes(
 
   // Register mailing list routes (Mailing List Feature)
   registerMailingListRoutes(app);
+
+  // Register VentureAPI routes (external metrics API)
+  registerVentureApiRoutes(app);
 
   // SEO routes
   app.get("/robots.txt", (_req: Request, res: Response) => {
@@ -289,6 +293,9 @@ ${urls}
       }
 
       (req.session as any).userId = user.id;
+
+      // Track last login time for VentureAPI active user metrics
+      await storage.updateUser(user.id, { lastLoginAt: new Date() } as any);
 
       const { password: _, ...safeUser } = user;
       res.json({ user: safeUser });

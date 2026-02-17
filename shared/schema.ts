@@ -46,6 +46,8 @@ export const users = pgTable("users", {
   subscriptionTier: text("subscription_tier").default("free").$type<SubscriptionTier>(),
   // AI Disclaimer acceptance
   aiDisclaimerAcceptedAt: timestamp("ai_disclaimer_accepted_at", { withTimezone: true }),
+  // Last login tracking (VentureAPI)
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
