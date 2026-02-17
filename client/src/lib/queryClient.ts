@@ -52,7 +52,10 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(data ? { "Content-Type": "application/json" } : {}),
+      "X-Requested-With": "XMLHttpRequest",
+    },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -69,6 +72,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

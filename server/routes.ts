@@ -92,6 +92,24 @@ export async function registerRoutes(
   // Register mailing list routes (Mailing List Feature)
   registerMailingListRoutes(app);
 
+  // CSRF protection — require X-Requested-With header on all mutating requests
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      // Skip for webhook endpoints that receive external callbacks
+      if (req.path.startsWith('/api/webhooks') || req.path.startsWith('/api/docuseal-webhook')) {
+        return next();
+      }
+      // Skip for Stripe webhook
+      if (req.path === '/api/stripe/webhook') {
+        return next();
+      }
+      if (req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+        return res.status(403).json({ error: 'CSRF validation failed' });
+      }
+    }
+    next();
+  });
+
   // SEO routes
   app.get("/robots.txt", (_req: Request, res: Response) => {
     const robotsTxt = `User-agent: *
