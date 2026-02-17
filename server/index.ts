@@ -38,10 +38,18 @@ if (process.env.NODE_ENV === "production" || process.env.REPL_ID) {
   app.set("trust proxy", 1);
 }
 
+// Validate session secret in production — hardcoded fallback is a critical security risk
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  throw new Error(
+    "SESSION_SECRET environment variable is required in production. " +
+    "Generate one with: openssl rand -base64 32"
+  );
+}
+
 // Session middleware with PostgreSQL store for persistence across restarts
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "aermuse-secret-key-change-in-production",
+    secret: process.env.SESSION_SECRET || "aermuse-dev-secret-not-for-production",
     resave: false,
     saveUninitialized: false,
     store: new PgStore({
@@ -94,7 +102,9 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      // Only log response bodies in development — production logs could
+      // leak tokens, session data, or PII to log aggregators
+      if (capturedJsonResponse && process.env.NODE_ENV !== "production") {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -118,8 +128,13 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    // Log the error but don't re-throw — throw in Express error handler
+    // causes an unhandled exception that can crash the process
+    console.error(`[ERROR] ${status}: ${message}`, err.stack || err);
+
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after
