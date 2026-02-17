@@ -635,7 +635,7 @@ export default function ContractView() {
                       prose-table:border-collapse prose-table:w-full
                       prose-th:bg-[rgba(102,0,51,0.05)] prose-th:text-[#660033] prose-th:p-3 prose-th:text-left prose-th:border prose-th:border-[rgba(102,0,51,0.1)]
                       prose-td:p-3 prose-td:border prose-td:border-[rgba(102,0,51,0.1)]"
-                    dangerouslySetInnerHTML={{ __html: contract.renderedContent }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(contract.renderedContent) }}
                   />
                 </div>
               </div>
