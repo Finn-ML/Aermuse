@@ -6970,12 +6970,17 @@ Sent at: ${new Date().toISOString()}
   // Verify webhook signature
   function verifyWebhookSignature(payload: string, signature: string | undefined, secret: string): boolean {
     if (!signature || !secret) {
-      // In development without secret, allow all webhooks
-      if (!secret) {
-        console.warn('[WEBHOOK] No webhook secret configured - skipping verification (dev mode)');
+      // In development without secret, allow all webhooks with a warning
+      if (!secret && process.env.NODE_ENV !== "production") {
+        console.warn('[WEBHOOK] No webhook secret configured - skipping verification (dev mode only)');
         return true;
       }
-      console.warn(`[WEBHOOK] Missing signature or secret. Signature present: ${!!signature}, Secret present: ${!!secret}`);
+      // In production, reject if no secret is configured
+      if (!secret) {
+        console.error('[WEBHOOK] WEBHOOK_SECRET not configured — rejecting webhook');
+        return false;
+      }
+      console.warn('[WEBHOOK] Missing signature header');
       return false;
     }
 
@@ -6984,12 +6989,6 @@ Sent at: ${new Date().toISOString()}
       .createHmac('sha256', secret)
       .update(payload)
       .digest('hex');
-
-    // Log for debugging (remove in production)
-    console.log(`[WEBHOOK] Signature verification:`);
-    console.log(`  Received: ${signature}`);
-    console.log(`  Expected: ${expectedSignature}`);
-    console.log(`  Secret (first 10 chars): ${secret.substring(0, 10)}...`);
 
     // Handle both formats: "sha256=hash" or just "hash"
     const receivedHash = signature.startsWith('sha256=') ? signature.slice(7) : signature;
