@@ -1929,13 +1929,28 @@ ${urls}
     createdAt: Date;
   }>();
 
-  // Clean up stale background video uploads (older than 1 hour)
+  // In-memory store for background video processing jobs
+  const bgVideoJobs = new Map<string, {
+    status: 'processing' | 'complete' | 'error';
+    progress?: string;
+    result?: { webmUrl: string; mp4Url?: string; duration: number };
+    error?: string;
+    createdAt: Date;
+  }>();
+
+  // Clean up stale uploads (1 hour) and completed jobs (10 minutes)
   setInterval(() => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     for (const [uploadId, upload] of Array.from(bgVideoChunkedUploads.entries())) {
       if (upload.createdAt < oneHourAgo) {
         bgVideoChunkedUploads.delete(uploadId);
         console.log(`[VIDEO] Cleaned up stale chunked upload: ${uploadId}`);
+      }
+    }
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+    for (const [jobId, job] of Array.from(bgVideoJobs.entries())) {
+      if (job.status !== 'processing' && job.createdAt < tenMinAgo) {
+        bgVideoJobs.delete(jobId);
       }
     }
   }, 5 * 60 * 1000);
@@ -2151,14 +2166,9 @@ ${urls}
     }
   });
 
-  // Complete chunked background video upload - reassemble, convert, store
+  // Complete chunked background video upload - validates, kicks off async processing, returns job ID
   app.post("/api/landing-page/background-video/complete-upload", async (req: Request, res: Response) => {
-    const startTime = Date.now();
     try {
-      // Extend timeout for FFmpeg processing
-      req.setTimeout(600000);
-      res.setTimeout(600000);
-
       const userId = (req.session as any).userId;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
@@ -2196,7 +2206,7 @@ ${urls}
       // Free chunk memory immediately
       bgVideoChunkedUploads.delete(uploadId);
 
-      // Verify video type using magic bytes
+      // Verify video type synchronously before returning
       const verification = await verifyVideoType(completeBuffer);
       if (!verification.valid) {
         console.warn(`[VIDEO] Chunked upload rejected: invalid video type (user ${userId}, error: ${verification.error})`);
@@ -2204,71 +2214,120 @@ ${urls}
       }
 
       const inputFormat = verification.type as 'mp4' | 'mov' | 'webm';
-      console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
-      const conversionStart = Date.now();
+      const jobId = crypto.randomUUID();
 
-      // Process video - convert to webm with mp4 fallback + poster frame
-      const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
-        generateFallback: true,
-        quality: 'medium'
+      // Create job and return immediately
+      bgVideoJobs.set(jobId, {
+        status: 'processing',
+        progress: 'Starting conversion...',
+        createdAt: new Date(),
       });
 
-      const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
-      const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
-      const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
-      console.log(`[VIDEO] Conversion complete in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB, duration=${webm.duration}s (user ${userId})`);
+      console.log(`[VIDEO] Job ${jobId} created, starting async processing (user ${userId}, ${sizeMB}MB, ${inputFormat})`);
 
-      // Upload WebM (primary format)
-      const uploadStart = Date.now();
-      const webmResult = await uploadBackgroundVideo(userId, upload.landingPageId, webm.buffer, 'webm');
-      const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
-      console.log(`[VIDEO] WebM uploaded to storage (user ${userId})`);
+      // Return job ID immediately — client will poll for status
+      res.json({ jobId });
 
-      // Upload MP4 fallback
-      let mp4Url: string | undefined;
-      if (mp4) {
-        const mp4Result = await uploadBackgroundVideo(userId, upload.landingPageId, mp4.buffer, 'mp4');
-        mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
-        console.log(`[VIDEO] MP4 fallback uploaded to storage (user ${userId})`);
+      // Process asynchronously (not awaited)
+      (async () => {
+        const startTime = Date.now();
+        try {
+          const job = bgVideoJobs.get(jobId)!;
+          job.progress = 'Converting video...';
+
+          const conversionStart = Date.now();
+          const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
+            generateFallback: true,
+            quality: 'medium'
+          });
+
+          const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
+          const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
+          const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
+          console.log(`[VIDEO] Job ${jobId} conversion done in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB (user ${userId})`);
+
+          job.progress = 'Uploading to storage...';
+
+          // Upload WebM
+          const uploadStart = Date.now();
+          const webmResult = await uploadBackgroundVideo(userId, upload.landingPageId, webm.buffer, 'webm');
+          const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
+
+          // Upload MP4 fallback
+          let mp4Url: string | undefined;
+          if (mp4) {
+            const mp4Result = await uploadBackgroundVideo(userId, upload.landingPageId, mp4.buffer, 'mp4');
+            mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
+          }
+
+          // Upload poster frame
+          let posterUrl: string | undefined;
+          if (poster) {
+            const posterResult = await uploadBackgroundVideoPoster(userId, upload.landingPageId, poster);
+            posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
+          }
+
+          const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
+
+          // Update landing page
+          const backgroundVideoData = JSON.stringify({
+            webm: webmUrl,
+            mp4: mp4Url,
+            poster: posterUrl,
+            duration: webm.duration
+          });
+
+          await storage.updateLandingPage(upload.landingPageId, {
+            backgroundType: 'video',
+            backgroundValue: backgroundVideoData,
+          });
+
+          // Mark job complete
+          job.status = 'complete';
+          job.progress = undefined;
+          job.result = { webmUrl, mp4Url, duration: webm.duration };
+
+          const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[VIDEO] Job ${jobId} complete: user=${userId}, input=${sizeMB}MB, output=${webmSizeMB}MB webm + ${mp4SizeMB}MB mp4, conversion=${conversionTime}s, storage=${uploadTime}s, total=${totalTime}s`);
+        } catch (error) {
+          const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[VIDEO] Job ${jobId} failed after ${totalTime}s:`, error);
+          const job = bgVideoJobs.get(jobId);
+          if (job) {
+            job.status = 'error';
+            job.progress = undefined;
+            job.error = 'Video processing failed. Please try again.';
+          }
+        }
+      })();
+    } catch (error) {
+      console.error("[VIDEO] Complete upload error:", error);
+      res.status(500).json({ error: "Failed to start video processing" });
+    }
+  });
+
+  // Poll background video processing job status
+  app.get("/api/landing-page/background-video/job/:jobId", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
       }
 
-      // Upload poster frame
-      let posterUrl: string | undefined;
-      if (poster) {
-        const posterResult = await uploadBackgroundVideoPoster(userId, upload.landingPageId, poster);
-        posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
-        console.log(`[VIDEO] Poster frame uploaded to storage (user ${userId})`);
+      const job = bgVideoJobs.get(req.params.jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found or expired" });
       }
-
-      const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
-
-      // Store URLs in backgroundValue as JSON
-      const backgroundVideoData = JSON.stringify({
-        webm: webmUrl,
-        mp4: mp4Url,
-        poster: posterUrl,
-        duration: webm.duration
-      });
-
-      // Update landing page with video background
-      await storage.updateLandingPage(upload.landingPageId, {
-        backgroundType: 'video',
-        backgroundValue: backgroundVideoData,
-      });
-
-      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`[VIDEO] Chunked upload complete: user=${userId}, input=${sizeMB}MB, output=${webmSizeMB}MB webm + ${mp4SizeMB}MB mp4, conversion=${conversionTime}s, storage=${uploadTime}s, total=${totalTime}s`);
 
       res.json({
-        success: true,
-        webmUrl,
-        mp4Url,
-        duration: webm.duration
+        status: job.status,
+        progress: job.progress,
+        result: job.result,
+        error: job.error,
       });
     } catch (error) {
-      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.error(`[VIDEO] Chunked upload failed after ${totalTime}s:`, error);
-      res.status(500).json({ error: "Failed to process background video" });
+      console.error("[VIDEO] Job status error:", error);
+      res.status(500).json({ error: "Failed to get job status" });
     }
   });
 

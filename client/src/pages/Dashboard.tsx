@@ -2027,11 +2027,9 @@ export default function Dashboard() {
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
                     onVideoUpload={async (file) => {
-                      // Spotify Canvas style video upload using chunked upload
+                      // Spotify Canvas style video upload using chunked upload + async processing
                       const BG_VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
                       const totalChunks = Math.ceil(file.size / BG_VIDEO_CHUNK_SIZE);
-
-                      console.log(`[BG VIDEO] Starting chunked upload: ${file.name} (${file.size} bytes, ${totalChunks} chunks)`);
 
                       // Step 1: Initialize upload
                       const initRes = await fetch('/api/landing-page/background-video/init-upload', {
@@ -2073,7 +2071,7 @@ export default function Dashboard() {
                         }
                       }
 
-                      // Step 3: Complete upload (triggers conversion)
+                      // Step 3: Start async processing (returns job ID immediately)
                       const completeRes = await fetch('/api/landing-page/background-video/complete-upload', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2082,17 +2080,44 @@ export default function Dashboard() {
                       });
                       if (!completeRes.ok) {
                         const error = await completeRes.json();
-                        throw new Error(error.error || 'Failed to process video');
+                        throw new Error(error.error || 'Failed to start video processing');
                       }
-                      const result = await completeRes.json();
+                      const { jobId } = await completeRes.json();
 
-                      // Refresh landing page data
-                      queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
-                      return {
-                        webmUrl: result.webmUrl,
-                        mp4Url: result.mp4Url,
-                        duration: result.duration,
-                      };
+                      // Step 4: Poll for job completion
+                      const pollInterval = 3000; // 3 seconds
+                      const maxPollTime = 10 * 60 * 1000; // 10 minutes
+                      const pollStart = Date.now();
+
+                      while (Date.now() - pollStart < maxPollTime) {
+                        await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+                        const statusRes = await fetch(`/api/landing-page/background-video/job/${jobId}`, {
+                          credentials: 'include',
+                        });
+                        if (!statusRes.ok) {
+                          throw new Error('Failed to check processing status');
+                        }
+
+                        const job = await statusRes.json();
+
+                        if (job.status === 'complete') {
+                          queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
+                          return {
+                            webmUrl: job.result.webmUrl,
+                            mp4Url: job.result.mp4Url,
+                            duration: job.result.duration,
+                          };
+                        }
+
+                        if (job.status === 'error') {
+                          throw new Error(job.error || 'Video processing failed');
+                        }
+
+                        // Still processing — continue polling
+                      }
+
+                      throw new Error('Video processing timed out. Please try again.');
                     }}
                     onVideoRemove={async () => {
                       // Remove video background
