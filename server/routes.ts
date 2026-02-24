@@ -1917,6 +1917,29 @@ ${urls}
   // BACKGROUND VIDEO UPLOAD (Spotify Canvas Style)
   // ============================================
 
+  // In-memory store for chunked background video uploads
+  const bgVideoChunkedUploads = new Map<string, {
+    userId: string;
+    landingPageId: string;
+    chunks: Buffer[];
+    totalChunks: number;
+    receivedChunks: number;
+    fileName: string;
+    fileFormat: string;
+    createdAt: Date;
+  }>();
+
+  // Clean up stale background video uploads (older than 1 hour)
+  setInterval(() => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    for (const [uploadId, upload] of Array.from(bgVideoChunkedUploads.entries())) {
+      if (upload.createdAt < oneHourAgo) {
+        bgVideoChunkedUploads.delete(uploadId);
+        console.log(`[VIDEO] Cleaned up stale chunked upload: ${uploadId}`);
+      }
+    }
+  }, 5 * 60 * 1000);
+
   // Upload background video (mp4, mov) - converts to webm for smooth playback
   app.post("/api/landing-page/background-video", (req: Request, res: Response, next) => {
     // Extend timeout for large video uploads + FFmpeg processing
@@ -2033,6 +2056,219 @@ ${urls}
       const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
       console.error(`[VIDEO] Upload failed after ${totalTime}s (input=${sizeMB}MB):`, error);
       res.status(500).json({ error: "Failed to upload background video" });
+    }
+  });
+
+  // Initialize chunked background video upload
+  app.post("/api/landing-page/background-video/init-upload", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const landingPage = await storage.getLandingPageByUser(userId);
+      if (!landingPage) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+
+      const { totalChunks, fileName, fileSize } = req.body;
+      if (!totalChunks || !fileName) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const fileFormat = fileName.split('.').pop()?.toLowerCase();
+      const validFormats = ['mp4', 'webm', 'mov'];
+      if (!validFormats.includes(fileFormat)) {
+        return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
+      }
+
+      const uploadId = crypto.randomUUID();
+      const sizeMB = fileSize ? (fileSize / (1024 * 1024)).toFixed(1) : 'unknown';
+
+      bgVideoChunkedUploads.set(uploadId, {
+        userId,
+        landingPageId: landingPage.id,
+        chunks: new Array(totalChunks).fill(null),
+        totalChunks,
+        receivedChunks: 0,
+        fileName,
+        fileFormat,
+        createdAt: new Date(),
+      });
+
+      console.log(`[VIDEO] Chunked upload initialized: id=${uploadId}, file="${fileName}", size=${sizeMB}MB, chunks=${totalChunks} (user ${userId})`);
+
+      res.json({ uploadId, totalChunks });
+    } catch (error) {
+      console.error("[VIDEO] Init chunked upload error:", error);
+      res.status(500).json({ error: "Failed to initialize upload" });
+    }
+  });
+
+  // Upload a background video chunk
+  app.post("/api/landing-page/background-video/chunk", express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const uploadId = req.headers['x-upload-id'] as string;
+      const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
+
+      if (!uploadId || isNaN(chunkIndex)) {
+        return res.status(400).json({ error: "Missing upload ID or chunk index" });
+      }
+
+      const upload = bgVideoChunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (chunkIndex < 0 || chunkIndex >= upload.totalChunks) {
+        return res.status(400).json({ error: "Invalid chunk index" });
+      }
+
+      const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      upload.chunks[chunkIndex] = chunkBuffer;
+      upload.receivedChunks++;
+
+      console.log(`[VIDEO] Chunk ${chunkIndex + 1}/${upload.totalChunks} received for ${uploadId} (${chunkBuffer.length} bytes)`);
+
+      res.json({
+        received: upload.receivedChunks,
+        total: upload.totalChunks,
+        complete: upload.receivedChunks === upload.totalChunks,
+      });
+    } catch (error) {
+      console.error("[VIDEO] Upload chunk error:", error);
+      res.status(500).json({ error: "Failed to upload chunk" });
+    }
+  });
+
+  // Complete chunked background video upload - reassemble, convert, store
+  app.post("/api/landing-page/background-video/complete-upload", async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    try {
+      // Extend timeout for FFmpeg processing
+      req.setTimeout(600000);
+      res.setTimeout(600000);
+
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { uploadId } = req.body;
+      if (!uploadId) {
+        return res.status(400).json({ error: "Missing upload ID" });
+      }
+
+      const upload = bgVideoChunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (upload.receivedChunks !== upload.totalChunks) {
+        return res.status(400).json({
+          error: `Missing chunks. Received ${upload.receivedChunks}/${upload.totalChunks}`,
+        });
+      }
+
+      if (upload.chunks.some(c => c === null)) {
+        return res.status(400).json({ error: "Some chunks are missing" });
+      }
+
+      // Reassemble chunks
+      const completeBuffer = Buffer.concat(upload.chunks);
+      const sizeMB = (completeBuffer.length / (1024 * 1024)).toFixed(1);
+      console.log(`[VIDEO] Reassembled ${upload.totalChunks} chunks: ${sizeMB}MB for ${uploadId} (user ${userId})`);
+
+      // Free chunk memory immediately
+      bgVideoChunkedUploads.delete(uploadId);
+
+      // Verify video type using magic bytes
+      const verification = await verifyVideoType(completeBuffer);
+      if (!verification.valid) {
+        console.warn(`[VIDEO] Chunked upload rejected: invalid video type (user ${userId}, error: ${verification.error})`);
+        return res.status(400).json({ error: verification.error || "Invalid video file" });
+      }
+
+      const inputFormat = verification.type as 'mp4' | 'mov' | 'webm';
+      console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
+      const conversionStart = Date.now();
+
+      // Process video - convert to webm with mp4 fallback + poster frame
+      const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
+        generateFallback: true,
+        quality: 'medium'
+      });
+
+      const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
+      const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
+      const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
+      console.log(`[VIDEO] Conversion complete in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB, duration=${webm.duration}s (user ${userId})`);
+
+      // Upload WebM (primary format)
+      const uploadStart = Date.now();
+      const webmResult = await uploadBackgroundVideo(userId, upload.landingPageId, webm.buffer, 'webm');
+      const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
+      console.log(`[VIDEO] WebM uploaded to storage (user ${userId})`);
+
+      // Upload MP4 fallback
+      let mp4Url: string | undefined;
+      if (mp4) {
+        const mp4Result = await uploadBackgroundVideo(userId, upload.landingPageId, mp4.buffer, 'mp4');
+        mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
+        console.log(`[VIDEO] MP4 fallback uploaded to storage (user ${userId})`);
+      }
+
+      // Upload poster frame
+      let posterUrl: string | undefined;
+      if (poster) {
+        const posterResult = await uploadBackgroundVideoPoster(userId, upload.landingPageId, poster);
+        posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
+        console.log(`[VIDEO] Poster frame uploaded to storage (user ${userId})`);
+      }
+
+      const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
+
+      // Store URLs in backgroundValue as JSON
+      const backgroundVideoData = JSON.stringify({
+        webm: webmUrl,
+        mp4: mp4Url,
+        poster: posterUrl,
+        duration: webm.duration
+      });
+
+      // Update landing page with video background
+      await storage.updateLandingPage(upload.landingPageId, {
+        backgroundType: 'video',
+        backgroundValue: backgroundVideoData,
+      });
+
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[VIDEO] Chunked upload complete: user=${userId}, input=${sizeMB}MB, output=${webmSizeMB}MB webm + ${mp4SizeMB}MB mp4, conversion=${conversionTime}s, storage=${uploadTime}s, total=${totalTime}s`);
+
+      res.json({
+        success: true,
+        webmUrl,
+        mp4Url,
+        duration: webm.duration
+      });
+    } catch (error) {
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.error(`[VIDEO] Chunked upload failed after ${totalTime}s:`, error);
+      res.status(500).json({ error: "Failed to process background video" });
     }
   });
 

@@ -2027,19 +2027,65 @@ export default function Dashboard() {
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
                     onVideoUpload={async (file) => {
-                      // Spotify Canvas style video upload
-                      const formData = new FormData();
-                      formData.append('video', file);
-                      const response = await fetch('/api/landing-page/background-video', {
+                      // Spotify Canvas style video upload using chunked upload
+                      const BG_VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+                      const totalChunks = Math.ceil(file.size / BG_VIDEO_CHUNK_SIZE);
+
+                      console.log(`[BG VIDEO] Starting chunked upload: ${file.name} (${file.size} bytes, ${totalChunks} chunks)`);
+
+                      // Step 1: Initialize upload
+                      const initRes = await fetch('/api/landing-page/background-video/init-upload', {
                         method: 'POST',
-                        body: formData,
+                        headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
+                        body: JSON.stringify({
+                          totalChunks,
+                          fileName: file.name,
+                          fileSize: file.size,
+                        }),
                       });
-                      if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'Failed to upload video');
+                      if (!initRes.ok) {
+                        const error = await initRes.json();
+                        throw new Error(error.error || 'Failed to initialize upload');
                       }
-                      const result = await response.json();
+                      const { uploadId } = await initRes.json();
+
+                      // Step 2: Upload chunks
+                      for (let i = 0; i < totalChunks; i++) {
+                        const start = i * BG_VIDEO_CHUNK_SIZE;
+                        const end = Math.min(start + BG_VIDEO_CHUNK_SIZE, file.size);
+                        const chunk = file.slice(start, end);
+                        const chunkBuffer = await chunk.arrayBuffer();
+
+                        const chunkRes = await fetch('/api/landing-page/background-video/chunk', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'X-Upload-Id': uploadId,
+                            'X-Chunk-Index': i.toString(),
+                          },
+                          credentials: 'include',
+                          body: chunkBuffer,
+                        });
+                        if (!chunkRes.ok) {
+                          const error = await chunkRes.json();
+                          throw new Error(error.error || `Failed to upload chunk ${i + 1}`);
+                        }
+                      }
+
+                      // Step 3: Complete upload (triggers conversion)
+                      const completeRes = await fetch('/api/landing-page/background-video/complete-upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ uploadId }),
+                      });
+                      if (!completeRes.ok) {
+                        const error = await completeRes.json();
+                        throw new Error(error.error || 'Failed to process video');
+                      }
+                      const result = await completeRes.json();
+
                       // Refresh landing page data
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                       return {
