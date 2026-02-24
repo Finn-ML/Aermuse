@@ -1935,32 +1935,41 @@ ${urls}
       next();
     });
   }, async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    const sizeMB = req.file ? (req.file.size / (1024 * 1024)).toFixed(1) : '0';
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
+        console.warn(`[VIDEO] Upload rejected: not authenticated`);
         return res.status(401).json({ error: "Not authenticated" });
       }
 
       const file = req.file;
       if (!file) {
+        console.warn(`[VIDEO] Upload rejected: no file provided (user ${userId})`);
         return res.status(400).json({ error: "No file uploaded" });
       }
+
+      console.log(`[VIDEO] Upload started: user=${userId}, file="${file.originalname}", size=${sizeMB}MB, mime=${file.mimetype}`);
 
       // Get landing page using storage helper
       const landingPage = await storage.getLandingPageByUser(userId);
       if (!landingPage) {
+        console.warn(`[VIDEO] Upload rejected: no landing page found (user ${userId})`);
         return res.status(404).json({ error: "Landing page not found" });
       }
 
       // Verify video type using magic bytes
       const verification = await verifyVideoType(file.buffer);
       if (!verification.valid) {
+        console.warn(`[VIDEO] Upload rejected: invalid video type (user ${userId}, error: ${verification.error})`);
         return res.status(400).json({ error: verification.error || "Invalid video file" });
       }
 
       const inputFormat = verification.type as 'mp4' | 'mov' | 'webm';
 
-      console.log(`[VIDEO] Processing upload: ${file.originalname} (${inputFormat}, ${file.size} bytes)`);
+      console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
+      const conversionStart = Date.now();
 
       // Process video - convert to webm with mp4 fallback + poster frame
       const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
@@ -1968,15 +1977,23 @@ ${urls}
         quality: 'medium'
       });
 
+      const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
+      const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
+      const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
+      console.log(`[VIDEO] Conversion complete in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB, duration=${webm.duration}s (user ${userId})`);
+
       // Upload WebM (primary format)
+      const uploadStart = Date.now();
       const webmResult = await uploadBackgroundVideo(userId, landingPage.id, webm.buffer, 'webm');
       const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
+      console.log(`[VIDEO] WebM uploaded to storage (user ${userId})`);
 
       // Upload MP4 fallback
       let mp4Url: string | undefined;
       if (mp4) {
         const mp4Result = await uploadBackgroundVideo(userId, landingPage.id, mp4.buffer, 'mp4');
         mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
+        console.log(`[VIDEO] MP4 fallback uploaded to storage (user ${userId})`);
       }
 
       // Upload poster frame for instant visual feedback
@@ -1984,7 +2001,10 @@ ${urls}
       if (poster) {
         const posterResult = await uploadBackgroundVideoPoster(userId, landingPage.id, poster);
         posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
+        console.log(`[VIDEO] Poster frame uploaded to storage (user ${userId})`);
       }
+
+      const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
 
       // Store URLs in backgroundValue as JSON
       const backgroundVideoData = JSON.stringify({
@@ -2000,6 +2020,9 @@ ${urls}
         backgroundValue: backgroundVideoData,
       });
 
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[VIDEO] Upload complete: user=${userId}, input=${sizeMB}MB, output=${webmSizeMB}MB webm + ${mp4SizeMB}MB mp4, conversion=${conversionTime}s, storage=${uploadTime}s, total=${totalTime}s`);
+
       res.json({
         success: true,
         webmUrl,
@@ -2007,7 +2030,8 @@ ${urls}
         duration: webm.duration
       });
     } catch (error) {
-      console.error("Background video upload error:", error);
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.error(`[VIDEO] Upload failed after ${totalTime}s (input=${sizeMB}MB):`, error);
       res.status(500).json({ error: "Failed to upload background video" });
     }
   });
