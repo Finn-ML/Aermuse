@@ -159,8 +159,8 @@ export async function convertToWebM(
       .videoCodec('libvpx-vp9')
       .addOutputOption('-crf', settings.crf.toString())
       .addOutputOption('-b:v', settings.bitrate)
-      .addOutputOption('-deadline', 'good') // Balance between speed and quality
-      .addOutputOption('-cpu-used', '2') // Speed preset (0-5, higher = faster)
+      .addOutputOption('-deadline', 'realtime') // Prioritize speed for large uploads
+      .addOutputOption('-cpu-used', '4') // Speed preset (0-5, higher = faster)
       .noAudio() // No audio for background videos
       .format('webm')
       .on('error', (err) => {
@@ -211,7 +211,7 @@ export async function convertToMp4(
   // Tuned for background videos that sit behind page content
   const qualitySettings = {
     low: { crf: 32, preset: 'fast' },
-    medium: { crf: 28, preset: 'medium' },
+    medium: { crf: 28, preset: 'fast' },
     high: { crf: 23, preset: 'medium' }
   };
 

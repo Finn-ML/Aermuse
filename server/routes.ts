@@ -1919,6 +1919,9 @@ ${urls}
 
   // Upload background video (mp4, mov) - converts to webm for smooth playback
   app.post("/api/landing-page/background-video", (req: Request, res: Response, next) => {
+    // Extend timeout for large video uploads + FFmpeg processing
+    req.setTimeout(600000); // 10 minutes
+    res.setTimeout(600000);
     videoUpload.single("video")(req, res, (err: any) => {
       if (err) {
         if (err instanceof multer.MulterError) {
