@@ -1,7 +1,10 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import ffprobePath from '@ffprobe-installer/ffprobe';
-import { Readable, PassThrough } from 'stream';
+import { PassThrough } from 'stream';
+import { writeFile, unlink, mkdtemp } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 // Set FFmpeg and FFprobe paths
 ffmpeg.setFfmpegPath(ffmpegPath.path);
@@ -22,13 +25,37 @@ export interface VideoProcessResult {
 }
 
 /**
+ * Write buffer to a temp file and return its path.
+ * FFmpeg needs seekable input for MP4/MOV files (moov atom may be at end).
+ */
+async function writeToTempFile(buffer: Buffer, extension: string): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'video-'));
+  const filePath = join(dir, `input.${extension}`);
+  await writeFile(filePath, buffer);
+  return filePath;
+}
+
+/**
+ * Clean up a temp file (best-effort, don't throw on failure).
+ */
+async function cleanupTempFile(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+    // Also remove the temp directory
+    const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+    const { rmdir } = await import('fs/promises');
+    await rmdir(dir);
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+/**
  * Get video metadata (duration, dimensions, format)
  */
-export async function getVideoMetadata(buffer: Buffer): Promise<VideoMetadata> {
+export async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   return new Promise((resolve, reject) => {
-    const inputStream = Readable.from(buffer);
-
-    ffmpeg(inputStream)
+    ffmpeg(inputPath)
       .ffprobe((err, metadata) => {
         if (err) {
           console.error('[VIDEO] Failed to probe video file:', err);
@@ -65,8 +92,7 @@ export async function getVideoMetadata(buffer: Buffer): Promise<VideoMetadata> {
  * - Optimized for mobile and desktop
  */
 export async function convertToWebM(
-  inputBuffer: Buffer,
-  inputFormat: 'mp4' | 'mov' | 'webm',
+  inputPath: string,
   options: {
     maxWidth?: number;
     maxHeight?: number;
@@ -81,17 +107,12 @@ export async function convertToWebM(
     quality = 'medium'
   } = options;
 
-  // If already webm, just return as-is (optionally with processing)
-  if (inputFormat === 'webm') {
-    // Still process to ensure proper format and constraints
-  }
-
   // Get metadata first
   let metadata: VideoMetadata;
   try {
-    metadata = await getVideoMetadata(inputBuffer);
+    metadata = await getVideoMetadata(inputPath);
   } catch {
-    metadata = { duration: 30, width: 1080, height: 1920, format: inputFormat };
+    metadata = { duration: 30, width: 1080, height: 1920, format: 'unknown' };
   }
 
   const actualDuration = Math.min(metadata.duration, maxDuration);
@@ -109,7 +130,6 @@ export async function convertToWebM(
   const settings = qualitySettings[quality];
 
   return new Promise((resolve, reject) => {
-    const inputStream = Readable.from(inputBuffer);
     const outputStream = new PassThrough();
     const chunks: Buffer[] = [];
 
@@ -117,6 +137,9 @@ export async function convertToWebM(
     outputStream.on('end', () => {
       const buffer = Buffer.concat(chunks);
       console.log(`[VIDEO] WebM conversion complete: ${buffer.length} bytes`);
+      if (buffer.length < 1024) {
+        return reject(new Error(`WebM conversion produced suspiciously small output (${buffer.length} bytes)`));
+      }
       resolve({
         buffer,
         format: 'webm',
@@ -128,15 +151,8 @@ export async function convertToWebM(
       reject(err);
     });
 
-    // Build FFmpeg command for WebM conversion
-    const command = ffmpeg(inputStream);
-
-    // Set input format hint
-    if (inputFormat === 'mov') {
-      command.inputFormat('mov');
-    } else if (inputFormat === 'mp4') {
-      command.inputFormat('mp4');
-    }
+    // Build FFmpeg command using file path (seekable input)
+    const command = ffmpeg(inputPath);
 
     // Limit duration
     if (actualDuration < metadata.duration) {
@@ -159,7 +175,7 @@ export async function convertToWebM(
       .videoCodec('libvpx-vp9')
       .addOutputOption('-crf', settings.crf.toString())
       .addOutputOption('-b:v', settings.bitrate)
-      .addOutputOption('-deadline', 'realtime') // Prioritize speed for large uploads
+      .addOutputOption('-deadline', 'good') // Balance between speed and quality
       .addOutputOption('-cpu-used', '4') // Speed preset (0-5, higher = faster)
       .noAudio() // No audio for background videos
       .format('webm')
@@ -169,7 +185,7 @@ export async function convertToWebM(
       })
       .on('progress', (progress) => {
         if (progress.percent) {
-          console.log(`[VIDEO] Processing: ${Math.round(progress.percent)}%`);
+          console.log(`[VIDEO] WebM processing: ${Math.round(progress.percent)}%`);
         }
       })
       .pipe(outputStream);
@@ -181,8 +197,7 @@ export async function convertToWebM(
  * Uses H.264 codec for maximum compatibility.
  */
 export async function convertToMp4(
-  inputBuffer: Buffer,
-  inputFormat: 'mp4' | 'mov' | 'webm',
+  inputPath: string,
   options: {
     maxWidth?: number;
     maxHeight?: number;
@@ -199,9 +214,9 @@ export async function convertToMp4(
 
   let metadata: VideoMetadata;
   try {
-    metadata = await getVideoMetadata(inputBuffer);
+    metadata = await getVideoMetadata(inputPath);
   } catch {
-    metadata = { duration: 30, width: 1080, height: 1920, format: inputFormat };
+    metadata = { duration: 30, width: 1080, height: 1920, format: 'unknown' };
   }
 
   const actualDuration = Math.min(metadata.duration, maxDuration);
@@ -218,7 +233,6 @@ export async function convertToMp4(
   const settings = qualitySettings[quality];
 
   return new Promise((resolve, reject) => {
-    const inputStream = Readable.from(inputBuffer);
     const outputStream = new PassThrough();
     const chunks: Buffer[] = [];
 
@@ -226,6 +240,9 @@ export async function convertToMp4(
     outputStream.on('end', () => {
       const buffer = Buffer.concat(chunks);
       console.log(`[VIDEO] MP4 conversion complete: ${buffer.length} bytes`);
+      if (buffer.length < 1024) {
+        return reject(new Error(`MP4 conversion produced suspiciously small output (${buffer.length} bytes)`));
+      }
       resolve({
         buffer,
         format: 'mp4',
@@ -237,14 +254,8 @@ export async function convertToMp4(
       reject(err);
     });
 
-    const command = ffmpeg(inputStream);
-
-    // Set input format hint
-    if (inputFormat === 'mov') {
-      command.inputFormat('mov');
-    } else if (inputFormat === 'webm') {
-      command.inputFormat('webm');
-    }
+    // Build FFmpeg command using file path (seekable input)
+    const command = ffmpeg(inputPath);
 
     // Limit duration
     if (actualDuration < metadata.duration) {
@@ -272,7 +283,7 @@ export async function convertToMp4(
       })
       .on('progress', (progress) => {
         if (progress.percent) {
-          console.log(`[VIDEO] Processing: ${Math.round(progress.percent)}%`);
+          console.log(`[VIDEO] MP4 processing: ${Math.round(progress.percent)}%`);
         }
       })
       .pipe(outputStream);
@@ -281,7 +292,8 @@ export async function convertToMp4(
 
 /**
  * Process video for canvas-style background.
- * Converts to WebM (primary) and optionally generates MP4 fallback.
+ * Writes input to temp file for seekable FFmpeg access, then converts
+ * to WebM (primary) and optionally generates MP4 fallback + poster.
  */
 export async function processCanvasVideo(
   inputBuffer: Buffer,
@@ -296,36 +308,47 @@ export async function processCanvasVideo(
   poster?: Buffer;
 }> {
   const { generateFallback = true, quality = 'medium' } = options;
+  const sizeMB = (inputBuffer.length / (1024 * 1024)).toFixed(1);
 
-  console.log(`[VIDEO] Processing canvas video (format: ${inputFormat}, fallback: ${generateFallback})`);
+  console.log(`[VIDEO] Processing canvas video (format: ${inputFormat}, size: ${sizeMB}MB, fallback: ${generateFallback})`);
 
-  const canvasOptions = {
-    quality,
-    maxWidth: 720,
-    maxHeight: 1280,
-  };
+  // Write to temp file so FFmpeg can seek (critical for MP4/MOV moov atom)
+  const tempPath = await writeToTempFile(inputBuffer, inputFormat);
+  console.log(`[VIDEO] Written to temp file: ${tempPath}`);
 
-  // Convert to WebM (primary format)
-  const webm = await convertToWebM(inputBuffer, inputFormat, canvasOptions);
-
-  // Generate MP4 fallback if requested
-  let mp4: VideoProcessResult | undefined;
-  if (generateFallback) {
-    mp4 = await convertToMp4(inputBuffer, inputFormat, canvasOptions);
-  }
-
-  // Generate poster frame for instant visual feedback
-  let poster: Buffer | undefined;
   try {
-    poster = await generatePosterFrame(inputBuffer, inputFormat, {
+    const canvasOptions = {
+      quality,
       maxWidth: 720,
       maxHeight: 1280,
-    });
-  } catch (err) {
-    console.warn('[VIDEO] Poster generation failed, continuing without poster:', err);
-  }
+    };
 
-  return { webm, mp4, poster };
+    // Convert to WebM (primary format)
+    const webm = await convertToWebM(tempPath, canvasOptions);
+
+    // Generate MP4 fallback if requested
+    let mp4: VideoProcessResult | undefined;
+    if (generateFallback) {
+      mp4 = await convertToMp4(tempPath, canvasOptions);
+    }
+
+    // Generate poster frame for instant visual feedback
+    let poster: Buffer | undefined;
+    try {
+      poster = await generatePosterFrame(tempPath, {
+        maxWidth: 720,
+        maxHeight: 1280,
+      });
+    } catch (err) {
+      console.warn('[VIDEO] Poster generation failed, continuing without poster:', err);
+    }
+
+    return { webm, mp4, poster };
+  } finally {
+    // Always clean up temp file
+    await cleanupTempFile(tempPath);
+    console.log(`[VIDEO] Temp file cleaned up: ${tempPath}`);
+  }
 }
 
 /**
@@ -333,8 +356,7 @@ export async function processCanvasVideo(
  * Used for instant visual feedback while the video loads.
  */
 export async function generatePosterFrame(
-  inputBuffer: Buffer,
-  inputFormat: 'mp4' | 'mov' | 'webm',
+  inputPath: string,
   options: {
     maxWidth?: number;
     maxHeight?: number;
@@ -347,10 +369,9 @@ export async function generatePosterFrame(
     quality = 5
   } = options;
 
-  console.log(`[VIDEO] Generating poster frame from ${inputFormat}`);
+  console.log(`[VIDEO] Generating poster frame`);
 
   return new Promise((resolve, reject) => {
-    const inputStream = Readable.from(inputBuffer);
     const outputStream = new PassThrough();
     const chunks: Buffer[] = [];
 
@@ -365,13 +386,7 @@ export async function generatePosterFrame(
       reject(err);
     });
 
-    const command = ffmpeg(inputStream);
-
-    if (inputFormat === 'mov') {
-      command.inputFormat('mov');
-    } else if (inputFormat === 'mp4') {
-      command.inputFormat('mp4');
-    }
+    const command = ffmpeg(inputPath);
 
     command
       .frames(1)
