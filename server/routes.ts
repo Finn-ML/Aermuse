@@ -1933,6 +1933,7 @@ ${urls}
   const bgVideoJobs = new Map<string, {
     status: 'processing' | 'complete' | 'error';
     progress?: string;
+    percent?: number;
     result?: { webmUrl: string; mp4Url?: string; duration: number };
     error?: string;
     createdAt: Date;
@@ -2234,11 +2235,21 @@ ${urls}
         try {
           const job = bgVideoJobs.get(jobId)!;
           job.progress = 'Converting video...';
+          job.percent = 0;
 
           const conversionStart = Date.now();
           const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
             generateFallback: true,
-            quality: 'medium'
+            quality: 'medium',
+            onProgress: (phase, pct) => {
+              if (phase === 'webm') {
+                // WebM is ~70% of total work, MP4 is ~30%
+                job.percent = Math.round(pct * 0.7);
+              } else if (phase === 'mp4') {
+                job.percent = Math.round(70 + pct * 0.3);
+              }
+              job.progress = `Converting video... ${job.percent}%`;
+            },
           });
 
           const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
@@ -2247,6 +2258,7 @@ ${urls}
           console.log(`[VIDEO] Job ${jobId} conversion done in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB (user ${userId})`);
 
           job.progress = 'Uploading to storage...';
+          job.percent = 100;
 
           // Upload WebM
           const uploadStart = Date.now();
@@ -2322,6 +2334,7 @@ ${urls}
       res.json({
         status: job.status,
         progress: job.progress,
+        percent: job.percent,
         result: job.result,
         error: job.error,
       });

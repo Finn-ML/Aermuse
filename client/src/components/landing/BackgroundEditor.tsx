@@ -17,7 +17,7 @@ interface BackgroundEditorProps {
   onBackgroundPositionChange?: (position: 'cover' | 'contain') => void;
   onImageUpload?: (file: File) => Promise<string>;
   onImageRemove?: () => void;
-  onVideoUpload?: (file: File) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
+  onVideoUpload?: (file: File, onProgress?: (percent: number, message: string) => void) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
   onVideoRemove?: () => void;
   canAccessVideo?: boolean;
 }
@@ -74,6 +74,7 @@ export function BackgroundEditor({
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [videoUploadProgress, setVideoUploadProgress] = useState<string>('');
+  const [videoUploadPercent, setVideoUploadPercent] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -182,6 +183,7 @@ export function BackgroundEditor({
     setVideoUploadError(null);
     setIsVideoUploading(true);
     setVideoUploadProgress('Preparing video...');
+    setVideoUploadPercent(0);
 
     // Show preview immediately
     const previewDataUrl = URL.createObjectURL(file);
@@ -190,9 +192,13 @@ export function BackgroundEditor({
     try {
       if (onVideoUpload) {
         setVideoUploadProgress('Converting to web format...');
-        const result = await onVideoUpload(file);
+        const result = await onVideoUpload(file, (percent, message) => {
+          setVideoUploadPercent(percent);
+          setVideoUploadProgress(message);
+        });
         setVideoPreviewUrl(null); // Clear preview, use uploaded URL
         setVideoUploadProgress('');
+        setVideoUploadPercent(0);
       }
     } catch {
       setVideoUploadError('Failed to upload video. Please try again.');
@@ -478,9 +484,20 @@ export function BackgroundEditor({
                     playsInline
                   />
                   {isVideoUploading && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center px-6">
                       <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
-                      <p className="text-xs text-white">{videoUploadProgress}</p>
+                      <p className="text-xs text-white mb-2">{videoUploadProgress}</p>
+                      {videoUploadPercent > 0 && (
+                        <div className="w-full max-w-[200px]">
+                          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+                              style={{ width: `${videoUploadPercent}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-white/70 text-center mt-1">{videoUploadPercent}%</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

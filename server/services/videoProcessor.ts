@@ -98,6 +98,7 @@ export async function convertToWebM(
     maxHeight?: number;
     maxDuration?: number; // Limit video duration for canvas-style loops
     quality?: 'low' | 'medium' | 'high';
+    onProgress?: (percent: number) => void;
   } = {}
 ): Promise<VideoProcessResult> {
   const {
@@ -185,7 +186,9 @@ export async function convertToWebM(
       })
       .on('progress', (progress) => {
         if (progress.percent) {
-          console.log(`[VIDEO] WebM processing: ${Math.round(progress.percent)}%`);
+          const pct = Math.round(progress.percent);
+          console.log(`[VIDEO] WebM processing: ${pct}%`);
+          options.onProgress?.(pct);
         }
       })
       .pipe(outputStream);
@@ -203,6 +206,7 @@ export async function convertToMp4(
     maxHeight?: number;
     maxDuration?: number;
     quality?: 'low' | 'medium' | 'high';
+    onProgress?: (percent: number) => void;
   } = {}
 ): Promise<VideoProcessResult> {
   const {
@@ -283,7 +287,9 @@ export async function convertToMp4(
       })
       .on('progress', (progress) => {
         if (progress.percent) {
-          console.log(`[VIDEO] MP4 processing: ${Math.round(progress.percent)}%`);
+          const pct = Math.round(progress.percent);
+          console.log(`[VIDEO] MP4 processing: ${pct}%`);
+          options.onProgress?.(pct);
         }
       })
       .pipe(outputStream);
@@ -301,6 +307,7 @@ export async function processCanvasVideo(
   options: {
     generateFallback?: boolean;
     quality?: 'low' | 'medium' | 'high';
+    onProgress?: (phase: string, percent: number) => void;
   } = {}
 ): Promise<{
   webm: VideoProcessResult;
@@ -324,12 +331,18 @@ export async function processCanvasVideo(
     };
 
     // Convert to WebM (primary format)
-    const webm = await convertToWebM(tempPath, canvasOptions);
+    const webm = await convertToWebM(tempPath, {
+      ...canvasOptions,
+      onProgress: (pct) => options.onProgress?.('webm', pct),
+    });
 
     // Generate MP4 fallback if requested
     let mp4: VideoProcessResult | undefined;
     if (generateFallback) {
-      mp4 = await convertToMp4(tempPath, canvasOptions);
+      mp4 = await convertToMp4(tempPath, {
+        ...canvasOptions,
+        onProgress: (pct) => options.onProgress?.('mp4', pct),
+      });
     }
 
     // Generate poster frame for instant visual feedback

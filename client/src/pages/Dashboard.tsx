@@ -2026,7 +2026,7 @@ export default function Dashboard() {
                       // Refresh landing page data
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
-                    onVideoUpload={async (file) => {
+                    onVideoUpload={async (file: File, onProgress?: (percent: number, message: string) => void) => {
                       // Spotify Canvas style video upload using chunked upload + async processing
                       const BG_VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
                       const totalChunks = Math.ceil(file.size / BG_VIDEO_CHUNK_SIZE);
@@ -2100,6 +2100,10 @@ export default function Dashboard() {
                         }
 
                         const job = await statusRes.json();
+
+                        if (job.percent !== undefined && onProgress) {
+                          onProgress(job.percent, job.progress || 'Converting video...');
+                        }
 
                         if (job.status === 'complete') {
                           queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
