@@ -97,6 +97,7 @@ export async function convertToWebM(
     maxWidth?: number;
     maxHeight?: number;
     maxDuration?: number; // Limit video duration for canvas-style loops
+    startTime?: number; // Trim start time in seconds
     quality?: 'low' | 'medium' | 'high';
     onProgress?: (percent: number) => void;
   } = {}
@@ -104,7 +105,8 @@ export async function convertToWebM(
   const {
     maxWidth = 1080,
     maxHeight = 1920,
-    maxDuration = 30, // 30 second max for canvas videos
+    maxDuration = 8, // 8 second max for canvas videos
+    startTime = 0,
     quality = 'medium'
   } = options;
 
@@ -116,9 +118,10 @@ export async function convertToWebM(
     metadata = { duration: 30, width: 1080, height: 1920, format: 'unknown' };
   }
 
-  const actualDuration = Math.min(metadata.duration, maxDuration);
+  const availableDuration = Math.max(0, metadata.duration - startTime);
+  const actualDuration = Math.min(availableDuration, maxDuration);
 
-  console.log(`[VIDEO] Converting to WebM: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s`);
+  console.log(`[VIDEO] Converting to WebM: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s (start=${startTime}s)`);
 
   // Quality presets (CRF values - lower = better quality, larger file)
   // Tuned for background videos that sit behind page content
@@ -155,8 +158,13 @@ export async function convertToWebM(
     // Build FFmpeg command using file path (seekable input)
     const command = ffmpeg(inputPath);
 
+    // Seek to start time (input seeking for speed)
+    if (startTime > 0) {
+      command.setStartTime(startTime);
+    }
+
     // Limit duration
-    if (actualDuration < metadata.duration) {
+    if (actualDuration < metadata.duration - startTime) {
       command.setDuration(actualDuration);
     }
 
@@ -205,6 +213,7 @@ export async function convertToMp4(
     maxWidth?: number;
     maxHeight?: number;
     maxDuration?: number;
+    startTime?: number; // Trim start time in seconds
     quality?: 'low' | 'medium' | 'high';
     onProgress?: (percent: number) => void;
   } = {}
@@ -212,7 +221,8 @@ export async function convertToMp4(
   const {
     maxWidth = 1080,
     maxHeight = 1920,
-    maxDuration = 30,
+    maxDuration = 8,
+    startTime = 0,
     quality = 'medium'
   } = options;
 
@@ -223,9 +233,10 @@ export async function convertToMp4(
     metadata = { duration: 30, width: 1080, height: 1920, format: 'unknown' };
   }
 
-  const actualDuration = Math.min(metadata.duration, maxDuration);
+  const availableDuration = Math.max(0, metadata.duration - startTime);
+  const actualDuration = Math.min(availableDuration, maxDuration);
 
-  console.log(`[VIDEO] Converting to MP4: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s`);
+  console.log(`[VIDEO] Converting to MP4: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s (start=${startTime}s)`);
 
   // Tuned for background videos that sit behind page content
   const qualitySettings = {
@@ -261,8 +272,13 @@ export async function convertToMp4(
     // Build FFmpeg command using file path (seekable input)
     const command = ffmpeg(inputPath);
 
+    // Seek to start time (input seeking for speed)
+    if (startTime > 0) {
+      command.setStartTime(startTime);
+    }
+
     // Limit duration
-    if (actualDuration < metadata.duration) {
+    if (actualDuration < metadata.duration - startTime) {
       command.setDuration(actualDuration);
     }
 
@@ -307,6 +323,7 @@ export async function processCanvasVideo(
   options: {
     generateFallback?: boolean;
     quality?: 'low' | 'medium' | 'high';
+    startTime?: number; // Trim start time in seconds
     onProgress?: (phase: string, percent: number) => void;
   } = {}
 ): Promise<{
@@ -328,6 +345,7 @@ export async function processCanvasVideo(
       quality,
       maxWidth: 720,
       maxHeight: 1280,
+      startTime: options.startTime,
     };
 
     // Convert to WebM (primary format)
@@ -345,12 +363,13 @@ export async function processCanvasVideo(
       });
     }
 
-    // Generate poster frame for instant visual feedback
+    // Generate poster frame from the clip start point
     let poster: Buffer | undefined;
     try {
       poster = await generatePosterFrame(tempPath, {
         maxWidth: 720,
         maxHeight: 1280,
+        startTime: options.startTime,
       });
     } catch (err) {
       console.warn('[VIDEO] Poster generation failed, continuing without poster:', err);
@@ -374,12 +393,14 @@ export async function generatePosterFrame(
     maxWidth?: number;
     maxHeight?: number;
     quality?: number; // JPEG quality 1-31 (lower = better)
+    startTime?: number; // Grab poster from this time instead of frame 0
   } = {}
 ): Promise<Buffer> {
   const {
     maxWidth = 720,
     maxHeight = 1280,
-    quality = 5
+    quality = 5,
+    startTime = 0
   } = options;
 
   console.log(`[VIDEO] Generating poster frame`);
@@ -400,6 +421,11 @@ export async function generatePosterFrame(
     });
 
     const command = ffmpeg(inputPath);
+
+    // Seek to the clip start for poster frame
+    if (startTime > 0) {
+      command.setStartTime(startTime);
+    }
 
     command
       .frames(1)

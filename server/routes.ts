@@ -2175,10 +2175,13 @@ ${urls}
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const { uploadId } = req.body;
+      const { uploadId, startTime } = req.body;
       if (!uploadId) {
         return res.status(400).json({ error: "Missing upload ID" });
       }
+
+      // Validate and extract trim start time (default to 0)
+      const trimStartTime = typeof startTime === 'number' && startTime >= 0 ? startTime : 0;
 
       const upload = bgVideoChunkedUploads.get(uploadId);
       if (!upload) {
@@ -2202,7 +2205,7 @@ ${urls}
       // Reassemble chunks
       const completeBuffer = Buffer.concat(upload.chunks);
       const sizeMB = (completeBuffer.length / (1024 * 1024)).toFixed(1);
-      console.log(`[VIDEO] Reassembled ${upload.totalChunks} chunks: ${sizeMB}MB for ${uploadId} (user ${userId})`);
+      console.log(`[VIDEO] Reassembled ${upload.totalChunks} chunks: ${sizeMB}MB for ${uploadId} (user ${userId}, startTime=${trimStartTime}s)`);
 
       // Free chunk memory immediately
       bgVideoChunkedUploads.delete(uploadId);
@@ -2241,6 +2244,7 @@ ${urls}
           const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
             generateFallback: true,
             quality: 'medium',
+            startTime: trimStartTime,
             onProgress: (phase, pct) => {
               if (phase === 'webm') {
                 // WebM is ~70% of total work, MP4 is ~30%

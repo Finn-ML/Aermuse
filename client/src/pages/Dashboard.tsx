@@ -2026,7 +2026,7 @@ export default function Dashboard() {
                       // Refresh landing page data
                       queryClient.invalidateQueries({ queryKey: ['/api/landing-page'] });
                     }}
-                    onVideoUpload={async (file: File, onProgress?: (percent: number, message: string) => void) => {
+                    onVideoUpload={async (file: File, onProgress?: (percent: number, message: string) => void, startTime?: number) => {
                       // Spotify Canvas style video upload using chunked upload + async processing
                       const BG_VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
                       const totalChunks = Math.ceil(file.size / BG_VIDEO_CHUNK_SIZE);
@@ -2076,7 +2076,7 @@ export default function Dashboard() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify({ uploadId }),
+                        body: JSON.stringify({ uploadId, startTime: startTime ?? 0 }),
                       });
                       if (!completeRes.ok) {
                         const error = await completeRes.json();

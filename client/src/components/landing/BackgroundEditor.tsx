@@ -5,6 +5,7 @@ import { GRADIENT_DIRECTIONS, generateGradientCSS, parseGradientCSS } from "@sha
 import { ColorPicker } from "./ColorPicker";
 import { ImageCropModal } from "@/components/ImageCropModal";
 import { Play, Film, Loader2, Lock, Sparkles } from "lucide-react";
+import { VideoTrimModal } from "@/components/VideoTrimModal";
 
 interface BackgroundEditorProps {
   backgroundType: BackgroundType;
@@ -17,7 +18,7 @@ interface BackgroundEditorProps {
   onBackgroundPositionChange?: (position: 'cover' | 'contain') => void;
   onImageUpload?: (file: File) => Promise<string>;
   onImageRemove?: () => void;
-  onVideoUpload?: (file: File, onProgress?: (percent: number, message: string) => void) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
+  onVideoUpload?: (file: File, onProgress?: (percent: number, message: string) => void, startTime?: number) => Promise<{ webmUrl: string; mp4Url?: string; duration: number }>;
   onVideoRemove?: () => void;
   canAccessVideo?: boolean;
 }
@@ -75,6 +76,8 @@ export function BackgroundEditor({
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [videoUploadProgress, setVideoUploadProgress] = useState<string>('');
   const [videoUploadPercent, setVideoUploadPercent] = useState<number>(0);
+  const [showTrimModal, setShowTrimModal] = useState(false);
+  const [videoFileToTrim, setVideoFileToTrim] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -161,7 +164,36 @@ export function BackgroundEditor({
     setImageToCrop(null);
   };
 
-  // Video upload handler
+  // Upload the video file with the selected start time
+  const proceedWithUpload = async (file: File, startTime: number) => {
+    setIsVideoUploading(true);
+    setVideoUploadProgress('Preparing video...');
+    setVideoUploadPercent(0);
+
+    const previewDataUrl = URL.createObjectURL(file);
+    setVideoPreviewUrl(previewDataUrl);
+
+    try {
+      if (onVideoUpload) {
+        setVideoUploadProgress('Converting to web format...');
+        const result = await onVideoUpload(file, (percent, message) => {
+          setVideoUploadPercent(percent);
+          setVideoUploadProgress(message);
+        }, startTime);
+        setVideoPreviewUrl(null);
+        setVideoUploadProgress('');
+        setVideoUploadPercent(0);
+      }
+    } catch {
+      setVideoUploadError('Failed to upload video. Please try again.');
+      setVideoPreviewUrl(null);
+    } finally {
+      setIsVideoUploading(false);
+      URL.revokeObjectURL(previewDataUrl);
+    }
+  };
+
+  // Video upload handler - validates then shows trim modal or uploads directly
   const handleVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -181,38 +213,49 @@ export function BackgroundEditor({
     }
 
     setVideoUploadError(null);
-    setIsVideoUploading(true);
-    setVideoUploadProgress('Preparing video...');
-    setVideoUploadPercent(0);
-
-    // Show preview immediately
-    const previewDataUrl = URL.createObjectURL(file);
-    setVideoPreviewUrl(previewDataUrl);
-
-    try {
-      if (onVideoUpload) {
-        setVideoUploadProgress('Converting to web format...');
-        const result = await onVideoUpload(file, (percent, message) => {
-          setVideoUploadPercent(percent);
-          setVideoUploadProgress(message);
-        });
-        setVideoPreviewUrl(null); // Clear preview, use uploaded URL
-        setVideoUploadProgress('');
-        setVideoUploadPercent(0);
-      }
-    } catch {
-      setVideoUploadError('Failed to upload video. Please try again.');
-      setVideoPreviewUrl(null);
-    } finally {
-      setIsVideoUploading(false);
-      // Clean up the object URL
-      URL.revokeObjectURL(previewDataUrl);
-    }
 
     // Reset file input
     if (videoInputRef.current) {
       videoInputRef.current.value = '';
     }
+
+    // Check video duration to decide whether to show trim modal
+    const tempVideo = document.createElement('video');
+    tempVideo.preload = 'metadata';
+    const tempUrl = URL.createObjectURL(file);
+
+    tempVideo.onloadedmetadata = () => {
+      URL.revokeObjectURL(tempUrl);
+      const videoDuration = tempVideo.duration;
+
+      if (videoDuration <= 8) {
+        // Short video: upload directly
+        proceedWithUpload(file, 0);
+      } else {
+        // Longer video: show trim modal to select 8s clip
+        setVideoFileToTrim(file);
+        setShowTrimModal(true);
+      }
+    };
+    tempVideo.onerror = () => {
+      URL.revokeObjectURL(tempUrl);
+      // Fallback: upload without trimming, server will handle it
+      proceedWithUpload(file, 0);
+    };
+    tempVideo.src = tempUrl;
+  };
+
+  const handleTrimConfirm = (startTime: number) => {
+    setShowTrimModal(false);
+    if (videoFileToTrim) {
+      proceedWithUpload(videoFileToTrim, startTime);
+      setVideoFileToTrim(null);
+    }
+  };
+
+  const handleTrimCancel = () => {
+    setShowTrimModal(false);
+    setVideoFileToTrim(null);
   };
 
   // Parse video background data if type is video
@@ -468,7 +511,7 @@ export function BackgroundEditor({
               Background Video
             </label>
             <p className="text-xs text-[rgba(102,0,51,0.5)] mb-3">
-              Upload a short looping video (max 30 seconds, 250MB). Spotify Canvas style!
+              Upload a short looping video (max 8 seconds, 250MB). Spotify Canvas style!
             </p>
 
             {/* Video Preview */}
@@ -616,6 +659,16 @@ export function BackgroundEditor({
           aspectRatio={16 / 9}
           cropShape="rect"
           title="Crop Background Image"
+        />
+      )}
+
+      {/* Video Trim Modal */}
+      {videoFileToTrim && (
+        <VideoTrimModal
+          isOpen={showTrimModal}
+          videoFile={videoFileToTrim}
+          onClose={handleTrimCancel}
+          onTrimConfirm={handleTrimConfirm}
         />
       )}
     </div>
