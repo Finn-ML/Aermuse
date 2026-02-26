@@ -198,6 +198,9 @@ export function BackgroundEditor({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Prevent concurrent uploads
+    if (isVideoUploading) return;
+
     // Validate file type
     const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
     if (!allowedTypes.includes(file.type)) {
@@ -560,13 +563,14 @@ export function BackgroundEditor({
               onChange={handleVideoSelect}
               className="hidden"
               id="background-video-upload"
+              disabled={isVideoUploading}
             />
             <label
               htmlFor="background-video-upload"
-              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors ${
                 isVideoUploading
-                  ? 'border-[rgba(102,0,51,0.3)] bg-[rgba(102,0,51,0.02)]'
-                  : 'border-[rgba(102,0,51,0.2)] hover:border-[rgba(102,0,51,0.4)] hover:bg-[rgba(102,0,51,0.02)]'
+                  ? 'border-[rgba(102,0,51,0.3)] bg-[rgba(102,0,51,0.02)] pointer-events-none'
+                  : 'border-[rgba(102,0,51,0.2)] hover:border-[rgba(102,0,51,0.4)] hover:bg-[rgba(102,0,51,0.02)] cursor-pointer'
               }`}
             >
               {isVideoUploading ? (
