@@ -208,10 +208,10 @@ export function BackgroundEditor({
       return;
     }
 
-    // Validate file size (250MB max)
-    const maxSize = 250 * 1024 * 1024;
+    // Validate file size (100MB max)
+    const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
-      setVideoUploadError('File too large. Maximum size is 250MB.');
+      setVideoUploadError('File too large. Maximum size is 100MB.');
       return;
     }
 
@@ -514,7 +514,7 @@ export function BackgroundEditor({
               Background Video
             </label>
             <p className="text-xs text-[rgba(102,0,51,0.5)] mb-3">
-              Upload a short looping video (max 8 seconds, 250MB). Spotify Canvas style!
+              Upload a short looping video (max 8 seconds, 100MB). Spotify Canvas style!
             </p>
 
             {/* Video Preview */}

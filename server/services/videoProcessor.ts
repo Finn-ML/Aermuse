@@ -133,28 +133,12 @@ export async function convertToWebM(
 
   const settings = qualitySettings[quality];
 
+  // WebM with VP9 benefits from seekable output for cues element.
+  // Write to a temp file, then read the result back.
+  const outputDir = await mkdtemp(join(tmpdir(), 'webmout-'));
+  const outputPath = join(outputDir, 'output.webm');
+
   return new Promise((resolve, reject) => {
-    const outputStream = new PassThrough();
-    const chunks: Buffer[] = [];
-
-    outputStream.on('data', (chunk: Buffer) => chunks.push(chunk));
-    outputStream.on('end', () => {
-      const buffer = Buffer.concat(chunks);
-      console.log(`[VIDEO] WebM conversion complete: ${buffer.length} bytes`);
-      if (buffer.length < 1024) {
-        return reject(new Error(`WebM conversion produced suspiciously small output (${buffer.length} bytes)`));
-      }
-      resolve({
-        buffer,
-        format: 'webm',
-        duration: actualDuration
-      });
-    });
-    outputStream.on('error', (err) => {
-      console.error('[VIDEO] WebM conversion failed:', err);
-      reject(err);
-    });
-
     // Build FFmpeg command using file path (seekable input)
     const command = ffmpeg(inputPath);
 
@@ -191,16 +175,39 @@ export async function convertToWebM(
       .format('webm')
       .on('error', (err) => {
         console.error('[VIDEO] FFmpeg error:', err);
+        unlink(outputPath).catch(() => {});
         reject(new Error(`FFmpeg processing failed: ${err.message}`));
       })
       .on('progress', (progress) => {
-        if (progress.percent) {
-          const pct = Math.round(progress.percent);
+        if (progress.percent !== undefined && progress.percent !== null) {
+          const pct = Math.max(0, Math.min(100, Math.round(progress.percent)));
           console.log(`[VIDEO] WebM processing: ${pct}%`);
           options.onProgress?.(pct);
         }
       })
-      .pipe(outputStream);
+      .on('end', async () => {
+        try {
+          const { readFile } = await import('fs/promises');
+          const buffer = await readFile(outputPath);
+          console.log(`[VIDEO] WebM conversion complete: ${buffer.length} bytes`);
+          // Clean up temp output
+          await unlink(outputPath).catch(() => {});
+          const { rmdir } = await import('fs/promises');
+          await rmdir(outputDir).catch(() => {});
+
+          if (buffer.length < 1024) {
+            return reject(new Error(`WebM conversion produced suspiciously small output (${buffer.length} bytes)`));
+          }
+          resolve({
+            buffer,
+            format: 'webm',
+            duration: actualDuration
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .save(outputPath);
   });
 }
 
@@ -289,8 +296,8 @@ export async function convertToMp4(
         reject(new Error(`FFmpeg processing failed: ${err.message}`));
       })
       .on('progress', (progress) => {
-        if (progress.percent) {
-          const pct = Math.round(progress.percent);
+        if (progress.percent !== undefined && progress.percent !== null) {
+          const pct = Math.max(0, Math.min(100, Math.round(progress.percent)));
           console.log(`[VIDEO] MP4 processing: ${pct}%`);
           options.onProgress?.(pct);
         }
@@ -357,24 +364,21 @@ export async function processCanvasVideo(
       startTime: options.startTime,
     };
 
-    // Run WebM + MP4 conversions in parallel for speed
-    const webmPromise = convertToWebM(tempPath, {
+    // Run conversions sequentially to avoid CPU contention on constrained environments
+    options.onProgress?.('webm', 0);
+    const webm = await convertToWebM(tempPath, {
       ...canvasOptions,
       onProgress: (pct) => options.onProgress?.('webm', pct),
     });
 
-    let mp4Promise: Promise<VideoProcessResult> | undefined;
+    let mp4: VideoProcessResult | undefined;
     if (generateFallback) {
-      mp4Promise = convertToMp4(tempPath, {
+      options.onProgress?.('mp4', 0);
+      mp4 = await convertToMp4(tempPath, {
         ...canvasOptions,
         onProgress: (pct) => options.onProgress?.('mp4', pct),
       });
     }
-
-    const [webm, mp4] = await Promise.all([
-      webmPromise,
-      mp4Promise,
-    ]);
 
     // Generate poster frame from the clip start point
     let poster: Buffer | undefined;

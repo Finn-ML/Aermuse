@@ -1965,7 +1965,7 @@ ${urls}
       if (err) {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(413).json({ error: "File too large. Maximum video size is 500MB." });
+            return res.status(413).json({ error: "File too large. Maximum video size is 100MB." });
           }
           return res.status(400).json({ error: `Upload error: ${err.message}` });
         }
@@ -2246,8 +2246,15 @@ ${urls}
             quality: 'medium',
             startTime: trimStartTime,
             onProgress: (phase, pct) => {
-              // Both run in parallel; report the slower one's progress
-              job.percent = Math.min(Math.round(pct), 99);
+              // Sequential: webm is 0-60%, mp4 is 60-95%
+              const clampedPct = Math.max(0, Math.min(100, Math.round(pct)));
+              let combined: number;
+              if (phase === 'webm') {
+                combined = Math.round(clampedPct * 0.6);
+              } else {
+                combined = Math.round(60 + clampedPct * 0.35);
+              }
+              job.percent = Math.min(combined, 99);
               job.progress = `Converting video... ${job.percent}%`;
             },
           });
@@ -4181,7 +4188,7 @@ ${urls}
       if (err) {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(413).json({ error: "File too large. Maximum video size is 500MB." });
+            return res.status(413).json({ error: "File too large. Maximum video size is 100MB." });
           }
           return res.status(400).json({ error: `Upload error: ${err.message}` });
         }
@@ -4297,7 +4304,7 @@ ${urls}
       console.error("Upload video error:", error);
       if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: "File too large. Maximum size is 500MB." });
+          return res.status(400).json({ error: "File too large. Maximum size is 100MB." });
         }
       }
       res.status(500).json({ error: "Failed to upload video" });
