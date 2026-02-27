@@ -2013,7 +2013,7 @@ ${urls}
       // Process video - convert to webm with mp4 fallback + poster frame
       const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
         generateFallback: true,
-        quality: 'medium'
+        quality: 'high'
       });
 
       const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
@@ -2243,16 +2243,17 @@ ${urls}
           const conversionStart = Date.now();
           const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
             generateFallback: true,
-            quality: 'medium',
+            quality: 'high',
             startTime: trimStartTime,
             onProgress: (phase, pct) => {
-              // Sequential: webm is 0-60%, mp4 is 60-95%
               const clampedPct = Math.max(0, Math.min(100, Math.round(pct)));
               let combined: number;
               if (phase === 'webm') {
-                combined = Math.round(clampedPct * 0.6);
+                // WebM may be skipped (100% instantly) or run normally
+                combined = Math.round(clampedPct * 0.3);
               } else {
-                combined = Math.round(60 + clampedPct * 0.35);
+                // MP4 does the heavy lifting: 30-95%
+                combined = Math.round(30 + clampedPct * 0.65);
               }
               job.percent = Math.min(combined, 99);
               job.progress = `Converting video... ${job.percent}%`;

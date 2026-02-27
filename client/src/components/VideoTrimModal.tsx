@@ -3,10 +3,10 @@ import { Play, Pause, Scissors, Check, X, Loader2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 
 const CLIP_DURATION = 8;
-const MAX_CAPTURE_WIDTH = 1080;
+const MAX_CAPTURE_WIDTH = 1920;
 const MAX_CAPTURE_HEIGHT = 1920;
 const CAPTURE_FPS = 30;
-const CAPTURE_BITRATE = 2_500_000; // 2.5 Mbps
+const CAPTURE_BITRATE = 8_000_000; // 8 Mbps for high quality
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
