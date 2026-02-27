@@ -2246,12 +2246,8 @@ ${urls}
             quality: 'medium',
             startTime: trimStartTime,
             onProgress: (phase, pct) => {
-              if (phase === 'webm') {
-                // WebM is ~70% of total work, MP4 is ~30%
-                job.percent = Math.round(pct * 0.7);
-              } else if (phase === 'mp4') {
-                job.percent = Math.round(70 + pct * 0.3);
-              }
+              // Both run in parallel; report the slower one's progress
+              job.percent = Math.min(Math.round(pct), 99);
               job.progress = `Converting video... ${job.percent}%`;
             },
           });

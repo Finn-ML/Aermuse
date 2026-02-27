@@ -184,8 +184,9 @@ export async function convertToWebM(
       .videoCodec('libvpx-vp9')
       .addOutputOption('-crf', settings.crf.toString())
       .addOutputOption('-b:v', settings.bitrate)
-      .addOutputOption('-deadline', 'good') // Balance between speed and quality
-      .addOutputOption('-cpu-used', '4') // Speed preset (0-5, higher = faster)
+      .addOutputOption('-deadline', 'realtime') // Fastest encoding
+      .addOutputOption('-cpu-used', '8') // Max speed (0-8, higher = faster)
+      .addOutputOption('-row-mt', '1') // Row-based multithreading
       .noAudio() // No audio for background videos
       .format('webm')
       .on('error', (err) => {
@@ -240,35 +241,19 @@ export async function convertToMp4(
 
   // Tuned for background videos that sit behind page content
   const qualitySettings = {
-    low: { crf: 32, preset: 'fast' },
-    medium: { crf: 28, preset: 'fast' },
-    high: { crf: 23, preset: 'medium' }
+    low: { crf: 32, preset: 'ultrafast' },
+    medium: { crf: 28, preset: 'ultrafast' },
+    high: { crf: 23, preset: 'fast' }
   };
 
   const settings = qualitySettings[quality];
 
+  // MP4 with -movflags +faststart requires a seekable output (can't pipe to stream).
+  // Write to a temp file, then read the result back.
+  const outputDir = await mkdtemp(join(tmpdir(), 'mp4out-'));
+  const outputPath = join(outputDir, 'output.mp4');
+
   return new Promise((resolve, reject) => {
-    const outputStream = new PassThrough();
-    const chunks: Buffer[] = [];
-
-    outputStream.on('data', (chunk: Buffer) => chunks.push(chunk));
-    outputStream.on('end', () => {
-      const buffer = Buffer.concat(chunks);
-      console.log(`[VIDEO] MP4 conversion complete: ${buffer.length} bytes`);
-      if (buffer.length < 1024) {
-        return reject(new Error(`MP4 conversion produced suspiciously small output (${buffer.length} bytes)`));
-      }
-      resolve({
-        buffer,
-        format: 'mp4',
-        duration: actualDuration
-      });
-    });
-    outputStream.on('error', (err) => {
-      console.error('[VIDEO] MP4 conversion failed:', err);
-      reject(err);
-    });
-
     // Build FFmpeg command using file path (seekable input)
     const command = ffmpeg(inputPath);
 
@@ -299,6 +284,8 @@ export async function convertToMp4(
       .format('mp4')
       .on('error', (err) => {
         console.error('[VIDEO] FFmpeg error:', err);
+        // Clean up temp output
+        unlink(outputPath).catch(() => {});
         reject(new Error(`FFmpeg processing failed: ${err.message}`));
       })
       .on('progress', (progress) => {
@@ -308,7 +295,29 @@ export async function convertToMp4(
           options.onProgress?.(pct);
         }
       })
-      .pipe(outputStream);
+      .on('end', async () => {
+        try {
+          const { readFile } = await import('fs/promises');
+          const buffer = await readFile(outputPath);
+          console.log(`[VIDEO] MP4 conversion complete: ${buffer.length} bytes`);
+          // Clean up temp output
+          await unlink(outputPath).catch(() => {});
+          const { rmdir } = await import('fs/promises');
+          await rmdir(outputDir).catch(() => {});
+
+          if (buffer.length < 1024) {
+            return reject(new Error(`MP4 conversion produced suspiciously small output (${buffer.length} bytes)`));
+          }
+          resolve({
+            buffer,
+            format: 'mp4',
+            duration: actualDuration
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .save(outputPath);
   });
 }
 
@@ -348,20 +357,24 @@ export async function processCanvasVideo(
       startTime: options.startTime,
     };
 
-    // Convert to WebM (primary format)
-    const webm = await convertToWebM(tempPath, {
+    // Run WebM + MP4 conversions in parallel for speed
+    const webmPromise = convertToWebM(tempPath, {
       ...canvasOptions,
       onProgress: (pct) => options.onProgress?.('webm', pct),
     });
 
-    // Generate MP4 fallback if requested
-    let mp4: VideoProcessResult | undefined;
+    let mp4Promise: Promise<VideoProcessResult> | undefined;
     if (generateFallback) {
-      mp4 = await convertToMp4(tempPath, {
+      mp4Promise = convertToMp4(tempPath, {
         ...canvasOptions,
         onProgress: (pct) => options.onProgress?.('mp4', pct),
       });
     }
+
+    const [webm, mp4] = await Promise.all([
+      webmPromise,
+      mp4Promise,
+    ]);
 
     // Generate poster frame from the clip start point
     let poster: Buffer | undefined;
