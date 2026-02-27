@@ -208,13 +208,6 @@ export function BackgroundEditor({
       return;
     }
 
-    // Validate file size (100MB max)
-    const maxSize = 100 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setVideoUploadError('File too large. Maximum size is 100MB.');
-      return;
-    }
-
     setVideoUploadError(null);
 
     // Reset file input
@@ -232,10 +225,16 @@ export function BackgroundEditor({
       const videoDuration = tempVideo.duration;
 
       if (videoDuration <= 8) {
-        // Short video: upload directly
+        // Short video: validate size and upload directly
+        const maxSize = 100 * 1024 * 1024;
+        if (file.size > maxSize) {
+          setVideoUploadError('File too large. Maximum size is 100MB for short videos.');
+          return;
+        }
         proceedWithUpload(file, 0);
       } else {
-        // Longer video: show trim modal to select 8s clip
+        // Longer video: show trim modal — file stays local, only the
+        // captured 8s clip will be uploaded (no file size limit needed)
         setVideoFileToTrim(file);
         setShowTrimModal(true);
       }
@@ -243,17 +242,21 @@ export function BackgroundEditor({
     tempVideo.onerror = () => {
       URL.revokeObjectURL(tempUrl);
       // Fallback: upload without trimming, server will handle it
+      const maxSize = 100 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setVideoUploadError('File too large. Maximum size is 100MB.');
+        return;
+      }
       proceedWithUpload(file, 0);
     };
     tempVideo.src = tempUrl;
   };
 
-  const handleTrimConfirm = (startTime: number) => {
+  const handleTrimConfirm = (trimmedFile: File) => {
     setShowTrimModal(false);
-    if (videoFileToTrim) {
-      proceedWithUpload(videoFileToTrim, startTime);
-      setVideoFileToTrim(null);
-    }
+    setVideoFileToTrim(null);
+    // Trimmed clip is already captured client-side, upload with startTime=0
+    proceedWithUpload(trimmedFile, 0);
   };
 
   const handleTrimCancel = () => {
@@ -514,7 +517,7 @@ export function BackgroundEditor({
               Background Video
             </label>
             <p className="text-xs text-[rgba(102,0,51,0.5)] mb-3">
-              Upload a short looping video (max 8 seconds, 100MB). Spotify Canvas style!
+              Upload a video and select an 8-second clip. Spotify Canvas style!
             </p>
 
             {/* Video Preview */}
