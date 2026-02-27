@@ -2010,9 +2010,9 @@ ${urls}
       console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
       const conversionStart = Date.now();
 
-      // Process video - convert to webm with mp4 fallback + poster frame
+      // Process video - convert to webm + poster frame (no MP4 fallback needed)
       const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
-        generateFallback: true,
+        generateFallback: false,
         quality: 'high'
       });
 
@@ -2242,21 +2242,13 @@ ${urls}
 
           const conversionStart = Date.now();
           const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
-            generateFallback: true,
+            generateFallback: false, // WebM VP9 is supported in all modern browsers
             quality: 'high',
             startTime: trimStartTime,
-            onProgress: (phase, pct) => {
-              const clampedPct = Math.max(0, Math.min(100, Math.round(pct)));
-              let combined: number;
-              if (phase === 'webm') {
-                // WebM may be skipped (100% instantly) or run normally
-                combined = Math.round(clampedPct * 0.3);
-              } else {
-                // MP4 does the heavy lifting: 30-95%
-                combined = Math.round(30 + clampedPct * 0.65);
-              }
-              job.percent = Math.min(combined, 99);
-              job.progress = `Converting video... ${job.percent}%`;
+            onProgress: (_phase, pct) => {
+              const clampedPct = Math.max(0, Math.min(99, Math.round(pct)));
+              job.percent = clampedPct;
+              job.progress = `Converting video... ${clampedPct}%`;
             },
           });
 
