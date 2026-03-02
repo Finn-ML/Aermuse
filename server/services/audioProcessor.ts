@@ -194,7 +194,8 @@ export async function generatePreview(
  */
 export async function convertToMp3(
   inputBuffer: Buffer,
-  inputFormat: 'mp3' | 'wav'
+  inputFormat: 'mp3' | 'wav',
+  bitrate: string = '320k'
 ): Promise<Buffer> {
   if (inputFormat === 'mp3') {
     return inputBuffer; // Already MP3
@@ -214,7 +215,7 @@ export async function convertToMp3(
 
       ffmpeg(tempPath)
         .audioCodec('libmp3lame')
-        .audioBitrate('192k')
+        .audioBitrate(bitrate)
         .format('mp3')
         .on('error', (err) => {
           console.error('[AUDIO] Conversion failed:', err);

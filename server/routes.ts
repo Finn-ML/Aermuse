@@ -3810,13 +3810,26 @@ ${urls}
       // Increment download count
       await storage.incrementDownloadCount(purchase.id);
 
+      // For large files (>10MB), convert WAV to high-quality MP3 to stay within proxy limits
+      let sendBuffer = buffer;
+      let sendFormat = track.fileFormat;
+
+      if (buffer.length > 10 * 1024 * 1024 && track.fileFormat === 'wav') {
+        console.log(`[DOWNLOAD] File is ${(buffer.length / 1024 / 1024).toFixed(1)}MB WAV, converting to 320kbps MP3...`);
+        const convertStart = Date.now();
+        const { convertToMp3 } = await import('./services/audioProcessor');
+        sendBuffer = await convertToMp3(buffer, 'wav');
+        sendFormat = 'mp3';
+        console.log(`[DOWNLOAD] Converted to MP3: ${(sendBuffer.length / 1024 / 1024).toFixed(1)}MB in ${Date.now() - convertStart}ms`);
+      }
+
       // Set headers for download
-      const filename = `${track.title.replace(/[^a-zA-Z0-9]/g, '_')}.${track.fileFormat}`;
-      res.set('Content-Type', getAudioContentType(track.fileFormat));
+      const filename = `${track.title.replace(/[^a-zA-Z0-9]/g, '_')}.${sendFormat}`;
+      res.set('Content-Type', getAudioContentType(sendFormat));
       res.set('Content-Disposition', `attachment; filename="${filename}"`);
-      res.set('Content-Length', buffer.length.toString());
-      console.log(`[DOWNLOAD] Sending ${buffer.length} bytes as "${filename}"`);
-      res.send(buffer);
+      res.set('Content-Length', sendBuffer.length.toString());
+      console.log(`[DOWNLOAD] Sending ${sendBuffer.length} bytes as "${filename}"`);
+      res.send(sendBuffer);
     } catch (error: any) {
       console.error("[DOWNLOAD] Error:", error?.message || error);
       console.error("[DOWNLOAD] Stack:", error?.stack);
