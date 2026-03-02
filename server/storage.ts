@@ -21,7 +21,8 @@ import {
   type EmailLinkClick, type InsertEmailLinkClick,
   users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals, artistVideos, videoPurchases,
   merchProducts, merchVariants, merchOrders, merchOrderItems,
-  mailingListSubscribers, emailCampaigns, emailSends, emailLinkClicks
+  mailingListSubscribers, emailCampaigns, emailSends, emailLinkClicks,
+  isrcSequences
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, sql, type SQL } from "drizzle-orm";
@@ -115,6 +116,7 @@ export interface IStorage {
 
   // Music Tracks
   getTrack(id: string): Promise<Track | undefined>;
+  getTracksByUser(userId: string): Promise<Track[]>;
   getTracksByLandingPage(landingPageId: string): Promise<Track[]>;
   getPublishedTracksByLandingPage(landingPageId: string): Promise<Track[]>;
   createTrack(track: InsertTrack & { id: string }): Promise<Track>;
@@ -223,6 +225,9 @@ export interface IStorage {
   // Email Link Clicks
   createLinkClick(click: InsertEmailLinkClick): Promise<EmailLinkClick>;
   getLinkClicksByCampaign(campaignId: string): Promise<{ url: string; clicks: number }[]>;
+
+  // ISRC Sequences (Distribution)
+  getNextIsrcDesignation(year: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -703,6 +708,13 @@ export class DatabaseStorage implements IStorage {
   async getTrack(id: string): Promise<Track | undefined> {
     const [track] = await db.select().from(tracks).where(eq(tracks.id, id));
     return track;
+  }
+
+  async getTracksByUser(userId: string): Promise<Track[]> {
+    return db.select()
+      .from(tracks)
+      .where(eq(tracks.userId, userId))
+      .orderBy(desc(tracks.createdAt));
   }
 
   async getTracksByLandingPage(landingPageId: string): Promise<Track[]> {
@@ -1299,6 +1311,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(emailSends.campaignId, campaignId))
       .groupBy(emailLinkClicks.url)
       .orderBy(desc(count()));
+  }
+
+  async getNextIsrcDesignation(year: number): Promise<number> {
+    return db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(isrcSequences)
+        .where(eq(isrcSequences.year, year))
+        .for("update");
+
+      if (rows.length > 0) {
+        const next = rows[0].lastDesignation + 1;
+        await tx
+          .update(isrcSequences)
+          .set({ lastDesignation: next, updatedAt: new Date() })
+          .where(eq(isrcSequences.year, year));
+        return next;
+      } else {
+        await tx.insert(isrcSequences).values({
+          year,
+          lastDesignation: 1,
+        });
+        return 1;
+      }
+    });
   }
 }
 

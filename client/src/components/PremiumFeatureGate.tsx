@@ -1,8 +1,8 @@
 import { Link } from 'wouter';
-import { Lock, Sparkles, ExternalLink, Mail, BarChart3, FileText, ShoppingBag, Users } from 'lucide-react';
+import { Lock, Sparkles, ExternalLink, Mail, BarChart3, FileText, ShoppingBag, Users, Radio } from 'lucide-react';
 
 interface PremiumFeatureGateProps {
-  feature: 'landing' | 'proposals' | 'analytics' | 'contract-templates' | 'merch-selling' | 'mailing-list';
+  feature: 'landing' | 'proposals' | 'analytics' | 'contract-templates' | 'merch-selling' | 'mailing-list' | 'distribution';
   children?: React.ReactNode;
 }
 
@@ -93,6 +93,20 @@ const featureInfo = {
       'Track subscriber growth',
       'Export your mailing list',
       'Embed signup on your artist page',
+    ],
+  },
+  'distribution': {
+    title: 'Distribution',
+    description: 'Prepare your tracks for distribution to streaming platforms like Spotify and Apple Music.',
+    icon: Radio,
+    tier: 'Beta' as const,
+    price: '£10/month',
+    benefits: [
+      'ISRC code generation for your tracks',
+      'Complete distribution metadata management',
+      'Genre, credits, and rights information',
+      'Distribution readiness tracking',
+      'Prepare for Spotify, Apple Music, and more',
     ],
   },
 };

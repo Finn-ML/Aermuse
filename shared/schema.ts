@@ -605,6 +605,20 @@ export const tracks = pgTable("tracks", {
   playCount: integer("play_count").default(0),
   purchaseCount: integer("purchase_count").default(0),
 
+  // Distribution metadata
+  isrcCode: varchar("isrc_code", { length: 17 }),
+  genre: text("genre"),
+  secondaryGenre: text("secondary_genre"),
+  releaseDate: timestamp("release_date", { withTimezone: true }),
+  language: varchar("language", { length: 10 }).default("en"),
+  explicitContent: boolean("explicit_content").default(false),
+  songwriters: text("songwriters"),
+  producers: text("producers"),
+  recordLabel: text("record_label").default("Independent"),
+  copyrightHolder: text("copyright_holder"),
+  publishingRights: text("publishing_rights"),
+  distributionStatus: text("distribution_status").default("incomplete"),
+
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -627,6 +641,19 @@ export const insertTrackSchema = createInsertSchema(tracks, {
 
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
 export type Track = typeof tracks.$inferSelect;
+
+// ============================================
+// ISRC SEQUENCES TABLE (Distribution Feature)
+// ============================================
+
+export const isrcSequences = pgTable("isrc_sequences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  year: integer("year").notNull().unique(),
+  lastDesignation: integer("last_designation").default(0).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type IsrcSequence = typeof isrcSequences.$inferSelect;
 
 // ============================================
 // TRACK PURCHASES TABLE (Music Store Feature)

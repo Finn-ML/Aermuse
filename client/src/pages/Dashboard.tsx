@@ -24,6 +24,7 @@ import { type SocialIcon } from '@/components/landing/SocialIconsEditor';
 import { LandingPageEditor } from '@/components/landing/editor';
 import { SplitRegistrationForm } from '@/components/music/SplitRegistrationForm';
 import MerchDashboard from '@/components/merch/MerchDashboard';
+import DistributionDashboard from '@/components/distribution/DistributionDashboard';
 import { MailingListContent } from '@/components/mailing-list/MailingListContent';
 import { BlurredUpgradeOverlay } from '@/components/BlurredUpgradeOverlay';
 import { SplitVerificationStatus } from '@/components/music/SplitVerificationStatus';
@@ -70,9 +71,10 @@ import {
   Pen,
   Shield,
   ShoppingBag,
+  Radio,
 } from 'lucide-react';
 
-type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'mailing-list' | 'settings' | 'merch';
+type NavId = 'dashboard' | 'contracts' | 'templates' | 'proposals' | 'landing' | 'mailing-list' | 'distribution' | 'settings' | 'merch';
 
 interface LinkItem {
   id: string;
@@ -170,7 +172,7 @@ export default function Dashboard() {
 
     // Handle tab query param for deep linking (e.g., /dashboard?tab=contracts)
     const tabParam = params.get('tab');
-    if (tabParam && ['dashboard', 'contracts', 'templates', 'proposals', 'landing', 'settings'].includes(tabParam)) {
+    if (tabParam && ['dashboard', 'contracts', 'templates', 'proposals', 'landing', 'distribution', 'settings'].includes(tabParam)) {
       setActiveNav(tabParam as NavId);
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
@@ -1064,6 +1066,7 @@ export default function Dashboard() {
     { id: 'landing' as NavId, label: 'Aerival: Artist Launcher', icon: ExternalLink, premium: true },
     { id: 'merch' as NavId, label: 'Merch Store', icon: ShoppingBag, premium: true },
     { id: 'mailing-list' as NavId, label: 'Mailing List', icon: Mail, premium: true },
+    { id: 'distribution' as NavId, label: 'Distribution', icon: Radio, premium: true },
     { id: 'settings' as NavId, label: 'Settings', icon: Settings }
   ];
 
@@ -1338,6 +1341,7 @@ export default function Dashboard() {
               {activeNav === 'landing' && 'Aerival: Artist Launcher'}
               {activeNav === 'merch' && 'Merch Store'}
               {activeNav === 'mailing-list' && 'Mailing List'}
+              {activeNav === 'distribution' && 'Distribution'}
               {activeNav === 'settings' && 'Settings'}
             </h1>
             <p className="text-xs sm:text-sm text-[rgba(102,0,51,0.6)] font-medium hidden sm:block">
@@ -1348,6 +1352,7 @@ export default function Dashboard() {
               {activeNav === 'landing' && 'Customize your artist page and manage your links'}
               {activeNav === 'merch' && 'Manage your merchandise, orders, and track sales'}
               {activeNav === 'mailing-list' && 'Collect subscribers and send email campaigns to your fans'}
+              {activeNav === 'distribution' && 'Prepare your tracks for distribution to streaming platforms'}
               {activeNav === 'settings' && 'Manage your account and security settings'}
             </p>
             </div>
@@ -2595,6 +2600,12 @@ export default function Dashboard() {
             canAccess('mailing-list')
               ? <MailingListContent />
               : <PremiumFeatureGate feature="mailing-list" />
+          )}
+
+          {activeNav === 'distribution' && (
+            canAccess('distribution')
+              ? <DistributionDashboard />
+              : <PremiumFeatureGate feature="distribution" />
           )}
 
           {showDeleteModal && (

@@ -9591,6 +9591,196 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
+  // ============================================
+  // DISTRIBUTION ENDPOINTS
+  // ============================================
+
+  /**
+   * Calculate distribution readiness for a track
+   */
+  function calculateReadiness(track: any): { percentage: number; missing: string[]; isReady: boolean } {
+    const requiredFields: { key: string; label: string }[] = [
+      { key: 'isrcCode', label: 'ISRC Code' },
+      { key: 'genre', label: 'Genre' },
+      { key: 'releaseDate', label: 'Release Date' },
+      { key: 'language', label: 'Language' },
+      { key: 'songwriters', label: 'Songwriters' },
+      { key: 'copyrightHolder', label: 'Copyright Holder' },
+      { key: 'publishingRights', label: 'Publishing Rights' },
+    ];
+
+    const missing: string[] = [];
+    for (const field of requiredFields) {
+      const value = track[field.key];
+      if (value === null || value === undefined || value === '') {
+        missing.push(field.label);
+      }
+    }
+
+    const filled = requiredFields.length - missing.length;
+    const percentage = Math.round((filled / requiredFields.length) * 100);
+    return { percentage, missing, isReady: missing.length === 0 };
+  }
+
+  // GET /api/distribution/tracks - List user's tracks with readiness status
+  app.get("/api/distribution/tracks", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const userTracks = await storage.getTracksByUser(userId);
+
+      const tracksWithReadiness = userTracks.map(track => ({
+        ...track,
+        readiness: calculateReadiness(track),
+      }));
+
+      res.json(tracksWithReadiness);
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error listing tracks:", error);
+      res.status(500).json({ error: "Failed to fetch distribution tracks" });
+    }
+  });
+
+  // PATCH /api/distribution/tracks/:id - Update distribution metadata
+  app.patch("/api/distribution/tracks/:id", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Only allow updating distribution-specific fields
+      const allowedFields = [
+        'genre', 'secondaryGenre', 'releaseDate', 'language',
+        'explicitContent', 'songwriters', 'producers', 'recordLabel',
+        'copyrightHolder', 'publishingRights',
+      ];
+
+      const updateData: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+
+      // Auto-calculate distribution status
+      const updatedTrackData = { ...track, ...updateData };
+      const { isReady } = calculateReadiness(updatedTrackData);
+      updateData.distributionStatus = isReady ? 'ready' : 'incomplete';
+
+      const updatedTrack = await storage.updateTrack(req.params.id, updateData);
+      res.json({
+        ...updatedTrack,
+        readiness: calculateReadiness(updatedTrack),
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error updating metadata:", error);
+      res.status(500).json({ error: "Failed to update distribution metadata" });
+    }
+  });
+
+  // POST /api/distribution/tracks/:id/generate-isrc - Auto-generate ISRC
+  app.post("/api/distribution/tracks/:id/generate-isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      if (track.isrcCode) {
+        return res.status(400).json({ error: "Track already has an ISRC code. Remove it first to generate a new one." });
+      }
+
+      const { generateIsrc } = await import("./services/isrcGenerator");
+      const isrcCode = await generateIsrc();
+
+      // Recalculate status
+      const updatedData = { ...track, isrcCode };
+      const { isReady } = calculateReadiness(updatedData);
+
+      const updatedTrack = await storage.updateTrack(req.params.id, {
+        isrcCode,
+        distributionStatus: isReady ? 'ready' : 'incomplete',
+      });
+
+      res.json({
+        ...updatedTrack,
+        readiness: calculateReadiness(updatedTrack),
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error generating ISRC:", error);
+      res.status(500).json({ error: "Failed to generate ISRC code" });
+    }
+  });
+
+  // PATCH /api/distribution/tracks/:id/isrc - Manually set ISRC
+  app.patch("/api/distribution/tracks/:id/isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const { isrc } = req.body;
+      if (!isrc) {
+        return res.status(400).json({ error: "ISRC code is required" });
+      }
+
+      const { validateIsrc } = await import("./services/isrcGenerator");
+      const validation = validateIsrc(isrc);
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+
+      const updatedData = { ...track, isrcCode: validation.normalized };
+      const { isReady } = calculateReadiness(updatedData);
+
+      const updatedTrack = await storage.updateTrack(req.params.id, {
+        isrcCode: validation.normalized,
+        distributionStatus: isReady ? 'ready' : 'incomplete',
+      });
+
+      res.json({
+        ...updatedTrack,
+        readiness: calculateReadiness(updatedTrack),
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error setting ISRC:", error);
+      res.status(500).json({ error: "Failed to set ISRC code" });
+    }
+  });
+
+  // DELETE /api/distribution/tracks/:id/isrc - Remove ISRC
+  app.delete("/api/distribution/tracks/:id/isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      const updatedTrack = await storage.updateTrack(req.params.id, {
+        isrcCode: null,
+        distributionStatus: 'incomplete',
+      });
+
+      res.json({
+        ...updatedTrack,
+        readiness: calculateReadiness(updatedTrack),
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error removing ISRC:", error);
+      res.status(500).json({ error: "Failed to remove ISRC code" });
+    }
+  });
+
   return httpServer;
 }
 

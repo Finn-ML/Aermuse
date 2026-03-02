@@ -21,6 +21,7 @@ const FEATURE_LABELS: Record<Feature, string> = {
   'mailing-list': 'Mailing List',
   'track-preview-selection': 'Track Preview Selection',
   'merch-selling': 'Merch Selling',
+  'distribution': 'Distribution',
 };
 
 export function BlurredUpgradeOverlay({

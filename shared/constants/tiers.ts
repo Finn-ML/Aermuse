@@ -28,7 +28,8 @@ export type Feature =
   | 'canvas-video-loop'
   | 'mailing-list'
   | 'track-preview-selection'
-  | 'merch-selling';
+  | 'merch-selling'
+  | 'distribution';
 
 /**
  * Feature access matrix - defines which tiers can access each feature
@@ -46,6 +47,7 @@ export const TIER_FEATURES: Record<Feature, SubscriptionTier[]> = {
   'mailing-list': ['theta'],
   'track-preview-selection': ['theta'],
   'merch-selling': ['theta'],
+  'distribution': ['beta', 'alpha', 'theta'],
 } as const;
 
 /**
