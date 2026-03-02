@@ -17,7 +17,7 @@ import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
@@ -9592,7 +9592,7 @@ Sent at: ${new Date().toISOString()}
   });
 
   // ============================================
-  // DISTRIBUTION ENDPOINTS
+  // DISTRIBUTION ENDPOINTS (Independent Entity)
   // ============================================
 
   /**
@@ -9622,11 +9622,307 @@ Sent at: ${new Date().toISOString()}
     return { percentage, missing, isReady: missing.length === 0 };
   }
 
+  // Distribution chunked uploads map
+  const distributionChunkedUploads = new Map<string, {
+    userId: string;
+    chunks: Buffer[];
+    totalChunks: number;
+    receivedChunks: number;
+    metadata: {
+      title: string;
+      artistName?: string;
+      originalFileName: string;
+      fileFormat: string;
+    };
+    createdAt: Date;
+  }>();
+
+  // Clean up stale distribution uploads (older than 1 hour)
+  setInterval(() => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    for (const [uploadId, upload] of Array.from(distributionChunkedUploads.entries())) {
+      if (upload.createdAt < oneHourAgo) {
+        distributionChunkedUploads.delete(uploadId);
+        console.log(`[DISTRIBUTION UPLOAD] Cleaned up stale upload: ${uploadId}`);
+      }
+    }
+  }, 5 * 60 * 1000);
+
+  // POST /api/distribution/tracks/init-upload - Initialize chunked upload
+  app.post("/api/distribution/tracks/init-upload", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { totalChunks, fileName, fileFormat, title, artistName } = req.body;
+
+      if (!totalChunks || !fileName || !title) {
+        return res.status(400).json({ error: "Missing required fields (totalChunks, fileName, title)" });
+      }
+
+      const validFormats = ['mp3', 'wav'];
+      const format = (fileFormat || fileName.split('.').pop())?.toLowerCase();
+      if (!validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
+      }
+
+      const uploadId = crypto.randomUUID();
+
+      distributionChunkedUploads.set(uploadId, {
+        userId,
+        chunks: new Array(totalChunks).fill(null),
+        totalChunks,
+        receivedChunks: 0,
+        metadata: {
+          title,
+          artistName: artistName || undefined,
+          originalFileName: fileName,
+          fileFormat: format,
+        },
+        createdAt: new Date(),
+      });
+
+      console.log(`[DISTRIBUTION UPLOAD] Initialized upload ${uploadId} for ${fileName} (${totalChunks} chunks)`);
+      res.json({ uploadId, totalChunks });
+    } catch (error) {
+      console.error("[DISTRIBUTION UPLOAD] Init error:", error);
+      res.status(500).json({ error: "Failed to initialize upload" });
+    }
+  });
+
+  // POST /api/distribution/tracks/chunk - Upload a chunk
+  app.post("/api/distribution/tracks/chunk", requireAuth, requireFeature('distribution'), express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const uploadId = req.headers['x-upload-id'] as string;
+      const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
+
+      if (!uploadId || isNaN(chunkIndex)) {
+        return res.status(400).json({ error: "Missing upload ID or chunk index" });
+      }
+
+      const upload = distributionChunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (chunkIndex < 0 || chunkIndex >= upload.totalChunks) {
+        return res.status(400).json({ error: "Invalid chunk index" });
+      }
+
+      const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      upload.chunks[chunkIndex] = chunkBuffer;
+      upload.receivedChunks++;
+
+      console.log(`[DISTRIBUTION UPLOAD] Received chunk ${chunkIndex + 1}/${upload.totalChunks} for ${uploadId}`);
+
+      res.json({
+        received: upload.receivedChunks,
+        total: upload.totalChunks,
+        complete: upload.receivedChunks === upload.totalChunks,
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION UPLOAD] Chunk error:", error);
+      res.status(500).json({ error: "Failed to upload chunk" });
+    }
+  });
+
+  // POST /api/distribution/tracks/complete-upload - Finalize chunked upload
+  app.post("/api/distribution/tracks/complete-upload", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { uploadId } = req.body;
+
+      if (!uploadId) {
+        return res.status(400).json({ error: "Missing upload ID" });
+      }
+
+      const upload = distributionChunkedUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (upload.receivedChunks !== upload.totalChunks) {
+        return res.status(400).json({
+          error: `Missing chunks. Received ${upload.receivedChunks}/${upload.totalChunks}`,
+        });
+      }
+
+      if (upload.chunks.some(c => c === null)) {
+        return res.status(400).json({ error: "Some chunks are missing" });
+      }
+
+      console.log(`[DISTRIBUTION UPLOAD] Completing upload ${uploadId}...`);
+
+      // Combine chunks
+      const completeBuffer = Buffer.concat(upload.chunks);
+      console.log(`[DISTRIBUTION UPLOAD] Combined buffer size: ${completeBuffer.length} bytes`);
+
+      // Verify audio file type
+      const verification = await verifyAudioType(completeBuffer);
+      if (!verification.valid) {
+        distributionChunkedUploads.delete(uploadId);
+        return res.status(400).json({ error: verification.error });
+      }
+
+      const fileFormat = verification.type as 'mp3' | 'wav';
+      const trackId = crypto.randomUUID();
+      const { metadata } = upload;
+
+      // Upload original file to storage
+      const uploadResult = await uploadDistributionAudio(userId, trackId, completeBuffer, fileFormat);
+      console.log(`[DISTRIBUTION UPLOAD] Upload successful: ${uploadResult.path}`);
+
+      // Create distribution track record
+      const track = await storage.createDistributionTrack({
+        id: trackId,
+        userId,
+        title: metadata.title,
+        artistName: metadata.artistName || null,
+        originalFilePath: uploadResult.path,
+        previewFilePath: null,
+        coverArtPath: null,
+        originalFileName: metadata.originalFileName,
+        fileFormat,
+        fileSizeBytes: completeBuffer.length,
+        durationSeconds: null,
+      });
+
+      // Clean up chunks from memory
+      distributionChunkedUploads.delete(uploadId);
+
+      // Respond immediately
+      console.log(`[DISTRIBUTION UPLOAD] Completed upload ${uploadId} -> track ${trackId}`);
+      res.json({ ...track, readiness: calculateReadiness(track) });
+
+      // Background processing: metadata + preview (no Stripe, no landing page)
+      const audioBuffer = completeBuffer;
+      setImmediate(async () => {
+        try {
+          const updates: Record<string, any> = {};
+
+          try {
+            const audioMeta = await getAudioMetadata(audioBuffer);
+            if (isFinite(audioMeta.duration) && audioMeta.duration > 0) {
+              updates.durationSeconds = audioMeta.duration;
+            }
+          } catch (err) {
+            console.warn("[DISTRIBUTION UPLOAD] Background: Failed to get audio duration:", err);
+          }
+
+          try {
+            const preview = await generatePreview(audioBuffer, fileFormat, 30);
+            const previewUpload = await uploadDistributionPreview(userId, trackId, preview.buffer, fileFormat);
+            updates.previewFilePath = previewUpload.path;
+          } catch (err) {
+            console.warn("[DISTRIBUTION UPLOAD] Background: Failed to generate preview:", err);
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await storage.updateDistributionTrack(trackId, updates);
+            console.log(`[DISTRIBUTION UPLOAD] Background processing complete for track ${trackId}:`, Object.keys(updates));
+          }
+        } catch (err) {
+          console.error(`[DISTRIBUTION UPLOAD] Background processing failed for track ${trackId}:`, err);
+        }
+      });
+    } catch (error) {
+      console.error("[DISTRIBUTION UPLOAD] Complete error:", error);
+      res.status(500).json({ error: "Failed to complete upload" });
+    }
+  });
+
+  // POST /api/distribution/tracks/:id/cover - Upload cover art
+  app.post("/api/distribution/tracks/:id/cover", requireAuth, requireFeature('distribution'), (req: Request, res: Response, next: NextFunction) => {
+    coverArtUpload.single("image")(req, res, (err) => {
+      if (err) {
+        console.error("[DISTRIBUTION] Cover art multer error:", err.message);
+        return res.status(400).json({ error: err.message || "Failed to process image" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getDistributionTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const extension = req.file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const coverUpload = await uploadDistributionCover(userId, track.id, req.file.buffer, extension);
+
+      const updatedTrack = await storage.updateDistributionTrack(track.id, {
+        coverArtPath: coverUpload.path,
+      });
+
+      res.json({ ...updatedTrack, readiness: calculateReadiness(updatedTrack) });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error uploading cover art:", error);
+      res.status(500).json({ error: "Failed to upload cover art" });
+    }
+  });
+
+  // GET /api/distribution/tracks/:id/cover/* - Serve cover art
+  app.get("/api/distribution/tracks/:id/cover/*", async (req: Request, res: Response) => {
+    try {
+      const coverPath = req.params[0];
+      if (!coverPath) {
+        return res.status(400).json({ error: "No cover path specified" });
+      }
+
+      const decodedPath = decodeURIComponent(coverPath);
+      const buffer = await downloadTrackFile(decodedPath);
+      const ext = decodedPath.split('.').pop()?.toLowerCase() || 'jpg';
+
+      res.set('Content-Type', getImageContentType(ext));
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.send(buffer);
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error serving cover art:", error);
+      res.status(404).json({ error: "Cover art not found" });
+    }
+  });
+
+  // DELETE /api/distribution/tracks/:id - Delete track + files
+  app.delete("/api/distribution/tracks/:id", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const track = await storage.getDistributionTrack(req.params.id);
+
+      if (!track || track.userId !== userId) {
+        return res.status(404).json({ error: "Track not found" });
+      }
+
+      // Delete files from storage
+      await deleteDistributionFiles(userId, track.id);
+
+      // Delete DB record
+      await storage.deleteDistributionTrack(track.id);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[DISTRIBUTION] Error deleting track:", error);
+      res.status(500).json({ error: "Failed to delete track" });
+    }
+  });
+
   // GET /api/distribution/tracks - List user's tracks with readiness status
   app.get("/api/distribution/tracks", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const userTracks = await storage.getTracksByUser(userId);
+      const userTracks = await storage.getDistributionTracksByUser(userId);
 
       const tracksWithReadiness = userTracks.map(track => ({
         ...track,
@@ -9644,14 +9940,15 @@ Sent at: ${new Date().toISOString()}
   app.patch("/api/distribution/tracks/:id", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const track = await storage.getTrack(req.params.id);
+      const track = await storage.getDistributionTrack(req.params.id);
 
       if (!track || track.userId !== userId) {
         return res.status(404).json({ error: "Track not found" });
       }
 
-      // Only allow updating distribution-specific fields
+      // Allow updating distribution-specific fields + title/artistName
       const allowedFields = [
+        'title', 'artistName',
         'genre', 'secondaryGenre', 'releaseDate', 'language',
         'explicitContent', 'songwriters', 'producers', 'recordLabel',
         'copyrightHolder', 'publishingRights',
@@ -9669,7 +9966,7 @@ Sent at: ${new Date().toISOString()}
       const { isReady } = calculateReadiness(updatedTrackData);
       updateData.distributionStatus = isReady ? 'ready' : 'incomplete';
 
-      const updatedTrack = await storage.updateTrack(req.params.id, updateData);
+      const updatedTrack = await storage.updateDistributionTrack(req.params.id, updateData);
       res.json({
         ...updatedTrack,
         readiness: calculateReadiness(updatedTrack),
@@ -9684,7 +9981,7 @@ Sent at: ${new Date().toISOString()}
   app.post("/api/distribution/tracks/:id/generate-isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const track = await storage.getTrack(req.params.id);
+      const track = await storage.getDistributionTrack(req.params.id);
 
       if (!track || track.userId !== userId) {
         return res.status(404).json({ error: "Track not found" });
@@ -9701,7 +9998,7 @@ Sent at: ${new Date().toISOString()}
       const updatedData = { ...track, isrcCode };
       const { isReady } = calculateReadiness(updatedData);
 
-      const updatedTrack = await storage.updateTrack(req.params.id, {
+      const updatedTrack = await storage.updateDistributionTrack(req.params.id, {
         isrcCode,
         distributionStatus: isReady ? 'ready' : 'incomplete',
       });
@@ -9720,7 +10017,7 @@ Sent at: ${new Date().toISOString()}
   app.patch("/api/distribution/tracks/:id/isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const track = await storage.getTrack(req.params.id);
+      const track = await storage.getDistributionTrack(req.params.id);
 
       if (!track || track.userId !== userId) {
         return res.status(404).json({ error: "Track not found" });
@@ -9741,7 +10038,7 @@ Sent at: ${new Date().toISOString()}
       const updatedData = { ...track, isrcCode: validation.normalized };
       const { isReady } = calculateReadiness(updatedData);
 
-      const updatedTrack = await storage.updateTrack(req.params.id, {
+      const updatedTrack = await storage.updateDistributionTrack(req.params.id, {
         isrcCode: validation.normalized,
         distributionStatus: isReady ? 'ready' : 'incomplete',
       });
@@ -9760,13 +10057,13 @@ Sent at: ${new Date().toISOString()}
   app.delete("/api/distribution/tracks/:id/isrc", requireAuth, requireFeature('distribution'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const track = await storage.getTrack(req.params.id);
+      const track = await storage.getDistributionTrack(req.params.id);
 
       if (!track || track.userId !== userId) {
         return res.status(404).json({ error: "Track not found" });
       }
 
-      const updatedTrack = await storage.updateTrack(req.params.id, {
+      const updatedTrack = await storage.updateDistributionTrack(req.params.id, {
         isrcCode: null,
         distributionStatus: 'incomplete',
       });

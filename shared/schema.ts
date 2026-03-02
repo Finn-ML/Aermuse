@@ -605,20 +605,6 @@ export const tracks = pgTable("tracks", {
   playCount: integer("play_count").default(0),
   purchaseCount: integer("purchase_count").default(0),
 
-  // Distribution metadata
-  isrcCode: varchar("isrc_code", { length: 17 }),
-  genre: text("genre"),
-  secondaryGenre: text("secondary_genre"),
-  releaseDate: timestamp("release_date", { withTimezone: true }),
-  language: varchar("language", { length: 10 }).default("en"),
-  explicitContent: boolean("explicit_content").default(false),
-  songwriters: text("songwriters"),
-  producers: text("producers"),
-  recordLabel: text("record_label").default("Independent"),
-  copyrightHolder: text("copyright_holder"),
-  publishingRights: text("publishing_rights"),
-  distributionStatus: text("distribution_status").default("incomplete"),
-
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -654,6 +640,54 @@ export const isrcSequences = pgTable("isrc_sequences", {
 });
 
 export type IsrcSequence = typeof isrcSequences.$inferSelect;
+
+// ============================================
+// DISTRIBUTION TRACKS TABLE (Independent Entity)
+// ============================================
+
+export const distributionTracks = pgTable("distribution_tracks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Audio metadata
+  title: text("title").notNull(),
+  artistName: text("artist_name"),
+  originalFilePath: text("original_file_path").notNull(),
+  previewFilePath: text("preview_file_path"),
+  coverArtPath: text("cover_art_path"),
+  originalFileName: text("original_file_name").notNull(),
+  fileFormat: varchar("file_format", { length: 10 }).notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  durationSeconds: integer("duration_seconds"),
+
+  // Distribution metadata
+  isrcCode: varchar("isrc_code", { length: 17 }),
+  genre: text("genre"),
+  secondaryGenre: text("secondary_genre"),
+  releaseDate: timestamp("release_date", { withTimezone: true }),
+  language: varchar("language", { length: 10 }).default("en"),
+  explicitContent: boolean("explicit_content").default(false),
+  songwriters: text("songwriters"),
+  producers: text("producers"),
+  recordLabel: text("record_label").default("Independent"),
+  copyrightHolder: text("copyright_holder"),
+  publishingRights: text("publishing_rights"),
+  distributionStatus: text("distribution_status").default("incomplete"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  userIdIdx: index('idx_distribution_tracks_user_id').on(table.userId),
+}));
+
+export const insertDistributionTrackSchema = createInsertSchema(distributionTracks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDistributionTrack = z.infer<typeof insertDistributionTrackSchema>;
+export type DistributionTrack = typeof distributionTracks.$inferSelect;
 
 // ============================================
 // TRACK PURCHASES TABLE (Music Store Feature)

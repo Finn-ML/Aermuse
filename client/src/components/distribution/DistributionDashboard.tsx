@@ -3,8 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { DistributionTrackList } from './DistributionTrackList';
 import { DistributionMetadataForm } from './DistributionMetadataForm';
+import { DistributionUploadForm } from './DistributionUploadForm';
+
+type View = 'list' | 'upload' | 'metadata';
 
 export default function DistributionDashboard() {
+  const [view, setView] = useState<View>('list');
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
 
   const { data: tracks = [], isLoading } = useQuery<any[]>({
@@ -19,21 +23,32 @@ export default function DistributionDashboard() {
     );
   }
 
-  const selectedTrack = selectedTrackId ? tracks.find((t: any) => t.id === selectedTrackId) : null;
-
-  if (selectedTrack) {
+  if (view === 'upload') {
     return (
-      <DistributionMetadataForm
-        track={selectedTrack}
-        onBack={() => setSelectedTrackId(null)}
+      <DistributionUploadForm
+        onBack={() => setView('list')}
+        onComplete={() => setView('list')}
       />
     );
+  }
+
+  if (view === 'metadata' && selectedTrackId) {
+    const selectedTrack = tracks.find((t: any) => t.id === selectedTrackId);
+    if (selectedTrack) {
+      return (
+        <DistributionMetadataForm
+          track={selectedTrack}
+          onBack={() => { setView('list'); setSelectedTrackId(null); }}
+        />
+      );
+    }
   }
 
   return (
     <DistributionTrackList
       tracks={tracks}
-      onSelectTrack={setSelectedTrackId}
+      onSelectTrack={(id) => { setSelectedTrackId(id); setView('metadata'); }}
+      onUpload={() => setView('upload')}
     />
   );
 }

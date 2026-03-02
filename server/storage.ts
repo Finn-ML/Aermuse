@@ -19,10 +19,11 @@ import {
   type EmailCampaign, type InsertEmailCampaign,
   type EmailSend, type InsertEmailSend,
   type EmailLinkClick, type InsertEmailLinkClick,
+  type DistributionTrack, type InsertDistributionTrack,
   users, contracts, contractFolders, contractVersions, landingPages, landingPageLinks, contractTemplates, tracks, trackPurchases, trackSplits, proposals, artistVideos, videoPurchases,
   merchProducts, merchVariants, merchOrders, merchOrderItems,
   mailingListSubscribers, emailCampaigns, emailSends, emailLinkClicks,
-  isrcSequences
+  isrcSequences, distributionTracks
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, gte, lte, asc, isNull, count, max, sql, type SQL } from "drizzle-orm";
@@ -228,6 +229,13 @@ export interface IStorage {
 
   // ISRC Sequences (Distribution)
   getNextIsrcDesignation(year: number): Promise<number>;
+
+  // Distribution Tracks (Independent Entity)
+  getDistributionTrack(id: string): Promise<DistributionTrack | undefined>;
+  getDistributionTracksByUser(userId: string): Promise<DistributionTrack[]>;
+  createDistributionTrack(track: InsertDistributionTrack & { id: string }): Promise<DistributionTrack>;
+  updateDistributionTrack(id: string, data: Partial<InsertDistributionTrack>): Promise<DistributionTrack | undefined>;
+  deleteDistributionTrack(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1311,6 +1319,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(emailSends.campaignId, campaignId))
       .groupBy(emailLinkClicks.url)
       .orderBy(desc(count()));
+  }
+
+  // ============================================
+  // DISTRIBUTION TRACKS (Independent Entity)
+  // ============================================
+
+  async getDistributionTrack(id: string): Promise<DistributionTrack | undefined> {
+    const [track] = await db.select().from(distributionTracks).where(eq(distributionTracks.id, id));
+    return track;
+  }
+
+  async getDistributionTracksByUser(userId: string): Promise<DistributionTrack[]> {
+    return db.select()
+      .from(distributionTracks)
+      .where(eq(distributionTracks.userId, userId))
+      .orderBy(desc(distributionTracks.createdAt));
+  }
+
+  async createDistributionTrack(track: InsertDistributionTrack & { id: string }): Promise<DistributionTrack> {
+    const [newTrack] = await db.insert(distributionTracks).values(track).returning();
+    return newTrack;
+  }
+
+  async updateDistributionTrack(id: string, data: Partial<InsertDistributionTrack>): Promise<DistributionTrack | undefined> {
+    const [track] = await db.update(distributionTracks)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(distributionTracks.id, id))
+      .returning();
+    return track;
+  }
+
+  async deleteDistributionTrack(id: string): Promise<boolean> {
+    await db.delete(distributionTracks).where(eq(distributionTracks.id, id));
+    return true;
   }
 
   async getNextIsrcDesignation(year: number): Promise<number> {

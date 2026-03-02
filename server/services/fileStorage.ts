@@ -303,6 +303,74 @@ export function getAudioContentType(format: string): string {
 }
 
 // ============================================
+// DISTRIBUTION TRACK STORAGE (Independent Entity)
+// ============================================
+
+export async function uploadDistributionAudio(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const path = `distribution/${userId}/${trackId}/original.${extension}`;
+
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload distribution audio: ${result.error.message}`);
+  }
+
+  return { path, size: buffer.length };
+}
+
+export async function uploadDistributionPreview(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const path = `distribution/${userId}/${trackId}/preview.${extension}`;
+
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload distribution preview: ${result.error.message}`);
+  }
+
+  return { path, size: buffer.length };
+}
+
+export async function uploadDistributionCover(
+  userId: string,
+  trackId: string,
+  buffer: Buffer,
+  extension: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `distribution/${userId}/${trackId}/cover-${timestamp}.${extension}`;
+
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload distribution cover: ${result.error.message}`);
+  }
+
+  return { path, size: buffer.length };
+}
+
+export async function deleteDistributionFiles(userId: string, trackId: string): Promise<void> {
+  const basePath = `distribution/${userId}/${trackId}`;
+
+  try {
+    const listResult = await getStorage().list({ prefix: basePath });
+    if (!listResult.error && listResult.value) {
+      for (const item of listResult.value) {
+        await getStorage().delete(item.name);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
+// ============================================
 // MERCH PRODUCT IMAGE STORAGE
 // ============================================
 

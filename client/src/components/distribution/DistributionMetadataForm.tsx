@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { IsrcInput } from './IsrcInput';
 import { ReadinessIndicator } from './ReadinessIndicator';
-import { ArrowLeft, Save, Loader2, Music } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Music, Upload, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 const GENRES = [
@@ -57,7 +57,10 @@ interface DistributionMetadataFormProps {
 
 export function DistributionMetadataForm({ track, onBack }: DistributionMetadataFormProps) {
   const { toast } = useToast();
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
+    title: track.title || '',
+    artistName: track.artistName || '',
     genre: track.genre || '',
     secondaryGenre: track.secondaryGenre || '',
     releaseDate: track.releaseDate ? new Date(track.releaseDate).toISOString().split('T')[0] : '',
@@ -69,6 +72,7 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
     copyrightHolder: track.copyrightHolder || '',
     publishingRights: track.publishingRights || '',
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Track local readiness for real-time updates
   const [localReadiness, setLocalReadiness] = useState(track.readiness);
@@ -120,6 +124,52 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
     },
   });
 
+  const coverMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch(`/api/distribution/tracks/${track.id}/cover`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to upload cover art');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/tracks'] });
+      toast({ title: 'Cover art updated' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to upload cover art', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('DELETE', `/api/distribution/tracks/${track.id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/tracks'] });
+      toast({ title: 'Track deleted' });
+      onBack();
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete track', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      coverMutation.mutate(file);
+    }
+  };
+
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -137,7 +187,7 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
         <div className="flex items-center gap-3 flex-1">
           {track.coverArtPath ? (
             <img
-              src={`/api/tracks/${track.id}/cover/${encodeURIComponent(track.coverArtPath)}`}
+              src={`/api/distribution/tracks/${track.id}/cover/${encodeURIComponent(track.coverArtPath)}`}
               alt={track.title}
               className="w-12 h-12 rounded-lg object-cover"
             />
@@ -164,6 +214,69 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main form */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Track Details (title + artist name) */}
+          <div className="bg-white rounded-2xl p-6 border border-[rgba(102,0,51,0.08)]">
+            <h3 className="text-sm font-semibold text-[#660033] mb-4 uppercase tracking-wider">Track Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-[#660033] mb-1 block">Title *</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => updateField('title', e.target.value)}
+                  placeholder="Track title"
+                  className="w-full px-3 py-2 border border-[rgba(102,0,51,0.2)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#660033]/20 focus:border-[#660033]"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#660033] mb-1 block">Artist Name</label>
+                <input
+                  type="text"
+                  value={formData.artistName}
+                  onChange={(e) => updateField('artistName', e.target.value)}
+                  placeholder="Artist name"
+                  className="w-full px-3 py-2 border border-[rgba(102,0,51,0.2)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#660033]/20 focus:border-[#660033]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Cover Art */}
+          <div className="bg-white rounded-2xl p-6 border border-[rgba(102,0,51,0.08)]">
+            <h3 className="text-sm font-semibold text-[#660033] mb-4 uppercase tracking-wider">Cover Art</h3>
+            <div className="flex items-center gap-4">
+              {track.coverArtPath ? (
+                <img
+                  src={`/api/distribution/tracks/${track.id}/cover/${encodeURIComponent(track.coverArtPath)}`}
+                  alt="Cover art"
+                  className="w-24 h-24 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-xl bg-[rgba(102,0,51,0.06)] flex items-center justify-center">
+                  <Music size={32} className="text-[rgba(102,0,51,0.2)]" />
+                </div>
+              )}
+              <div>
+                <button
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={coverMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 border border-[rgba(102,0,51,0.2)] rounded-lg text-sm text-[#660033] hover:bg-[rgba(102,0,51,0.04)] transition-colors disabled:opacity-50"
+                >
+                  {coverMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {track.coverArtPath ? 'Replace Cover' : 'Upload Cover'}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">JPEG or PNG, square recommended</p>
+              </div>
+            </div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+              onChange={handleCoverSelect}
+              className="hidden"
+            />
+          </div>
+
           {/* ISRC Section */}
           <div className="bg-white rounded-2xl p-6 border border-[rgba(102,0,51,0.08)]">
             <h3 className="text-sm font-semibold text-[#660033] mb-4 uppercase tracking-wider">ISRC Code</h3>
@@ -271,10 +384,10 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
                   type="text"
                   value={formData.copyrightHolder}
                   onChange={(e) => updateField('copyrightHolder', e.target.value)}
-                  placeholder="℗ 2026 Artist Name"
+                  placeholder="&#8471; 2026 Artist Name"
                   className="w-full px-3 py-2 border border-[rgba(102,0,51,0.2)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#660033]/20 focus:border-[#660033]"
                 />
-                <p className="text-xs text-gray-500 mt-1">Sound recording copyright, e.g. "℗ 2026 Your Name"</p>
+                <p className="text-xs text-gray-500 mt-1">Sound recording copyright</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[#660033] mb-1 block">Publishing Rights *</label>
@@ -282,10 +395,10 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
                   type="text"
                   value={formData.publishingRights}
                   onChange={(e) => updateField('publishingRights', e.target.value)}
-                  placeholder="© 2026 Artist Name"
+                  placeholder="&copy; 2026 Artist Name"
                   className="w-full px-3 py-2 border border-[rgba(102,0,51,0.2)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#660033]/20 focus:border-[#660033]"
                 />
-                <p className="text-xs text-gray-500 mt-1">Composition copyright, e.g. "© 2026 Your Name"</p>
+                <p className="text-xs text-gray-500 mt-1">Composition copyright</p>
               </div>
               <div className="flex items-center justify-between py-2">
                 <div>
@@ -298,6 +411,38 @@ export function DistributionMetadataForm({ track, onBack }: DistributionMetadata
                 />
               </div>
             </div>
+          </div>
+
+          {/* Delete Track */}
+          <div className="bg-white rounded-2xl p-6 border border-red-100">
+            <h3 className="text-sm font-semibold text-red-600 mb-2 uppercase tracking-wider">Danger Zone</h3>
+            {showDeleteConfirm ? (
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-red-600 flex-1">Are you sure? This will permanently delete this track and its files.</p>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Delete
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg text-sm hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} />
+                Delete Track
+              </button>
+            )}
           </div>
         </div>
 
