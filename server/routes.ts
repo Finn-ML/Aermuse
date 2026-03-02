@@ -3771,10 +3771,13 @@ ${urls}
   // Download purchased track
   app.get("/api/downloads/:token", async (req: Request, res: Response) => {
     try {
+      console.log(`[DOWNLOAD] Request for token: ${req.params.token.substring(0, 16)}...`);
+
       const purchase = await storage.getTrackPurchaseByToken(req.params.token);
       if (!purchase) {
         return res.status(404).json({ error: "Invalid download token" });
       }
+      console.log(`[DOWNLOAD] Found purchase ${purchase.id}, status: ${purchase.status}, downloads: ${purchase.downloadCount}/${purchase.maxDownloads}`);
 
       // Check status
       if (purchase.status !== 'completed') {
@@ -3796,9 +3799,13 @@ ${urls}
       if (!track) {
         return res.status(404).json({ error: "Track not found" });
       }
+      console.log(`[DOWNLOAD] Track: ${track.title}, format: ${track.fileFormat}, size: ${track.fileSizeBytes}, path: ${track.originalFilePath}`);
 
-      // Download original file
+      // Download original file from storage
+      console.log(`[DOWNLOAD] Starting file download from Object Storage...`);
+      const startTime = Date.now();
       const buffer = await downloadTrackFile(track.originalFilePath);
+      console.log(`[DOWNLOAD] File downloaded: ${buffer.length} bytes in ${Date.now() - startTime}ms`);
 
       // Increment download count
       await storage.incrementDownloadCount(purchase.id);
@@ -3808,10 +3815,14 @@ ${urls}
       res.set('Content-Type', getAudioContentType(track.fileFormat));
       res.set('Content-Disposition', `attachment; filename="${filename}"`);
       res.set('Content-Length', buffer.length.toString());
+      console.log(`[DOWNLOAD] Sending ${buffer.length} bytes as "${filename}"`);
       res.send(buffer);
-    } catch (error) {
-      console.error("Download error:", error);
-      res.status(500).json({ error: "Failed to download track" });
+    } catch (error: any) {
+      console.error("[DOWNLOAD] Error:", error?.message || error);
+      console.error("[DOWNLOAD] Stack:", error?.stack);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to download track" });
+      }
     }
   });
 
