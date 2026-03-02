@@ -9961,6 +9961,11 @@ Sent at: ${new Date().toISOString()}
         }
       }
 
+      // Convert releaseDate string to Date object for the timestamp column
+      if (updateData.releaseDate !== undefined) {
+        updateData.releaseDate = updateData.releaseDate ? new Date(updateData.releaseDate) : null;
+      }
+
       // Auto-calculate distribution status
       const updatedTrackData = { ...track, ...updateData };
       const { isReady } = calculateReadiness(updatedTrackData);
