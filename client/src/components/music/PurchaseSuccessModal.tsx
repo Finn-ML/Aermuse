@@ -26,22 +26,48 @@ export function PurchaseSuccessModal({
 
   const downloadUrl = downloadToken ? `/api/downloads/${downloadToken}` : null;
 
-  const handleDownload = () => {
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = async () => {
     if (!downloadUrl) return;
 
     setIsDownloading(true);
-    setDownloadCount(prev => prev + 1);
+    setDownloadError(null);
 
-    // Create a temporary link to trigger download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = '';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const response = await fetch(downloadUrl);
 
-    // Reset loading state after a short delay
-    setTimeout(() => setIsDownloading(false), 2000);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || `Download failed (${response.status})`);
+      }
+
+      // Extract filename from Content-Disposition header
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `${trackTitle}.mp3`;
+      if (disposition) {
+        const match = disposition.match(/filename="?([^";\n]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      // Create blob and trigger download
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setDownloadCount(prev => prev + 1);
+    } catch (err: any) {
+      console.error('Download error:', err);
+      setDownloadError(err.message || 'Download failed. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Close on escape key
@@ -142,27 +168,34 @@ export function PurchaseSuccessModal({
 
                 {/* Download button */}
                 {downloadToken && (
-                  <button
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                    className="w-full py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70"
-                    style={{
-                      backgroundColor: primaryColor,
-                      color: secondaryColor
-                    }}
-                  >
-                    {isDownloading ? (
-                      <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-6 h-6" />
-                        Download Your Track
-                      </>
+                  <>
+                    <button
+                      onClick={handleDownload}
+                      disabled={isDownloading}
+                      className="w-full py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70"
+                      style={{
+                        backgroundColor: primaryColor,
+                        color: secondaryColor
+                      }}
+                    >
+                      {isDownloading ? (
+                        <>
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          Downloading...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-6 h-6" />
+                          Download Your Track
+                        </>
+                      )}
+                    </button>
+                    {downloadError && (
+                      <p className="text-sm text-center text-red-600">
+                        {downloadError}
+                      </p>
                     )}
-                  </button>
+                  </>
                 )}
 
                 {/* Info cards */}

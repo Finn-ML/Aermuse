@@ -250,6 +250,13 @@ export async function downloadTrackFile(path: string): Promise<Buffer> {
 }
 
 /**
+ * Stream track file for download (avoids loading entire file into memory)
+ */
+export function streamTrackFile(path: string): import('stream').Readable {
+  return getStorage().downloadAsStream(path);
+}
+
+/**
  * Delete track files (original, preview, cover)
  */
 export async function deleteTrackFiles(userId: string, trackId: string): Promise<void> {

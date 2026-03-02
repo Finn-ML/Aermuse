@@ -66,6 +66,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Track and video purchases are handled by the verify endpoints on the frontend redirect.
+  // The webhook just needs to acknowledge them - no additional processing needed here.
+  if (session.metadata?.type === 'track_purchase' || session.metadata?.type === 'video_purchase') {
+    console.log(`[STRIPE WEBHOOK] ${session.metadata.type} completed for session ${session.id} - handled by verify endpoint`);
+    return;
+  }
+
   // Check both metadata.userId (API-created sessions) and client_reference_id (Payment Links)
   const userId = session.metadata?.userId || session.client_reference_id;
   const customerId = session.customer as string;

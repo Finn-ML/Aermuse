@@ -17,7 +17,7 @@ import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, streamTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
@@ -3797,9 +3797,6 @@ ${urls}
         return res.status(404).json({ error: "Track not found" });
       }
 
-      // Download original file
-      const buffer = await downloadTrackFile(track.originalFilePath);
-
       // Increment download count
       await storage.incrementDownloadCount(purchase.id);
 
@@ -3807,8 +3804,23 @@ ${urls}
       const filename = `${track.title.replace(/[^a-zA-Z0-9]/g, '_')}.${track.fileFormat}`;
       res.set('Content-Type', getAudioContentType(track.fileFormat));
       res.set('Content-Disposition', `attachment; filename="${filename}"`);
-      res.set('Content-Length', buffer.length.toString());
-      res.send(buffer);
+      if (track.fileSizeBytes) {
+        res.set('Content-Length', track.fileSizeBytes.toString());
+      }
+
+      // Stream the file directly to the response instead of buffering in memory
+      const stream = streamTrackFile(track.originalFilePath);
+
+      stream.on('error', (err) => {
+        console.error("Download stream error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to download track" });
+        } else {
+          res.destroy();
+        }
+      });
+
+      stream.pipe(res);
     } catch (error) {
       console.error("Download error:", error);
       res.status(500).json({ error: "Failed to download track" });
