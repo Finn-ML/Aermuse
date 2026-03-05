@@ -272,3 +272,33 @@ export const VIDEO_UPLOAD_CONSTANTS = {
   ALLOWED_VIDEO_MIMES,
   MAX_VIDEO_SIZE
 };
+
+// ============================================
+// MERCH PREVIEW VIDEO UPLOAD
+// ============================================
+
+const MAX_MERCH_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB - short clips compressed to much smaller
+
+export const merchVideoUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_MERCH_VIDEO_SIZE
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+    if (!ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Accepted: ${ALLOWED_VIDEO_EXTENSIONS.join(', ')}`));
+    }
+    if (!ALLOWED_VIDEO_MIMES.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type. Accepted: mp4, mov, webm`));
+    }
+    cb(null, true);
+  }
+});
+
+export const MERCH_VIDEO_CONSTANTS = {
+  ALLOWED_VIDEO_EXTENSIONS,
+  ALLOWED_VIDEO_MIMES,
+  MAX_MERCH_VIDEO_SIZE,
+  MAX_DURATION_SECONDS: 15,
+};

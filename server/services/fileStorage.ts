@@ -422,6 +422,52 @@ export async function deleteMerchImage(path: string): Promise<void> {
 }
 
 // ============================================
+// MERCH PRODUCT PREVIEW VIDEO STORAGE
+// ============================================
+
+/**
+ * Upload a merch product preview video (compressed MP4)
+ */
+export async function uploadMerchPreviewVideo(
+  userId: string,
+  productId: string,
+  buffer: Buffer,
+  format: string
+): Promise<UploadResult> {
+  const timestamp = Date.now();
+  const path = `merch/${userId}/${productId}/preview-${timestamp}.${format}`;
+
+  const result = await getStorage().uploadFromBytes(path, buffer);
+  if (result.error) {
+    throw new Error(`Failed to upload merch preview video: ${result.error.message}`);
+  }
+
+  return { path, size: buffer.length };
+}
+
+/**
+ * Download a merch product preview video
+ */
+export async function downloadMerchPreviewVideo(path: string): Promise<Buffer> {
+  const result = await getStorage().downloadAsBytes(path);
+  if (result.error) {
+    throw new Error(`Failed to download merch preview video: ${result.error.message}`);
+  }
+  return result.value![0];
+}
+
+/**
+ * Delete a merch product preview video
+ */
+export async function deleteMerchPreviewVideo(path: string): Promise<void> {
+  try {
+    await getStorage().delete(path);
+  } catch {
+    // Ignore errors for files that don't exist
+  }
+}
+
+// ============================================
 // PROPOSAL CONTRACT STORAGE (Epic 13)
 // ============================================
 

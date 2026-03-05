@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Edit, Package, ChevronDown, ChevronUp, Upload, X, ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Edit, Package, ChevronDown, ChevronUp, Upload, X, ImageIcon, Video } from 'lucide-react';
 import type { MerchProduct, MerchVariant } from '@shared/schema';
 
 interface ProductWithVariants extends MerchProduct {
@@ -35,6 +35,14 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Track the product ID for uploading images (needed for new products)
   const [createdProductId, setCreatedProductId] = useState<string | null>(product?.id ?? null);
+  // Preview video state
+  const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(
+    product?.previewVideo ?? null
+  );
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<string | null>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -140,6 +148,83 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
     const file = e.target.files?.[0];
     if (file) {
       handleImageUpload(file);
+    }
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    const productId = createdProductId || product?.id;
+    if (!productId) {
+      setVideoUploadError('Please save the product first before uploading video.');
+      return;
+    }
+
+    const validTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+    if (!validTypes.includes(file.type)) {
+      setVideoUploadError('Please select an MP4, MOV, or WebM video.');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      setVideoUploadError('File too large. Maximum size is 50MB.');
+      return;
+    }
+
+    setVideoUploadError(null);
+    setIsVideoUploading(true);
+    setVideoUploadProgress('Uploading and processing video...');
+
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+      const response = await fetch(`/api/merch/products/${productId}/preview-video`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      const data = await response.json();
+      setPreviewVideoUrl(data.url);
+      setVideoUploadProgress(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
+    } catch (err: any) {
+      console.error('Video upload failed:', err);
+      setVideoUploadError(err.message || 'Failed to upload video. Please try again.');
+      setVideoUploadProgress(null);
+    } finally {
+      setIsVideoUploading(false);
+      if (videoInputRef.current) {
+        videoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveVideo = async () => {
+    const productId = createdProductId || product?.id;
+    if (!productId) return;
+
+    try {
+      const response = await fetch(`/api/merch/products/${productId}/preview-video`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete video');
+      }
+      setPreviewVideoUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
+    } catch (err) {
+      console.error('Video delete failed:', err);
+      toast({ title: 'Error', description: 'Failed to remove video.', variant: 'destructive' });
+    }
+  };
+
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleVideoUpload(file);
     }
   };
 
@@ -263,6 +348,82 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
 
         {uploadError && (
           <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
+        )}
+      </div>
+
+      {/* Preview Video Upload Section */}
+      <div>
+        <Label>Preview Video (plays on hover)</Label>
+        <p className="text-xs text-[rgba(102,0,51,0.4)] mb-2">
+          Short clip (max 15 seconds, MP4/MOV/WebM). Plays when customers hover over the product card.
+        </p>
+
+        {previewVideoUrl && (
+          <div className="relative group rounded-lg overflow-hidden bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)] mb-3">
+            <video
+              src={previewVideoUrl}
+              className="w-full h-24 object-cover"
+              muted
+              loop
+              playsInline
+              autoPlay
+            />
+            <button
+              type="button"
+              onClick={handleRemoveVideo}
+              className="absolute top-1 right-1 p-0.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X size={14} />
+            </button>
+            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/50 text-white text-[10px]">
+              Preview Video
+            </div>
+          </div>
+        )}
+
+        {canUpload && !previewVideoUrl ? (
+          <>
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept=".mp4,.mov,.webm"
+              onChange={handleVideoFileSelect}
+              className="hidden"
+              id="merch-video-upload"
+            />
+            <label
+              htmlFor="merch-video-upload"
+              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                isVideoUploading
+                  ? 'border-[rgba(102,0,51,0.3)] bg-[rgba(102,0,51,0.02)]'
+                  : 'border-[rgba(102,0,51,0.15)] hover:border-[rgba(102,0,51,0.3)] hover:bg-[rgba(102,0,51,0.02)]'
+              }`}
+            >
+              {isVideoUploading ? (
+                <span className="text-sm text-[rgba(102,0,51,0.6)]">
+                  {videoUploadProgress || 'Processing video...'}
+                </span>
+              ) : (
+                <>
+                  <Video size={16} className="text-[rgba(102,0,51,0.4)]" />
+                  <span className="text-sm text-[rgba(102,0,51,0.5)]">
+                    Click to upload preview video (MP4, MOV, WebM)
+                  </span>
+                </>
+              )}
+            </label>
+          </>
+        ) : !canUpload ? (
+          <div className="flex items-center gap-2 w-full p-4 border-2 border-dashed rounded-lg border-[rgba(102,0,51,0.1)] bg-[rgba(102,0,51,0.01)]">
+            <Video size={16} className="text-[rgba(102,0,51,0.3)]" />
+            <span className="text-sm text-[rgba(102,0,51,0.4)]">
+              Save the product first, then add a preview video
+            </span>
+          </div>
+        ) : null}
+
+        {videoUploadError && (
+          <p className="mt-1.5 text-xs text-red-600">{videoUploadError}</p>
         )}
       </div>
 

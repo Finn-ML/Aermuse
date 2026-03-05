@@ -16,10 +16,10 @@ import { requireFeature } from "./middleware/tier";
 import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType, merchVideoUpload } from "./middleware/upload";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
-import { processCanvasVideo } from "./services/videoProcessor";
+import { processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { stripe } from "./services/stripe";
@@ -9188,6 +9188,154 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
+  // Upload a merch product preview video
+  app.post("/api/merch/products/:id/preview-video", requireAuth, requireFeature('merch-selling'), (req: Request, res: Response, next) => {
+    req.setTimeout(300000);
+    res.setTimeout(300000);
+    merchVideoUpload.single("video")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: "File too large. Maximum video size is 50MB." });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: err.message || "Upload failed" });
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Verify video type using magic bytes
+      const verification = await verifyVideoType(file.buffer);
+      if (!verification.valid) {
+        return res.status(400).json({ error: verification.error || "Invalid video file" });
+      }
+
+      const inputFormat = verification.type as string;
+
+      // Write to temp file for FFmpeg processing
+      const { writeFile, unlink: unlinkFile, mkdtemp: mkTempDir } = await import('fs/promises');
+      const { join } = await import('path');
+      const { tmpdir } = await import('os');
+      const tempDir = await mkTempDir(join(tmpdir(), 'merch-video-'));
+      const tempPath = join(tempDir, `input.${inputFormat}`);
+      await writeFile(tempPath, file.buffer);
+
+      try {
+        // Check duration
+        const metadata = await getVideoMetadata(tempPath);
+        if (metadata.duration > 15) {
+          return res.status(400).json({
+            error: `Video is ${metadata.duration}s long. Maximum duration is 15 seconds.`
+          });
+        }
+
+        // Convert to MP4 (H.264) optimized for hover playback
+        const mp4Result = await convertToMp4(tempPath, {
+          maxWidth: 720,
+          maxHeight: 720,
+          maxDuration: 15,
+          quality: 'medium',
+        });
+
+        // Delete old preview video from storage if one exists
+        if (product.previewVideo) {
+          const oldPathMatch = product.previewVideo.match(/\/api\/merch\/videos\/(.+)/);
+          if (oldPathMatch) {
+            await deleteMerchPreviewVideo(decodeURIComponent(oldPathMatch[1]));
+          }
+        }
+
+        // Upload compressed MP4 to storage
+        const uploadResult = await uploadMerchPreviewVideo(
+          userId,
+          product.id,
+          mp4Result.buffer,
+          'mp4'
+        );
+        const videoUrl = `/api/merch/videos/${encodeURIComponent(uploadResult.path)}`;
+
+        // Update product record with video URL
+        await storage.updateProduct(product.id, { previewVideo: videoUrl });
+
+        res.json({
+          success: true,
+          url: videoUrl,
+          duration: mp4Result.duration,
+          size: uploadResult.size,
+        });
+      } finally {
+        // Clean up temp files
+        try {
+          await unlinkFile(tempPath);
+          const { rmdir } = await import('fs/promises');
+          await rmdir(tempDir);
+        } catch {}
+      }
+    } catch (error) {
+      console.error("Merch preview video upload error:", error);
+      res.status(500).json({ error: "Failed to upload preview video" });
+    }
+  });
+
+  // Serve a merch product preview video
+  app.get("/api/merch/videos/:path(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = decodeURIComponent(req.params.path);
+      const extension = filePath.split('.').pop()?.toLowerCase() || 'mp4';
+      const buffer = await downloadMerchPreviewVideo(filePath);
+
+      res.set('Content-Type', getVideoContentType(extension));
+      res.set('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error) {
+      console.error("Merch preview video download error:", error);
+      res.status(404).json({ error: "Video not found" });
+    }
+  });
+
+  // Delete a merch product preview video
+  app.delete("/api/merch/products/:id/preview-video", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      if (product.previewVideo) {
+        const pathMatch = product.previewVideo.match(/\/api\/merch\/videos\/(.+)/);
+        if (pathMatch) {
+          await deleteMerchPreviewVideo(decodeURIComponent(pathMatch[1]));
+        }
+        await storage.updateProduct(product.id, { previewVideo: null });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Merch preview video delete error:", error);
+      res.status(500).json({ error: "Failed to delete preview video" });
+    }
+  });
+
   app.get("/api/merch/products", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -9261,6 +9409,14 @@ Sent at: ${new Date().toISOString()}
       }
       if (product.userId !== userId) {
         return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Clean up preview video from storage
+      if (product.previewVideo) {
+        const pathMatch = product.previewVideo.match(/\/api\/merch\/videos\/(.+)/);
+        if (pathMatch) {
+          await deleteMerchPreviewVideo(decodeURIComponent(pathMatch[1]));
+        }
       }
 
       await storage.deleteProduct(req.params.id);

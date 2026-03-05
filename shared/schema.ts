@@ -992,6 +992,7 @@ export const merchProducts = pgTable("merch_products", {
   description: text("description"),
   category: text("category").notNull().default("other"),
   images: jsonb("images").default([]),
+  previewVideo: text("preview_video"),
   basePrice: integer("base_price").notNull(),
   currency: text("currency").default("gbp"),
   weight: integer("weight"),
