@@ -171,21 +171,62 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
 
     setVideoUploadError(null);
     setIsVideoUploading(true);
-    setVideoUploadProgress('Uploading and processing video...');
+    setVideoUploadProgress('Initializing upload...');
 
     try {
-      const formData = new FormData();
-      formData.append('video', file);
-      const response = await fetch(`/api/merch/products/${productId}/preview-video`, {
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks to stay under proxy limit
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      // Step 1: Initialize chunked upload
+      const initRes = await fetch(`/api/merch/products/${productId}/preview-video/init-upload`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ totalChunks, fileName: file.name }),
         credentials: 'include',
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({ error: 'Failed to initialize upload' }));
+        throw new Error(err.error || 'Failed to initialize upload');
       }
-      const data = await response.json();
+      const { uploadId } = await initRes.json();
+
+      // Step 2: Upload chunks sequentially
+      for (let i = 0; i < totalChunks; i++) {
+        setVideoUploadProgress(`Uploading... ${Math.round(((i + 1) / totalChunks) * 80)}%`);
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const buffer = await chunk.arrayBuffer();
+
+        const chunkRes = await fetch(`/api/merch/products/${productId}/preview-video/chunk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'x-upload-id': uploadId,
+            'x-chunk-index': i.toString(),
+          },
+          body: buffer,
+          credentials: 'include',
+        });
+        if (!chunkRes.ok) {
+          const err = await chunkRes.json().catch(() => ({ error: 'Chunk upload failed' }));
+          throw new Error(err.error || `Failed to upload chunk ${i + 1}`);
+        }
+      }
+
+      // Step 3: Complete upload (server reassembles and processes)
+      setVideoUploadProgress('Processing video...');
+      const completeRes = await fetch(`/api/merch/products/${productId}/preview-video/complete-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uploadId }),
+        credentials: 'include',
+      });
+      if (!completeRes.ok) {
+        const err = await completeRes.json().catch(() => ({ error: 'Processing failed' }));
+        throw new Error(err.error || 'Failed to process video');
+      }
+      const data = await completeRes.json();
       setPreviewVideoUrl(data.url);
       setVideoUploadProgress(null);
       queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });

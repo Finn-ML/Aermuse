@@ -16,7 +16,7 @@ import { requireFeature } from "./middleware/tier";
 import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
-import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType, merchVideoUpload } from "./middleware/upload";
+import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
 import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
 import { processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
@@ -9188,23 +9188,33 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
-  // Upload a merch product preview video
-  app.post("/api/merch/products/:id/preview-video", requireAuth, requireFeature('merch-selling'), (req: Request, res: Response, next) => {
-    req.setTimeout(300000);
-    res.setTimeout(300000);
-    merchVideoUpload.single("video")(req, res, (err: any) => {
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(413).json({ error: "File too large. Maximum video size is 50MB." });
-          }
-          return res.status(400).json({ error: `Upload error: ${err.message}` });
-        }
-        return res.status(400).json({ error: err.message || "Upload failed" });
+  // ============================================
+  // MERCH PREVIEW VIDEO CHUNKED UPLOAD (bypasses proxy limits)
+  // ============================================
+
+  const merchVideoUploads = new Map<string, {
+    userId: string;
+    productId: string;
+    chunks: Buffer[];
+    totalChunks: number;
+    receivedChunks: number;
+    fileName: string;
+    createdAt: Date;
+  }>();
+
+  // Clean up stale merch video uploads (older than 30 minutes)
+  setInterval(() => {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+    for (const [uploadId, upload] of Array.from(merchVideoUploads.entries())) {
+      if (upload.createdAt < thirtyMinAgo) {
+        merchVideoUploads.delete(uploadId);
+        console.log(`[MERCH VIDEO] Cleaned up stale upload: ${uploadId}`);
       }
-      next();
-    });
-  }, async (req: Request, res: Response) => {
+    }
+  }, 5 * 60 * 1000);
+
+  // Initialize chunked merch preview video upload
+  app.post("/api/merch/products/:id/preview-video/init-upload", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
       const product = await storage.getProduct(req.params.id);
@@ -9215,13 +9225,107 @@ Sent at: ${new Date().toISOString()}
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ error: "No file uploaded" });
+      const { totalChunks, fileName } = req.body;
+      if (!totalChunks || !fileName) {
+        return res.status(400).json({ error: "Missing required fields" });
       }
 
+      const validFormats = ['mp4', 'webm', 'mov'];
+      const format = fileName.split('.').pop()?.toLowerCase();
+      if (!validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
+      }
+
+      const uploadId = crypto.randomUUID();
+      merchVideoUploads.set(uploadId, {
+        userId,
+        productId: product.id,
+        chunks: new Array(totalChunks).fill(null),
+        totalChunks,
+        receivedChunks: 0,
+        fileName,
+        createdAt: new Date(),
+      });
+
+      res.json({ uploadId, totalChunks });
+    } catch (error) {
+      console.error("Init merch video upload error:", error);
+      res.status(500).json({ error: "Failed to initialize upload" });
+    }
+  });
+
+  // Upload a chunk for merch preview video
+  app.post("/api/merch/products/:id/preview-video/chunk", requireAuth, requireFeature('merch-selling'), express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const uploadId = req.headers['x-upload-id'] as string;
+      const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
+
+      if (!uploadId || isNaN(chunkIndex)) {
+        return res.status(400).json({ error: "Missing upload ID or chunk index" });
+      }
+
+      const upload = merchVideoUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      if (chunkIndex < 0 || chunkIndex >= upload.totalChunks) {
+        return res.status(400).json({ error: "Invalid chunk index" });
+      }
+
+      const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      upload.chunks[chunkIndex] = chunkBuffer;
+      upload.receivedChunks++;
+
+      res.json({
+        received: upload.receivedChunks,
+        total: upload.totalChunks,
+        complete: upload.receivedChunks === upload.totalChunks,
+      });
+    } catch (error) {
+      console.error("Merch video chunk error:", error);
+      res.status(500).json({ error: "Failed to upload chunk" });
+    }
+  });
+
+  // Complete chunked merch preview video upload
+  app.post("/api/merch/products/:id/preview-video/complete-upload", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { uploadId } = req.body;
+      if (!uploadId) {
+        return res.status(400).json({ error: "Missing upload ID" });
+      }
+
+      const upload = merchVideoUploads.get(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found or expired" });
+      }
+      if (upload.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      if (upload.receivedChunks !== upload.totalChunks) {
+        return res.status(400).json({ error: `Missing chunks. Received ${upload.receivedChunks}/${upload.totalChunks}` });
+      }
+      if (upload.chunks.some(c => c === null)) {
+        return res.status(400).json({ error: "Some chunks are missing" });
+      }
+
+      const product = await storage.getProduct(upload.productId);
+      if (!product) {
+        merchVideoUploads.delete(uploadId);
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Combine chunks
+      const completeBuffer = Buffer.concat(upload.chunks);
+      merchVideoUploads.delete(uploadId);
+
       // Verify video type using magic bytes
-      const verification = await verifyVideoType(file.buffer);
+      const verification = await verifyVideoType(completeBuffer);
       if (!verification.valid) {
         return res.status(400).json({ error: verification.error || "Invalid video file" });
       }
@@ -9234,7 +9338,7 @@ Sent at: ${new Date().toISOString()}
       const { tmpdir } = await import('os');
       const tempDir = await mkTempDir(join(tmpdir(), 'merch-video-'));
       const tempPath = join(tempDir, `input.${inputFormat}`);
-      await writeFile(tempPath, file.buffer);
+      await writeFile(tempPath, completeBuffer);
 
       try {
         // Check duration
@@ -9280,7 +9384,6 @@ Sent at: ${new Date().toISOString()}
           size: uploadResult.size,
         });
       } finally {
-        // Clean up temp files
         try {
           await unlinkFile(tempPath);
           const { rmdir } = await import('fs/promises');
@@ -9288,8 +9391,8 @@ Sent at: ${new Date().toISOString()}
         } catch {}
       }
     } catch (error) {
-      console.error("Merch preview video upload error:", error);
-      res.status(500).json({ error: "Failed to upload preview video" });
+      console.error("Merch preview video complete error:", error);
+      res.status(500).json({ error: "Failed to process preview video" });
     }
   });
 
