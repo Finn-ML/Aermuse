@@ -231,8 +231,9 @@ function ProductForm({ product, onClose }: { product?: ProductWithVariants | nul
       setVideoUploadProgress(null);
       queryClient.invalidateQueries({ queryKey: ['/api/merch/products'] });
     } catch (err: any) {
-      console.error('Video upload failed:', err);
-      setVideoUploadError(err.message || 'Failed to upload video. Please try again.');
+      const message = err?.message || (typeof err === 'string' ? err : 'Failed to upload video. Please try again.');
+      console.error('Video upload failed:', message, err);
+      setVideoUploadError(message);
       setVideoUploadProgress(null);
     } finally {
       setIsVideoUploading(false);

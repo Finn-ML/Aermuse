@@ -9254,10 +9254,13 @@ Sent at: ${new Date().toISOString()}
     }
   });
 
-  // Upload a chunk for merch preview video
-  app.post("/api/merch/products/:id/preview-video/chunk", requireAuth, requireFeature('merch-selling'), express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
+  // Upload a chunk for merch preview video (raw body must be parsed before auth middleware reads anything)
+  app.post("/api/merch/products/:id/preview-video/chunk", express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.session as any).userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
       const uploadId = req.headers['x-upload-id'] as string;
       const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
 
@@ -9293,6 +9296,9 @@ Sent at: ${new Date().toISOString()}
 
   // Complete chunked merch preview video upload
   app.post("/api/merch/products/:id/preview-video/complete-upload", requireAuth, requireFeature('merch-selling'), async (req: Request, res: Response) => {
+    // Extend timeout for FFmpeg processing
+    req.setTimeout(300000);
+    res.setTimeout(300000);
     try {
       const userId = req.user!.id;
       const { uploadId } = req.body;
