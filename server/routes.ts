@@ -5909,14 +5909,11 @@ ${urls}
       // Acknowledge receipt
       res.json({ received: true, eventId: event.id });
     } catch (error) {
-      if ((error as Error).message?.includes("signature")) {
-        console.error("[STRIPE WEBHOOK] Signature verification failed");
-        return res.status(400).json({ error: "Invalid signature" });
-      }
-
       console.error("[STRIPE WEBHOOK] Error processing event:", error);
-      // Return 200 to prevent retries for processing errors we've logged
-      res.status(200).json({ received: true, error: "Processing error logged" });
+      if ((error as Error).message?.includes("signature") || (error as Error).message?.includes("Webhook")) {
+        return res.status(400).json({ error: "Invalid webhook signature" });
+      }
+      res.status(500).json({ error: "Processing error — Stripe will retry" });
     }
   });
 
