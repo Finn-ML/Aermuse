@@ -87,6 +87,7 @@ export interface IStorage {
   updateLandingPage(id: string, data: Partial<InsertLandingPage>): Promise<LandingPage | undefined>;
   
   // Landing Page Links
+  getLandingPageLink(id: string): Promise<LandingPageLink | undefined>;
   getLandingPageLinks(landingPageId: string): Promise<LandingPageLink[]>;
   createLandingPageLink(link: InsertLandingPageLink): Promise<LandingPageLink>;
   updateLandingPageLink(id: string, data: Partial<InsertLandingPageLink>): Promise<LandingPageLink | undefined>;
@@ -543,6 +544,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Landing Page Links
+  async getLandingPageLink(id: string): Promise<LandingPageLink | undefined> {
+    const [link] = await db.select().from(landingPageLinks).where(eq(landingPageLinks.id, id));
+    return link;
+  }
+
   async getLandingPageLinks(landingPageId: string): Promise<LandingPageLink[]> {
     return db.select().from(landingPageLinks).where(eq(landingPageLinks.landingPageId, landingPageId));
   }
