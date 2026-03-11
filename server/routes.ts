@@ -7655,7 +7655,11 @@ Sent at: ${new Date().toISOString()}
     if (!signature || !secret) {
       // In development without secret, allow all webhooks
       if (!secret) {
-        console.warn('[WEBHOOK] No webhook secret configured - skipping verification (dev mode)');
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[WEBHOOK] CRITICAL: No webhook secret in production - rejecting all webhooks');
+          return false;
+        }
+        console.warn('[WEBHOOK] No webhook secret - dev mode bypass');
         return true;
       }
       console.warn(`[WEBHOOK] Missing signature or secret. Signature present: ${!!signature}, Secret present: ${!!secret}`);
