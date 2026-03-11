@@ -3495,6 +3495,11 @@ ${urls}
           if (amountInCents > 0 && amountInCents < 50) {
             return res.status(400).json({ error: "If paying, minimum is 50 pence" });
           }
+          // Cap maximum amount to prevent abuse
+          const MAX_AMOUNT_CENTS = 100000; // £1000
+          if (amountInCents > MAX_AMOUNT_CENTS) {
+            return res.status(400).json({ error: `Maximum amount is £${MAX_AMOUNT_CENTS / 100}` });
+          }
         } else {
           // Use suggested price or minimum as default
           amountInCents = track.suggestedPriceInCents || track.minimumPriceInCents || 0;
@@ -4643,6 +4648,11 @@ ${urls}
           }
           if (amountInCents > 0 && amountInCents < 50) {
             return res.status(400).json({ error: "If paying, minimum is 50 pence" });
+          }
+          // Cap maximum amount to prevent abuse
+          const MAX_AMOUNT_CENTS = 100000; // £1000
+          if (amountInCents > MAX_AMOUNT_CENTS) {
+            return res.status(400).json({ error: `Maximum amount is £${MAX_AMOUNT_CENTS / 100}` });
           }
         } else {
           amountInCents = video.priceInCents || video.minimumPriceInCents || 0;
