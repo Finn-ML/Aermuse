@@ -3391,6 +3391,11 @@ ${urls}
         return res.status(404).json({ error: "Track not found" });
       }
 
+      // Prevent serving full paid content via preview endpoint
+      if (!track.previewFilePath && track.priceInCents > 0) {
+        return res.status(404).json({ error: "Preview not available for this track" });
+      }
+
       // Use preview if available, otherwise serve original
       const filePath = track.previewFilePath || track.originalFilePath;
       const buffer = await downloadTrackFile(filePath);
@@ -4468,6 +4473,11 @@ ${urls}
       const userId = (req.session as any).userId;
       if (!video.isPublished && video.userId !== userId) {
         return res.status(404).json({ error: "Video not found" });
+      }
+
+      // Prevent serving full paid content via preview endpoint
+      if (!video.previewFilePath && video.priceInCents && video.priceInCents > 0) {
+        return res.status(404).json({ error: "Preview not available for this video" });
       }
 
       // Use preview if available, otherwise serve original
