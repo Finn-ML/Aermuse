@@ -191,7 +191,7 @@ ${urls}
     }
   });
 
-  app.post("/api/auth/register", async (req: Request, res: Response) => {
+  app.post("/api/auth/register", authLimiter, async (req: Request, res: Response) => {
     try {
       const data = insertUserSchema.parse(req.body);
 
@@ -272,7 +272,7 @@ ${urls}
     }
   });
 
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
+  app.post("/api/auth/login", authLimiter, async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
 
@@ -370,7 +370,7 @@ ${urls}
     }
   });
 
-  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+  app.post("/api/auth/reset-password", authLimiter, async (req: Request, res: Response) => {
     try {
       const { token, password } = req.body;
 
@@ -477,7 +477,7 @@ ${urls}
   });
 
   // Change Password (from Settings)
-  app.patch("/api/auth/password", async (req: Request, res: Response) => {
+  app.patch("/api/auth/password", authLimiter, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
