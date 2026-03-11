@@ -1870,7 +1870,18 @@ ${urls}
   // Serve background images
   app.get("/api/landing-page/background-image/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['backgrounds/', 'landing-backgrounds/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
 
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
@@ -2347,7 +2358,18 @@ ${urls}
   // Serve background videos
   app.get("/api/landing-page/background-video/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['background-videos/', 'landing-videos/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
 
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'webm';
@@ -2456,7 +2478,18 @@ ${urls}
   // Serve avatar images
   app.get("/api/landing-page/avatar/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['avatars/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
 
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
@@ -3363,7 +3396,18 @@ ${urls}
   // Serve track cover art
   app.get("/api/tracks/:id/cover/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['tracks/', 'covers/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
       const buffer = await downloadTrackFile(filePath);
@@ -4442,7 +4486,18 @@ ${urls}
   // Serve video thumbnail
   app.get("/api/videos/:id/thumbnail/:path(*)", async (req: Request, res: Response) => {
     try {
-      const filePath = decodeURIComponent(req.params.path);
+      const filePath = decodeURIComponent(req.params.path || req.params[0]);
+
+      // Prevent path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
+
+      // Validate path starts with expected prefix
+      const allowedPrefixes = ['videos/', 'thumbnails/'];
+      if (!allowedPrefixes.some(prefix => filePath.startsWith(prefix))) {
+        return res.status(400).json({ error: "Invalid file path" });
+      }
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
       const buffer = await downloadArtistVideoFile(filePath);
