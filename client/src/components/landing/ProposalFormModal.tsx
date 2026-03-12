@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Send, CheckCircle, AlertCircle, Upload, FileText, Trash2 } from 'lucide-react';
 
 interface ProposalFormModalProps {
@@ -231,7 +232,7 @@ export function ProposalFormModal({
 
   // Success state
   if (submitStatus === 'success') {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
         <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-8 text-center">
           <div
@@ -255,11 +256,12 @@ export function ProposalFormModal({
             Done
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -511,6 +513,7 @@ export function ProposalFormModal({
           </p>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
