@@ -393,14 +393,14 @@ export default function Landing() {
         <div className="flex flex-col sm:flex-row justify-between items-start mb-12 sm:mb-16 lg:mb-24 gap-4">
           <div>
             <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
-              How it works
+              Features
             </p>
             <h2
               className="font-playfair font-light leading-[1.15]"
               style={{ fontSize: 'clamp(28px, 5vw, 64px)' }}
             >
-              Four pillars,<br />
-              <span className="font-bold">one system</span>
+              Built for the<br />
+              <span className="font-bold">independent artist</span>
             </h2>
           </div>
           <div className="hidden sm:block w-20 h-[3px] bg-[#660033] rounded mt-0 sm:mt-12" />
