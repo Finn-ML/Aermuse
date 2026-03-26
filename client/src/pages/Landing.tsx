@@ -20,23 +20,23 @@ export default function Landing() {
 
   const features = [
     {
-      title: 'AI Contract Intelligence',
-      description: 'Navigate complex agreements with AI that understands the music industry. Flag unfavorable terms, suggest revisions, and sign with confidence.',
-      icon: '§'
-    },
-    {
-      title: 'E-Signature Integration',
-      description: 'Send contracts for signature directly from the platform. Track status, collect signatures, and store signed documents securely.',
+      title: 'Direct Sales',
+      description: 'Sell music, videos, and merch directly to your audience. Set your own pricing, build artist pages, and keep more of what you earn.',
       icon: '◈'
     },
     {
-      title: 'Artist Landing Pages',
-      description: 'Stunning, customizable pages that capture your aesthetic. One link for everything—streaming links, social profiles, and more.',
+      title: 'Structured Collaborations',
+      description: 'Lock in splits and agreements before release. Verify collaborators, confirm percentages, and get everyone aligned from day one.',
       icon: '◎'
     },
     {
-      title: 'Contract Templates',
-      description: 'Professional music industry templates ready to customize. Artist agreements, sync licenses, production deals—all legally reviewed.',
+      title: 'Contracts & Protection',
+      description: 'Create, sign, and understand every deal you make. AI analysis, professional templates, e-signatures, and secure storage — all built in.',
+      icon: '§'
+    },
+    {
+      title: 'Audience Ownership',
+      description: 'Build a direct connection with your fans without algorithms. Mailing lists, artist pages, and direct engagement tools you control.',
       icon: '◆'
     }
   ];
@@ -259,7 +259,7 @@ export default function Landing() {
             style={{ transitionDelay: '200ms' }}
           >
             <p className="text-xs tracking-[0.3em] uppercase mb-8 font-normal">
-              The Artist Operating System
+              Sell your music. Structure your business.
             </p>
           </div>
 
@@ -270,8 +270,8 @@ export default function Landing() {
               transitionDelay: '400ms'
             }}
           >
-            Your career,<br />
-            <span className="font-bold">orchestrated</span>
+            Your music,<br />
+            <span className="font-bold">your business</span>
           </h1>
 
           <p
@@ -281,8 +281,7 @@ export default function Landing() {
               transitionDelay: '600ms'
             }}
           >
-            AI-powered contract analysis. E-signatures. Beautiful landing pages.
-            Professional templates. Everything independent artists need to thrive.
+            Turn your music into a structured business. Sell your work, manage collaborators, and keep everything documented — all in one system.
           </p>
 
           <div
@@ -328,9 +327,9 @@ export default function Landing() {
             }}
           >
             <div className="text-[10px] lg:text-[11px] tracking-[0.2em] uppercase mb-1 lg:mb-2 opacity-60">
-              Contract Analysis
+              Direct Sales
             </div>
-            <div className="text-lg lg:text-2xl font-light">3 clauses flagged</div>
+            <div className="text-lg lg:text-2xl font-light">£2,340 this month</div>
           </div>
 
           <div
@@ -343,9 +342,9 @@ export default function Landing() {
             }}
           >
             <div className="text-[10px] lg:text-[11px] tracking-[0.2em] uppercase mb-1 lg:mb-2 opacity-60">
-              Risk Score
+              Collaborators
             </div>
-            <div className="text-lg lg:text-2xl font-light">Medium Risk</div>
+            <div className="text-lg lg:text-2xl font-light">Splits confirmed</div>
           </div>
 
           <div
@@ -379,12 +378,12 @@ export default function Landing() {
         >
           {[...Array(2)].map((_, i) => (
             <div key={i} className="flex gap-8 sm:gap-12 lg:gap-20">
-              <span>◈ AI Contract Analysis</span>
+              <span>◈ Direct Sales</span>
+              <span>◈ Collaborator Splits</span>
               <span>◈ E-Signatures</span>
-              <span>◈ Landing Pages</span>
-              <span>◈ Contract Templates</span>
-              <span>◈ Document Storage</span>
-              <span>◈ Risk Assessment</span>
+              <span>◈ AI Contract Analysis</span>
+              <span>◈ Artist Pages</span>
+              <span>◈ Audience Ownership</span>
             </div>
           ))}
         </div>
@@ -394,14 +393,14 @@ export default function Landing() {
         <div className="flex flex-col sm:flex-row justify-between items-start mb-12 sm:mb-16 lg:mb-24 gap-4">
           <div>
             <p className="text-xs tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
-              Features
+              How it works
             </p>
             <h2
               className="font-playfair font-light leading-[1.15]"
               style={{ fontSize: 'clamp(28px, 5vw, 64px)' }}
             >
-              Built for the<br />
-              <span className="font-bold">modern artist</span>
+              Four pillars,<br />
+              <span className="font-bold">one system</span>
             </h2>
           </div>
           <div className="hidden sm:block w-20 h-[3px] bg-[#660033] rounded mt-0 sm:mt-12" />
@@ -447,13 +446,13 @@ export default function Landing() {
       <section className="px-4 sm:px-8 md:px-12 lg:px-20 py-16 sm:py-24 lg:py-32">
         <div className="text-center mb-14 lg:mb-20">
           <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 sm:mb-6 font-light">
-            How It Works
+            Get Started
           </p>
           <h2
             className="font-playfair font-light"
             style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
           >
-            Get started in <span className="font-bold">minutes</span>
+            Up and running in <span className="font-bold">minutes</span>
           </h2>
         </div>
 
@@ -465,9 +464,9 @@ export default function Landing() {
             >
               1
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Upload Your Contract</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Create Your Page</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
-              Drop in any music contract—PDF, Word, or use our templates.
+              Set up your artist page and start listing your music, videos, and merch.
             </p>
           </div>
           <div className="text-center">
@@ -477,9 +476,9 @@ export default function Landing() {
             >
               2
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">AI Analysis</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Structure Your Deals</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
-              Our AI scans for red flags, unfair terms, and missing protections.
+              Use contracts and collaboration tools to lock in agreements before release.
             </p>
           </div>
           <div className="text-center">
@@ -489,9 +488,9 @@ export default function Landing() {
             >
               3
             </div>
-            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Sign with Confidence</h3>
+            <h3 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4 font-playfair">Sell & Grow</h3>
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: 'rgba(102, 0, 51, 0.7)' }}>
-              Negotiate better terms and e-sign directly from the platform.
+              Start selling directly to your audience and build lasting fan relationships.
             </p>
           </div>
         </div>
@@ -603,13 +602,13 @@ export default function Landing() {
           className="font-playfair font-light mb-4 sm:mb-6"
           style={{ fontSize: 'clamp(24px, 4vw, 56px)' }}
         >
-          Ready to own your <span className="font-bold">artistry</span>?
+          Ready to own your <span className="font-bold">business</span>?
         </h2>
         <p
           className="text-base sm:text-lg mb-8 sm:mb-10 lg:mb-12 max-w-lg mx-auto px-4"
           style={{ color: 'rgba(247, 230, 202, 0.8)' }}
         >
-          Join thousands of artists who are taking control of their contracts and careers.
+          Join artists who are selling directly, structuring deals, and building on their own terms.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/auth">
