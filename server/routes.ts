@@ -3435,6 +3435,7 @@ ${urls}
 
       res.set('Content-Type', getAudioContentType(track.fileFormat));
       res.set('Content-Length', buffer.length.toString());
+      res.set('Content-Disposition', 'inline');
       res.set('Accept-Ranges', 'bytes');
       res.send(buffer);
     } catch (error) {

@@ -210,8 +210,8 @@ export function SpinningDiscPlayer({
         />
       )}
 
-      {/* Purchase section */}
-      {onPurchase && (
+      {/* Purchase section — hidden for streaming-only tracks (free streaming + no price) */}
+      {onPurchase && !(track.allowFreeStreaming && !track.priceInCents && !isPWYW) && (
         <div className="w-full max-w-[200px] space-y-2">
           {/* PWYW Price Input */}
           {isPWYW && (
@@ -293,6 +293,16 @@ export function SpinningDiscPlayer({
             </p>
           )}
         </div>
+      )}
+
+      {/* Streaming-only badge — shown when no purchase option */}
+      {track.allowFreeStreaming && !track.priceInCents && !isPWYW && (
+        <p
+          className="text-xs text-center font-medium opacity-80"
+          style={{ color: primaryColor }}
+        >
+          Free to stream
+        </p>
       )}
     </div>
   );

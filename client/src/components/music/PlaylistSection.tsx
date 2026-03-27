@@ -129,11 +129,19 @@ function PlaylistItem({
         )}
       </div>
 
-      {/* Price */}
+      {/* Price / Streaming Badge */}
       <div
         className="flex-shrink-0 text-right"
       >
-        {track.pricingType === 'pwyw' ? (
+        {track.allowFreeStreaming && !track.priceInCents && track.pricingType !== 'pwyw' ? (
+          /* Streaming-only track — no price, just badge */
+          <span
+            className="text-sm md:text-base font-semibold"
+            style={{ color: secondaryColor }}
+          >
+            Free to Stream
+          </span>
+        ) : track.pricingType === 'pwyw' ? (
           <>
             <span
               className="text-sm md:text-base font-semibold"
@@ -149,6 +157,14 @@ function PlaylistItem({
             >
               PWYW
             </p>
+            {track.allowFreeStreaming && (
+              <p
+                className="text-[10px] font-medium"
+                style={{ color: secondaryColor }}
+              >
+                Free Stream
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -164,15 +180,15 @@ function PlaylistItem({
             >
               + VAT
             </p>
+            {track.allowFreeStreaming && (
+              <p
+                className="text-[10px] font-medium"
+                style={{ color: secondaryColor }}
+              >
+                Free Stream
+              </p>
+            )}
           </>
-        )}
-        {track.allowFreeStreaming && (
-          <p
-            className="text-[10px] font-medium"
-            style={{ color: secondaryColor }}
-          >
-            Free Stream
-          </p>
         )}
       </div>
     </motion.div>
