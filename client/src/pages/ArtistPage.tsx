@@ -144,6 +144,78 @@ function parseVideoBackground(value: string | null | undefined): { webm?: string
   }
 }
 
+// Optimized video background component
+// - GPU-composited via object-fit instead of transform hack
+// - Pauses offscreen via IntersectionObserver
+// - Respects prefers-reduced-motion (poster only)
+// - Low fetch priority so page content loads first
+function VideoBackground({ videoData }: { videoData: { webm?: string; mp4?: string; poster?: string } }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [reducedMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  // Pause video when scrolled offscreen
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  if (reducedMotion) {
+    return (
+      <div className="fixed inset-0 -z-10">
+        {videoData.poster && (
+          <img
+            src={videoData.poster}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 -z-10 overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        // @ts-expect-error -- fetchpriority is valid HTML but missing from React types
+        fetchpriority="low"
+        className="w-full h-full object-cover will-change-transform"
+        poster={videoData.poster || ""}
+      >
+        {videoData.webm && (
+          <source src={videoData.webm} type="video/webm" />
+        )}
+        {videoData.mp4 && (
+          <source src={videoData.mp4} type="video/mp4" />
+        )}
+      </video>
+    </div>
+  );
+}
+
 // Generate background style
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
@@ -607,24 +679,7 @@ export default function ArtistPage() {
     >
       {/* Video Background (Spotify Canvas Style) */}
       {backgroundType === 'video' && videoData && (
-        <div className="fixed inset-0 overflow-hidden -z-10">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="absolute min-w-full min-h-full w-auto h-auto top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
-            poster={videoData.poster || ""}
-          >
-            {videoData.webm && (
-              <source src={videoData.webm} type="video/webm" />
-            )}
-            {videoData.mp4 && (
-              <source src={videoData.mp4} type="video/mp4" />
-            )}
-          </video>
-        </div>
+        <VideoBackground videoData={videoData} />
       )}
 
       {/* Atmospheric Floating Orbs - Creates depth */}
