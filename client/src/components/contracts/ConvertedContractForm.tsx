@@ -131,11 +131,12 @@ interface Props {
   contractId: string;
   initialData: ParsedContractFields | null;
   onGenerate: () => void;
+  isTemplate?: boolean;
 }
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD'];
 
-export function ConvertedContractForm({ contractId, initialData, onGenerate }: Props) {
+export function ConvertedContractForm({ contractId, initialData, onGenerate, isTemplate = false }: Props) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReparsing, setIsReparsing] = useState(false);
@@ -700,8 +701,8 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
 
   return (
     <div className="space-y-6">
-      {/* No Data Alert - Show re-parse option */}
-      {needsExtraction && (
+      {/* No Data Alert - Show re-parse option (custom/imported contracts only) */}
+      {needsExtraction && !isTemplate && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
           <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
           <div className="flex-1">
@@ -732,8 +733,8 @@ export function ConvertedContractForm({ contractId, initialData, onGenerate }: P
         </div>
       )}
 
-      {/* Confidence Indicator */}
-      {initialData && initialData.confidence > 0 && (
+      {/* Confidence Indicator (custom/imported contracts only) */}
+      {initialData && initialData.confidence > 0 && !isTemplate && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-[rgba(102,0,51,0.03)] border border-[rgba(102,0,51,0.1)]">
           <Sparkles className="h-5 w-5 text-[#660033]" />
           <div className="flex-1">

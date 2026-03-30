@@ -690,6 +690,7 @@ export default function ContractView() {
                 <ConvertedContractForm
                   contractId={id!}
                   initialData={contract.templateData as any}
+                  isTemplate={!!contract.templateData}
                   onGenerate={() => {
                     setIsEditingContract(false);
                     fetchContract();

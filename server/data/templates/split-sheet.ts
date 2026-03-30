@@ -170,12 +170,20 @@ All splits must total 100%. Each writer confirms their percentage ownership of t
 Note: Writer details, splits, PRO affiliations, and IPI numbers are captured in the Writers section of this form.`
       },
       {
+        id: 'estate_and_rights',
+        heading: 'ESTATE & RIGHTS',
+        content: `Each writer's ownership share as stated above shall pass to their designated heirs, estate, or assigns upon death or incapacity. The rights and obligations under this agreement are binding upon and shall inure to the benefit of each writer's successors, heirs, and legal representatives.
+
+No writer may assign, transfer, or license their share without written consent from all other writers, except by operation of law (e.g., inheritance).`
+      },
+      {
         id: 'agreement',
         heading: 'AGREEMENT',
         content: `By signing below, each writer confirms:
 1. Their agreement to the splits stated above
-2. That all information provided is accurate
-3. That they have the authority to enter into this agreement`
+2. That the estate and rights provisions apply to their ownership share
+3. That all information provided is accurate
+4. That they have the authority to enter into this agreement`
       },
       {
         id: 'signatures',

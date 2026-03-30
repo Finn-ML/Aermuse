@@ -221,8 +221,15 @@ Each contributor agrees to provide their agreed files (e.g., stems, projects, et
 Any release must include proper credits for all contributors.`
       },
       {
+        id: 'estate_and_rights',
+        heading: '7. ESTATE & RIGHTS',
+        content: `Each contributor's master and publishing ownership shares as stated above shall pass to their designated heirs, estate, or assigns upon death or incapacity. The rights and obligations under this agreement are binding upon and shall inure to the benefit of each contributor's successors, heirs, and legal representatives.
+
+No contributor may assign, transfer, or license their share without written consent from all other contributors, except by operation of law (e.g., inheritance).`
+      },
+      {
         id: 'disputes',
-        heading: '7. DISPUTES',
+        heading: '8. DISPUTES',
         content: `Disagreements will be resolved fairly and respectfully before release.
 
 If a resolution cannot be reached, parties agree to seek mediation before legal action.`
