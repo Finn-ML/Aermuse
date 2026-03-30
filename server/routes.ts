@@ -2773,7 +2773,9 @@ ${urls}
       const isFreeStreaming = allowFreeStreaming === 'true' || allowFreeStreaming === true;
 
       if (pricingType === 'fixed') {
-        if (isNaN(price) || price < 50) {
+        if (isFreeStreaming && price === 0) {
+          // Free streaming tracks can have £0 price (stream-only, no purchase)
+        } else if (isNaN(price) || price < 50) {
           return res.status(400).json({ error: "Price must be at least 50 pence for fixed pricing" });
         }
       } else if (pricingType === 'pwyw') {

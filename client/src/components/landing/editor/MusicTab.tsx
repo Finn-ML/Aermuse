@@ -155,7 +155,9 @@ export function MusicTab({
 
     // Validate based on pricing type
     if (pricingType === 'fixed') {
-      if (isNaN(priceInCents) || priceInCents < 50) {
+      if (allowFreeStreaming && priceInCents === 0) {
+        // Free streaming tracks can have $0 price (stream-only, no purchase)
+      } else if (isNaN(priceInCents) || priceInCents < 50) {
         alert('Minimum price is $0.50');
         return;
       }
@@ -239,7 +241,10 @@ export function MusicTab({
 
   const saveEdit = async (trackId: string) => {
     const priceInCents = Math.round(parseFloat(editPrice) * 100);
-    if (isNaN(priceInCents) || priceInCents < 50) {
+    const editTrack = tracks.find(t => t.id === trackId);
+    if (editTrack?.allowFreeStreaming && priceInCents === 0) {
+      // Free streaming tracks can have $0 price (stream-only, no purchase)
+    } else if (isNaN(priceInCents) || priceInCents < 50) {
       alert('Minimum price is $0.50');
       return;
     }
