@@ -126,12 +126,12 @@ export async function convertToWebM(
 
   console.log(`[VIDEO] Converting to WebM: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s (start=${startTime}s)`);
 
-  // Quality presets tuned for background videos behind overlays/content.
-  // These sit behind text and effects — high detail is wasted bandwidth.
+  // Quality presets for background videos — slightly lower than source
+  // since they sit behind content, but still sharp on retina displays.
   const qualitySettings = {
-    low: { crf: 40, bitrate: '500k' },
-    medium: { crf: 35, bitrate: '1500k' },
-    high: { crf: 28, bitrate: '3000k' }
+    low: { crf: 35, bitrate: '1000k' },
+    medium: { crf: 30, bitrate: '2500k' },
+    high: { crf: 23, bitrate: '5000k' }
   };
 
   const settings = qualitySettings[quality];
@@ -266,11 +266,10 @@ export async function convertToMp4(
 
   console.log(`[VIDEO] Converting to MP4: ${metadata.width}x${metadata.height}, ${metadata.duration}s -> ${actualDuration}s (start=${startTime}s)`);
 
-  // Tuned for background videos behind overlays — lower quality is fine
   const qualitySettings = {
-    low: { crf: 32, preset: 'ultrafast' },
-    medium: { crf: 28, preset: 'fast' },
-    high: { crf: 23, preset: 'fast' }
+    low: { crf: 28, preset: 'ultrafast' },
+    medium: { crf: 24, preset: 'fast' },
+    high: { crf: 18, preset: 'fast' }
   };
 
   const settings = qualitySettings[quality];
@@ -396,8 +395,8 @@ export async function processCanvasVideo(
   try {
     const canvasOptions = {
       quality,
-      maxWidth: 1280,
-      maxHeight: 720,
+      maxWidth: 1920,
+      maxHeight: 1080,
       startTime: options.startTime,
     };
 
