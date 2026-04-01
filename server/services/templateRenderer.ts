@@ -352,11 +352,69 @@ export function validateFormData(
 /**
  * Render template content with form data
  */
+/**
+ * Render persona group instances into readable text for contract clauses.
+ * E.g. writers with splits become a formatted list in the contract body.
+ */
+function renderPersonaList(
+  personas: Record<string, import('../../shared/types/templates').PersonaInstance[]>
+): Record<string, string> {
+  const rendered: Record<string, string> = {};
+
+  for (const [groupId, instances] of Object.entries(personas)) {
+    if (!instances || instances.length === 0) continue;
+
+    const lines = instances.map((inst, i) => {
+      const name = inst.values.name || `Party ${i + 1}`;
+      const parts: string[] = [String(name)];
+
+      // Include role if present
+      if (inst.values.role) parts.push(`Role: ${inst.values.role}`);
+
+      // Include splits
+      if (inst.values.split !== undefined && inst.values.split !== null) {
+        parts.push(`Split: ${inst.values.split}%`);
+      }
+      if (inst.values.master_split !== undefined && inst.values.master_split !== null) {
+        parts.push(`Master: ${inst.values.master_split}%`);
+      }
+      if (inst.values.publishing_split !== undefined && inst.values.publishing_split !== null) {
+        parts.push(`Publishing: ${inst.values.publishing_split}%`);
+      }
+
+      // Include PRO/IPI if present
+      if (inst.values.pro) parts.push(`PRO: ${inst.values.pro}`);
+      if (inst.values.ipi) parts.push(`IPI: ${inst.values.ipi}`);
+
+      return `${i + 1}. ${parts.join(' — ')}`;
+    });
+
+    rendered[groupId] = lines.join('\n');
+  }
+
+  return rendered;
+}
+
 export function renderTemplateContent(
   template: { content: TemplateContent; optionalClauses?: OptionalClause[] },
   formData: TemplateFormData
 ): { title: string; sections: Array<{ heading: string; content: string }> } {
-  const { fields, enabledClauses } = formData;
+  const { fields, enabledClauses, personas } = formData;
+
+  // Pre-render persona groups into text blocks
+  const personaText = personas ? renderPersonaList(personas) : {};
+
+  // Build a name list string for estate/rights clauses (e.g. "John Doe, Jane Smith")
+  const personaNames: Record<string, string> = {};
+  if (personas) {
+    for (const [groupId, instances] of Object.entries(personas)) {
+      if (instances && instances.length > 0) {
+        personaNames[groupId] = instances
+          .map(inst => String(inst.values.name || 'Party'))
+          .join(', ');
+      }
+    }
+  }
 
   // Render title
   const title = substituteVariables(template.content.title, fields);
@@ -368,10 +426,34 @@ export function renderTemplateContent(
       if (!section.isOptional) return true;
       return section.clauseId && enabledClauses.includes(section.clauseId);
     })
-    .map(section => ({
-      heading: substituteVariables(section.heading, fields),
-      content: substituteVariables(section.content, fields)
-    }));
+    .map(section => {
+      let content = substituteVariables(section.heading, fields);
+      let sectionContent = substituteVariables(section.content, fields);
+
+      // Replace persona placeholder references with actual rendered persona data
+      // Matches patterns like "[Writers and their splits are listed in the form above]"
+      // or "[Contributors and their splits are listed in the form above]"
+      for (const [groupId, text] of Object.entries(personaText)) {
+        sectionContent = sectionContent.replace(
+          /\[(?:Writers|Contributors|Parties|Artists|Performers).*?(?:listed|captured).*?\]/gi,
+          text
+        );
+      }
+
+      // Replace "Each writer's ownership share(s) as stated above" with specific names
+      if (Object.keys(personaNames).length > 0) {
+        const allNames = Object.values(personaNames).join(', ');
+        sectionContent = sectionContent.replace(
+          /Each (?:writer|contributor|party|artist)'s (?:master and publishing )?ownership shares? as stated above/gi,
+          `Each party's ownership share (${allNames}) as stated above`
+        );
+      }
+
+      return {
+        heading: content,
+        content: sectionContent
+      };
+    });
 
   return { title, sections };
 }

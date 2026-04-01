@@ -662,7 +662,11 @@ export default function ContractView() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
                       style={{ background: 'linear-gradient(135deg, #660033 0%, #8B0045 100%)' }}
                     >
-                      <Sparkles size={20} className="text-[#F7E6CA]" />
+                      {contract.templateData ? (
+                        <FileText size={20} className="text-[#F7E6CA]" />
+                      ) : (
+                        <Sparkles size={20} className="text-[#F7E6CA]" />
+                      )}
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-[#660033]">

@@ -1,0 +1,27 @@
+{
+  "project": "Aermuse",
+  "discovered_at": "2026-03-31",
+  "auth": {
+    "provider": "custom-session",
+    "type": "page",
+    "login_url": "/auth",
+    "controlled_inputs": true,
+    "dev_login": {
+      "endpoint": "/api/auth/dev-login",
+      "method": "POST",
+      "description": "Creates/logs in a theta-tier dev user automatically"
+    },
+    "roles": {
+      "theta": {
+        "email": "dev-theta@aermuse.com",
+        "password": "DevTheta123!",
+        "dashboard_url": "/dashboard"
+      },
+      "admin": {
+        "email": "finn@millionlabs.co.uk",
+        "password": null,
+        "dashboard_url": "/admin"
+      }
+    }
+  }
+}

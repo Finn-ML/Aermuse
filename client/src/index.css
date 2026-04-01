@@ -240,6 +240,12 @@
   mix-blend-mode: overlay;
 }
 
+/* Disable expensive grain blend mode when video background is playing */
+.grain-overlay--video::before {
+  mix-blend-mode: normal;
+  opacity: 0.02;
+}
+
 /* Glass morphism utility */
 .glass-card {
   backdrop-filter: blur(16px) saturate(180%);

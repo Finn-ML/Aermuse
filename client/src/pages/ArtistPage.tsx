@@ -671,7 +671,7 @@ export default function ArtistPage() {
 
   return (
     <div
-      className={`min-h-screen relative ${overlayClass} grain-overlay`}
+      className={`min-h-screen relative ${overlayClass} grain-overlay${backgroundType === 'video' ? ' grain-overlay--video' : ''}`}
       style={{
         ...backgroundStyle,
         fontFamily: `"${bodyFont}", system-ui, sans-serif`,
@@ -682,45 +682,47 @@ export default function ArtistPage() {
         <VideoBackground videoData={videoData} />
       )}
 
-      {/* Atmospheric Floating Orbs - Creates depth */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <motion.div
-          custom={0}
-          variants={floatingOrbVariants}
-          animate="animate"
-          className="absolute w-[500px] h-[500px] rounded-full opacity-20"
-          style={{
-            background: `radial-gradient(circle, ${accentColor}40 0%, transparent 70%)`,
-            top: '-10%',
-            right: '-10%',
-            filter: 'blur(60px)',
-          }}
-        />
-        <motion.div
-          custom={1}
-          variants={floatingOrbVariants}
-          animate="animate"
-          className="absolute w-[400px] h-[400px] rounded-full opacity-15"
-          style={{
-            background: `radial-gradient(circle, ${secondaryColor}30 0%, transparent 70%)`,
-            bottom: '10%',
-            left: '-5%',
-            filter: 'blur(50px)',
-          }}
-        />
-        <motion.div
-          custom={2}
-          variants={floatingOrbVariants}
-          animate="animate"
-          className="absolute w-[300px] h-[300px] rounded-full opacity-10"
-          style={{
-            background: `radial-gradient(circle, ${primaryColor}50 0%, transparent 70%)`,
-            top: '40%',
-            right: '20%',
-            filter: 'blur(40px)',
-          }}
-        />
-      </div>
+      {/* Atmospheric Floating Orbs - Disabled when video background is active to free GPU */}
+      {backgroundType !== 'video' && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <motion.div
+            custom={0}
+            variants={floatingOrbVariants}
+            animate="animate"
+            className="absolute w-[500px] h-[500px] rounded-full opacity-20"
+            style={{
+              background: `radial-gradient(circle, ${accentColor}40 0%, transparent 70%)`,
+              top: '-10%',
+              right: '-10%',
+              filter: 'blur(60px)',
+            }}
+          />
+          <motion.div
+            custom={1}
+            variants={floatingOrbVariants}
+            animate="animate"
+            className="absolute w-[400px] h-[400px] rounded-full opacity-15"
+            style={{
+              background: `radial-gradient(circle, ${secondaryColor}30 0%, transparent 70%)`,
+              bottom: '10%',
+              left: '-5%',
+              filter: 'blur(50px)',
+            }}
+          />
+          <motion.div
+            custom={2}
+            variants={floatingOrbVariants}
+            animate="animate"
+            className="absolute w-[300px] h-[300px] rounded-full opacity-10"
+            style={{
+              background: `radial-gradient(circle, ${primaryColor}50 0%, transparent 70%)`,
+              top: '40%',
+              right: '20%',
+              filter: 'blur(40px)',
+            }}
+          />
+        </div>
+      )}
 
       {/* Hero Section with Cinematic Entrance */}
       <motion.section
