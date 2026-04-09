@@ -12,6 +12,14 @@
     <meta name="description" content="AI-powered contract intelligence, exclusive fan experiences, and beautiful landing pages. Everything you need to own your artistry." />
     <!-- /SEO_META_TAGS -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '%VITE_GA_MEASUREMENT_ID%');
+    </script>
   </head>
   <body>
     <div id="root"></div>
