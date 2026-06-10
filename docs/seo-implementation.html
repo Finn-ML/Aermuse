@@ -62,12 +62,25 @@
 <h3>GET /robots.txt</h3>
 <p>Returns crawler directives:</p>
 <pre><code>User-agent: *
-Allow: /artist/
-Disallow: /dashboard
-Disallow: /api/
-Disallow: /admin
-
-Sitemap: https://yourdomain.com/sitemap.xml
+	Allow: /artist/
+	Allow: /api/artist/
+	Allow: /api/landing-page/avatar/
+	Allow: /api/landing-page/background-image/
+	Allow: /api/landing-page/background-video/
+	Disallow: /dashboard
+	Disallow: /admin
+	Disallow: /api/admin/
+	Disallow: /api/analytics/
+	Disallow: /api/auth/
+	Disallow: /api/contracts/
+	Disallow: /api/folders/
+	Disallow: /api/landing-page
+	Disallow: /api/proposals/
+	Disallow: /api/signatures/
+	Disallow: /api/templates/
+	Disallow: /api/user/
+	
+	Sitemap: https://yourdomain.com/sitemap.xml
 </code></pre>
 <h3>GET /sitemap.xml</h3>
 <p>Dynamically generates XML sitemap including:</p>

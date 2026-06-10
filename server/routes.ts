@@ -100,9 +100,22 @@ export async function registerRoutes(
   app.get("/robots.txt", (_req: Request, res: Response) => {
     const robotsTxt = `User-agent: *
 Allow: /artist/
+Allow: /api/artist/
+Allow: /api/landing-page/avatar/
+Allow: /api/landing-page/background-image/
+Allow: /api/landing-page/background-video/
 Disallow: /dashboard
-Disallow: /api/
 Disallow: /admin
+Disallow: /api/admin/
+Disallow: /api/analytics/
+Disallow: /api/auth/
+Disallow: /api/contracts/
+Disallow: /api/folders/
+Disallow: /api/landing-page
+Disallow: /api/proposals/
+Disallow: /api/signatures/
+Disallow: /api/templates/
+Disallow: /api/user/
 
 Sitemap: ${getBaseUrl(_req)}/sitemap.xml
 `;
