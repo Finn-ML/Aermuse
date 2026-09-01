@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
 import type { MerchProduct, MerchVariant } from '@shared/schema';
 import ProductDetail from './ProductDetail';
+import { LazyImage } from '@/components/LazyImage';
 
 interface MerchStorefrontProps {
   products: Array<MerchProduct & { variants: MerchVariant[] }>;
@@ -46,7 +47,16 @@ function ProductCard({
   const firstImage = images[0];
   const previewVideo = product.previewVideo as string | null;
   const [isHovered, setIsHovered] = useState(false);
+  // Only mount (and download) the preview video after the first hover —
+  // preloading every product's video competes with images while scrolling.
+  const [videoActivated, setVideoActivated] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isHovered && previewVideo && !videoActivated) {
+      setVideoActivated(true);
+    }
+  }, [isHovered, previewVideo, videoActivated]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -58,7 +68,7 @@ function ProductCard({
     } else {
       video.pause();
     }
-  }, [isHovered]);
+  }, [isHovered, videoActivated]);
 
   return (
     <motion.div
@@ -78,13 +88,23 @@ function ProductCard({
         style={{ backgroundColor: `${textColor}08` }}
       >
         {firstImage ? (
-          <img
-            src={firstImage}
-            alt={product.name}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              isHovered && previewVideo ? 'opacity-0' : 'opacity-100'
-            }`}
-          />
+          <div className={`w-full h-full transition-opacity duration-300 ${
+            isHovered && previewVideo ? 'opacity-0' : 'opacity-100'
+          }`}>
+            <LazyImage
+              src={firstImage}
+              alt={product.name}
+              className="w-full h-full object-cover"
+              fallback={
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package
+                    className="w-12 h-12 opacity-30"
+                    style={{ color: textColor }}
+                  />
+                </div>
+              }
+            />
+          </div>
         ) : (
           <div className={`w-full h-full flex items-center justify-center transition-opacity duration-300 ${
             isHovered && previewVideo ? 'opacity-0' : 'opacity-100'
@@ -96,7 +116,7 @@ function ProductCard({
           </div>
         )}
 
-        {previewVideo && (
+        {previewVideo && videoActivated && (
           <video
             ref={videoRef}
             src={previewVideo}
@@ -106,6 +126,7 @@ function ProductCard({
             muted
             loop
             playsInline
+            autoPlay
             preload="auto"
           />
         )}

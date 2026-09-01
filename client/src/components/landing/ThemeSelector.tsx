@@ -57,13 +57,25 @@ export function ThemeSelector({ selectedThemeId, onThemeSelect }: ThemeSelectorP
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {themes.map((theme) => {
           const isSelected = selectedThemeId === theme.id;
+          // Solid and gradient backgrounds render as-is; image/video presets
+          // fall back to the primary color for the swatch
+          const previewBackground =
+            theme.backgroundType === 'solid' || theme.backgroundType === 'gradient'
+              ? { background: theme.backgroundValue }
+              : { background: theme.primaryColor };
+          const buttonRadius =
+            theme.buttonStyle === 'pill'
+              ? 'rounded-full'
+              : theme.buttonStyle === 'square'
+                ? 'rounded-none'
+                : 'rounded-md';
 
           return (
             <button
               key={theme.id}
               onClick={() => onThemeSelect(theme)}
               className={`
-                relative text-left p-4 rounded-lg border-2 transition-all
+                relative text-left rounded-lg border-2 transition-all overflow-hidden
                 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2
                 ${isSelected
                   ? 'border-[#660033] ring-2 ring-[#660033]/20'
@@ -73,62 +85,77 @@ export function ThemeSelector({ selectedThemeId, onThemeSelect }: ThemeSelectorP
             >
               {/* Selected indicator */}
               {isSelected && (
-                <div className="absolute top-2 right-2 bg-[#660033] text-white rounded-full p-1">
+                <div className="absolute top-2 right-2 z-10 bg-[#660033] text-white rounded-full p-1">
                   <Check className="h-3 w-3" />
                 </div>
               )}
 
-              {/* Color swatches */}
-              <div className="flex gap-1 mb-3">
-                <div
-                  className="w-6 h-6 rounded-full border border-gray-200"
-                  style={{ backgroundColor: theme.primaryColor }}
-                  title="Primary"
-                />
-                <div
-                  className="w-6 h-6 rounded-full border border-gray-200"
-                  style={{ backgroundColor: theme.secondaryColor }}
-                  title="Secondary"
-                />
-                <div
-                  className="w-6 h-6 rounded-full border border-gray-200"
-                  style={{ backgroundColor: theme.accentColor }}
-                  title="Accent"
-                />
-              </div>
-
-              {/* Theme name and description */}
-              <h3 className="font-semibold text-gray-900 text-sm">
-                {theme.name}
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-                {theme.description}
-              </p>
-
-              {/* Sample button preview */}
+              {/* Miniature page preview in the theme's own colors */}
               <div
-                className={`
-                  mt-3 px-3 py-1.5 text-xs font-medium text-center
-                  ${theme.buttonStyle === 'pill' ? 'rounded-full' : ''}
-                  ${theme.buttonStyle === 'rounded' ? 'rounded-md' : ''}
-                  ${theme.buttonStyle === 'square' ? 'rounded-none' : ''}
-                  ${theme.buttonStyle === 'outline' ? 'bg-transparent border-2' : ''}
-                  ${theme.buttonStyle === 'shadow' ? 'rounded-md shadow-md' : ''}
-                  ${theme.buttonStyle === 'filled' ? 'rounded-md' : ''}
-                `}
-                style={{
-                  backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.secondaryColor,
-                  color: theme.buttonStyle === 'outline' ? theme.secondaryColor : theme.primaryColor,
-                  borderColor: theme.buttonStyle === 'outline' ? theme.secondaryColor : 'transparent',
-                }}
+                className="px-3 pt-4 pb-3 flex flex-col items-center gap-2"
+                style={previewBackground}
               >
-                Sample Button
+                {/* Avatar dot with accent ring */}
+                <div
+                  className="w-8 h-8 rounded-full border-2"
+                  style={{
+                    borderColor: theme.accentColor,
+                    backgroundColor: `${theme.accentColor}30`,
+                    boxShadow: `0 0 10px ${theme.accentColor}50`,
+                  }}
+                />
+                {/* Artist name in the heading font */}
+                <span
+                  className="text-sm font-bold leading-none"
+                  style={{
+                    color: theme.textColor,
+                    fontFamily: `"${theme.headingFont}", system-ui, sans-serif`,
+                  }}
+                >
+                  Artist Name
+                </span>
+                {/* Sample link button, styled like the real page */}
+                <div
+                  className={`w-full max-w-[9rem] px-3 py-1.5 text-[11px] font-semibold text-center ${buttonRadius} ${
+                    theme.buttonStyle === 'outline' ? 'border-2' : ''
+                  } ${theme.buttonStyle === 'shadow' ? 'shadow-md' : ''}`}
+                  style={{
+                    backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.secondaryColor,
+                    color: theme.buttonStyle === 'outline' ? theme.secondaryColor : theme.primaryColor,
+                    borderColor: theme.buttonStyle === 'outline' ? theme.secondaryColor : 'transparent',
+                    fontFamily: `"${theme.bodyFont}", system-ui, sans-serif`,
+                  }}
+                >
+                  Listen Now
+                </div>
               </div>
 
-              {/* Font name */}
-              <p className="text-xs text-gray-400 mt-2">
-                {theme.headingFont}
-              </p>
+              {/* Theme details */}
+              <div className="p-3 bg-white">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-gray-900 text-sm truncate">
+                    {theme.name}
+                  </h3>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <span
+                      className="w-3 h-3 rounded-full border border-gray-200"
+                      style={{ backgroundColor: theme.secondaryColor }}
+                      title="Buttons"
+                    />
+                    <span
+                      className="w-3 h-3 rounded-full border border-gray-200"
+                      style={{ backgroundColor: theme.accentColor }}
+                      title="Accent"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                  {theme.description}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {theme.headingFont} · {theme.bodyFont}
+                </p>
+              </div>
             </button>
           );
         })}

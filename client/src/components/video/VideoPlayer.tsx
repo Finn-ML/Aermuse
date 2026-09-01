@@ -35,6 +35,7 @@ export function VideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Video source - full video if has access (with token), otherwise preview
@@ -64,20 +65,22 @@ export function VideoPlayer({
   }, []);
 
   const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
 
     if (showPaywall) {
       onPurchaseClick();
       return;
     }
 
-    if (isPlaying) {
-      videoRef.current.pause();
+    // The element is the source of truth — isPlaying state follows via
+    // the play/pause events, so a rejected play() can't desync the UI
+    if (video.paused || video.ended) {
+      video.play().catch(() => {});
     } else {
-      videoRef.current.play();
+      video.pause();
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying, showPaywall, onPurchaseClick]);
+  }, [showPaywall, onPurchaseClick]);
 
   const toggleMute = useCallback(() => {
     if (videoRef.current) {
@@ -104,20 +107,32 @@ export function VideoPlayer({
   }, [duration, hasAccess, video.isPaywalled]);
 
   const toggleFullscreen = useCallback(() => {
-    const container = videoRef.current?.parentElement?.parentElement;
-    if (!container) return;
+    const video = videoRef.current;
+    const container = video?.parentElement?.parentElement;
+    if (!video || !container) return;
 
     if (!isFullscreen) {
       if (container.requestFullscreen) {
-        container.requestFullscreen();
+        container.requestFullscreen().catch(() => {});
+      } else if ((video as any).webkitEnterFullscreen) {
+        // iPhone Safari has no element fullscreen API — use the native
+        // video fullscreen presentation instead
+        (video as any).webkitEnterFullscreen();
+        return; // native UI manages its own state
       }
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen();
+        document.exitFullscreen().catch(() => {});
       }
     }
-    setIsFullscreen(!isFullscreen);
   }, [isFullscreen]);
+
+  // Track fullscreen from the document so Escape/system exits stay in sync
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   const handleMouseMove = useCallback(() => {
     setShowControls(true);
@@ -204,7 +219,13 @@ export function VideoPlayer({
               setIsLoading(false);
               setVideoError(null);
             }}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
+            onWaiting={() => setIsBuffering(true)}
+            onStalled={() => setIsBuffering(true)}
+            onPlaying={() => setIsBuffering(false)}
+            onSeeked={() => setIsBuffering(false)}
             onClick={togglePlay}
             onError={(e) => {
               const mediaError = (e.target as HTMLVideoElement).error;
@@ -213,7 +234,10 @@ export function VideoPlayer({
               setIsLoading(false);
             }}
             onLoadStart={() => setIsLoading(true)}
-            onCanPlay={() => setIsLoading(false)}
+            onCanPlay={() => {
+              setIsLoading(false);
+              setIsBuffering(false);
+            }}
             preload="auto"
             playsInline
           />
@@ -221,6 +245,13 @@ export function VideoPlayer({
           {/* Loading State */}
           {isLoading && !videoError && (
             <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Buffering Indicator (mid-playback stalls) */}
+          {isBuffering && !isLoading && !videoError && !showPaywall && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
           )}

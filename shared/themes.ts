@@ -57,12 +57,19 @@ export interface ThemePreset {
   backgroundOverlay: BackgroundOverlay;
 }
 
+// Color roles on the public artist page:
+// - primaryColor: button TEXT, modal panels, page fallback background
+// - secondaryColor: button BACKGROUND, prices/accents, social icons
+// - accentColor: avatar ring + glow, decorative dots
+// - textColor: page copy
+// Every preset keeps text-vs-background and button text-vs-fill at WCAG AA
+// (4.5:1) — enforced by shared/__tests__/themes.test.ts.
 export const THEME_PRESETS: ThemePreset[] = [
   {
     id: 'dark-stage',
     name: 'Dark Stage',
     description: 'Bold and dramatic for performers',
-    primaryColor: '#1a1a2e',
+    primaryColor: '#141425',
     secondaryColor: '#e94560',
     accentColor: '#ffd700',
     textColor: '#ffffff',
@@ -71,6 +78,96 @@ export const THEME_PRESETS: ThemePreset[] = [
     buttonStyle: 'filled',
     backgroundType: 'solid',
     backgroundValue: '#0f0f1a',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'midnight-luxe',
+    name: 'Midnight Luxe',
+    description: 'Champagne gold on deep ink',
+    primaryColor: '#10131F',
+    secondaryColor: '#E3C588',
+    accentColor: '#C9A961',
+    textColor: '#F2ECDF',
+    headingFont: 'Fraunces',
+    bodyFont: 'Manrope',
+    buttonStyle: 'pill',
+    backgroundType: 'gradient',
+    backgroundValue: 'linear-gradient(135deg, #0B0E1A 0%, #1C2340 100%)',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'sunset-tour',
+    name: 'Sunset Tour',
+    description: 'Warm dusk gradient with peach glow',
+    primaryColor: '#2A1038',
+    secondaryColor: '#FFC599',
+    accentColor: '#FF8E5A',
+    textColor: '#FFF1E4',
+    headingFont: 'Sora',
+    bodyFont: 'Inter',
+    buttonStyle: 'pill',
+    backgroundType: 'gradient',
+    backgroundValue: 'linear-gradient(135deg, #241332 0%, #9C2F5F 100%)',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'violet-haze',
+    name: 'Violet Haze',
+    description: 'Dreamy purple for late-night sounds',
+    primaryColor: '#1B1030',
+    secondaryColor: '#CDB6FA',
+    accentColor: '#F0A8FC',
+    textColor: '#F3EFFF',
+    headingFont: 'Space Grotesk',
+    bodyFont: 'DM Sans',
+    buttonStyle: 'rounded',
+    backgroundType: 'gradient',
+    backgroundValue: 'linear-gradient(135deg, #140B26 0%, #45217A 100%)',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'ocean-drive',
+    name: 'Ocean Drive',
+    description: 'Cool aqua depths, crisp and modern',
+    primaryColor: '#04222E',
+    secondaryColor: '#9BEBDC',
+    accentColor: '#4FC3E8',
+    textColor: '#E9FBFF',
+    headingFont: 'Outfit',
+    bodyFont: 'Figtree',
+    buttonStyle: 'pill',
+    backgroundType: 'gradient',
+    backgroundValue: 'linear-gradient(135deg, #041C29 0%, #0B5E70 100%)',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'golden-hour',
+    name: 'Golden Hour',
+    description: 'Sunlit cream with espresso contrast',
+    primaryColor: '#FFF6EC',
+    secondaryColor: '#4A2E1E',
+    accentColor: '#C77822',
+    textColor: '#42291A',
+    headingFont: 'Fraunces',
+    bodyFont: 'Source Sans 3',
+    buttonStyle: 'rounded',
+    backgroundType: 'gradient',
+    backgroundValue: 'linear-gradient(180deg, #FFF6E8 0%, #FFDDB0 100%)',
+    backgroundOverlay: 'none',
+  },
+  {
+    id: 'monochrome-noir',
+    name: 'Monochrome Noir',
+    description: 'Stark black and white editorial',
+    primaryColor: '#0C0C0C',
+    secondaryColor: '#F2F2F2',
+    accentColor: '#8C8C8C',
+    textColor: '#FAFAFA',
+    headingFont: 'Space Grotesk',
+    bodyFont: 'Inter',
+    buttonStyle: 'square',
+    backgroundType: 'solid',
+    backgroundValue: '#0C0C0C',
     backgroundOverlay: 'none',
   },
   {
@@ -122,7 +219,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: 'acoustic',
     name: 'Acoustic',
     description: 'Earthy and organic',
-    primaryColor: '#4a5043',
+    primaryColor: '#333A2C',
     secondaryColor: '#c4a35a',
     accentColor: '#8b4513',
     textColor: '#f5f0e8',
@@ -134,13 +231,15 @@ export const THEME_PRESETS: ThemePreset[] = [
     backgroundOverlay: 'none',
   },
   {
+    // primary/secondary swapped from the original: buttons were white on a
+    // white page (invisible). Now dark buttons with white button text.
     id: 'minimalist',
     name: 'Minimalist',
     description: 'Simple and elegant',
-    primaryColor: '#000000',
-    secondaryColor: '#ffffff',
-    accentColor: '#666666',
-    textColor: '#000000',
+    primaryColor: '#ffffff',
+    secondaryColor: '#111111',
+    accentColor: '#7a7a7a',
+    textColor: '#111111',
     headingFont: 'Inter',
     bodyFont: 'Inter',
     buttonStyle: 'square',
@@ -247,4 +346,27 @@ export const SUPPORTED_FONTS = [
 // Helper to get theme by ID
 export function getThemeById(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find(theme => theme.id === id);
+}
+
+// WCAG relative luminance / contrast helpers (used by preset tests and the
+// editor's live contrast warning)
+export function getRelativeLuminance(hex: string): number {
+  const rgb = hex.replace('#', '').match(/.{2}/g)?.map(channel => {
+    const value = parseInt(channel, 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+  }) || [0, 0, 0];
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+}
+
+export function getContrastRatio(color1: string, color2: string): number {
+  const l1 = getRelativeLuminance(color1);
+  const l2 = getRelativeLuminance(color2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/** Extract the hex color stops from a preset's gradient backgroundValue. */
+export function getGradientStops(css: string): string[] {
+  return css.match(/#[0-9a-fA-F]{6}/g) || [];
 }
