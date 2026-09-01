@@ -216,3 +216,37 @@ development_status:
   12-9-free-tier-contract-limit: review
   12-10-existing-subscriber-migration: review
   epic-12-retrospective: optional
+
+  # ============================================
+  # EPIC 14: Music Distribution — Releases & Too Lost Delivery (P0)
+  # 12 stories, 46 points (incl. Sprint 0 spike)
+  # Scoping: docs/music-distribution-scoping.md
+  # ============================================
+  epic-14: backlog
+  14-1-too-lost-api-spike-and-account-setup: backlog
+  14-2-release-data-model-and-track-migration: backlog
+  14-3-too-lost-service-client: backlog
+  14-4-route-extraction-and-release-endpoints: backlog
+  14-5-release-builder-ui: backlog
+  14-6-delivery-spec-asset-validation: backlog
+  14-7-genre-language-taxonomy-sync: backlog
+  14-8-tokenized-asset-delivery-urls: backlog
+  14-9-release-submission-flow: backlog
+  14-10-status-lifecycle-webhooks-polling: backlog
+  14-11-rejection-resubmission-takedown: backlog
+  14-12-first-class-routing-pricing-copy: backlog
+  epic-14-retrospective: optional
+
+  # ============================================
+  # EPIC 15: Distribution Royalties & Earnings (P1)
+  # 6 stories, 24 points
+  # Scoping: docs/music-distribution-scoping.md
+  # ============================================
+  epic-15: backlog
+  15-1-royalty-data-model: backlog
+  15-2-statement-ingestion-job: backlog
+  15-3-earnings-dashboard-ui: backlog
+  15-4-distribution-splits-pushed-to-too-lost: backlog
+  15-5-statements-and-export: backlog
+  15-6-payout-visibility: backlog
+  epic-15-retrospective: optional
