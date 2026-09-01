@@ -25,6 +25,9 @@ This document outlines the epics and user stories required to complete the Aermu
 | EPIC-010 | Analytics & Insights | P2 | 7 | - |
 | [EPIC-011](./epic-11-visual-effects.md) | Visual Effects & Premium Customization | P1 | 24 | - |
 | [EPIC-012](./epic-12-pricing-tier-restructure.md) | Pricing Tier Restructure (Beta & Alpha) | P0 | 34 | 4-5 days |
+| [EPIC-013](./epic-13-pdf-contract-conversion.md) | PDF Contract Conversion & Proposal Contract Upload | P1 | 31 | 5-7 days |
+| [EPIC-014](./epic-14-music-distribution-releases.md) | Music Distribution — Releases & Too Lost Delivery | P0 | 46 | 8-10 days + spike |
+| [EPIC-015](./epic-15-distribution-royalties.md) | Distribution Royalties & Earnings | P1 | 24 | 5-6 days |
 
 ---
 
@@ -75,6 +78,14 @@ This document outlines the epics and user stories required to complete the Aermu
 8. **EPIC-007: Landing Page Enhancements** (P2)
    - Proposal receiving
    - Inbound lead generation
+
+### Phase 5: Music Distribution (post-MVP)
+
+Scoped in [music-distribution-scoping.md](../music-distribution-scoping.md). Sequence:
+
+1. **Sprint 0 spike** (Story 14.1, 1 week) — validate the Too Lost API hands-on, settle the account/commercial model. Gates everything below.
+2. **EPIC-014: Music Distribution — Releases & Too Lost Delivery** (P0) — release entity + UPC, Too Lost service client, submission flow, webhook/polling status lifecycle
+3. **EPIC-015: Distribution Royalties & Earnings** (P1) — statement ingestion, earnings dashboard, splits via Too Lost, exports
 
 ---
 
@@ -128,6 +139,7 @@ EPIC-008 (Storage)
 | SendGrid/Email | EPIC-001, 004, 007 | Account, API key, templates |
 | AWS S3 / Cloudinary | EPIC-002, 008 | Account, bucket/folder |
 | PDF Library | EPIC-004, 008 | npm package (pdfkit/puppeteer) |
+| Too Lost | EPIC-014, 015 | Developer account, OAuth credentials, enterprise/white-label conversation |
 
 ---
 
