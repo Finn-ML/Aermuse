@@ -954,8 +954,8 @@ export default function ArtistPage() {
           <div className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
             {(() => {
               const videoLinks = (page.links || []).filter(l => l.type === 'video_embed' && l.enabled && l.videoUrl);
-              const regularLinks = (page.links || []).filter(l => l.type !== 'video_embed' && l.enabled);
-              const headers = (page.links || []).filter(l => l.type === 'header' && l.title?.trim());
+              const regularLinks = (page.links || []).filter(l => l.type !== 'video_embed' && l.type !== 'header' && l.enabled);
+              const headers = (page.links || []).filter(l => l.type === 'header' && l.enabled && l.title?.trim());
 
               return (
                 <>
