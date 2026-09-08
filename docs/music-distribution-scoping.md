@@ -21,12 +21,15 @@ This phase connects the existing staging area to **Too Lost**, a distributor wit
 (catalog/release management, delivery to ~450 stores, royalties, splits, payouts, webhooks). The
 work splits into:
 
-- **Sprint 0 (spike):** validate the Too Lost API hands-on and settle the account/commercial model — *1 week, gates everything else*
-- **Epic 14 — Releases & Delivery:** release entity (UPC, type, track ordering), Too Lost service client, submission flow, status lifecycle with webhooks — *~42 points, 8–10 days*
-- **Epic 15 — Royalties & Earnings:** royalty ingestion, earnings dashboard, split reconciliation, payout path — *~24 points, 5–6 days*
+- **Sprint 0 (spike):** validate the Too Lost API hands-on and settle the account/commercial model — *1 week elapsed, 10–14 h, gates everything else*
+- **Epic 14 — Releases & Delivery:** release entity (UPC, type, track ordering), Too Lost service client, submission flow, status lifecycle with webhooks — *41 points, 23–32 h*
+- **Epic 15 — Royalties & Earnings:** royalty ingestion, earnings dashboard, split reconciliation, payout path — *24 points, 14–18 h*
 
-Total estimate: **~66 story points, roughly 3–4 working weeks** after the spike, in line with
-previous epic velocity (Epic 4: 35 pts / 5–6 days; Epic 12: 34 pts / 4–5 days).
+Total estimate: **58–80 hours core, 65–90 hours with 12% contingency, over 4–5 elapsed weeks**, on
+an AI-assisted delivery basis (code generated with Claude Code; hours count human time to direct,
+review, test and integrate, plus vendor coordination). Breakdown: spike 10–14 h, Epic 14 build
+23–32 h, Epic 15 14–18 h, cross-cutting QA / docs / project management 11–16 h. Elapsed time is
+set by the week-1 spike and Too Lost review cycles rather than by build hours.
 
 > ⚠️ **Honesty note on sources:** Too Lost's full API reference at `developer.toolost.com` could not
 > be fetched from the environment this document was written in (network egress policy). Everything
@@ -216,7 +219,7 @@ track/DSP/territory earnings), keyed to ISRC/UPC for reconciliation.
 
 ## 6. Phase Plan
 
-### Sprint 0 — Spike & Commercial Setup (1 week, timeboxed — Story 14.1)
+### Sprint 0 — Spike & Commercial Setup (1 week, timeboxed — Story 14.1 · 10–14 h)
 
 1. Create the Too Lost developer account; obtain credentials; open the enterprise/white-label conversation (D1/A9).
 2. Work through the assumption register (§3): exercise auth, create/submit a test release end-to-end in sandbox (or a throwaway live account), export taxonomies, catalog webhook events, pull a royalty report sample.
@@ -224,14 +227,14 @@ track/DSP/territory earnings), keyed to ISRC/UPC for reconciliation.
 
 **Exit criteria:** a release delivered to sandbox/test via `curl`/script; D1–D4 decided or explicitly deferred with fallbacks; epics re-estimated.
 
-### Epic 14 — Music Distribution: Releases & Too Lost Delivery (~42 pts)
+### Epic 14 — Music Distribution: Releases & Too Lost Delivery (41 pts · 23–32 h)
 
 Release data model & migration, Too Lost service client, route extraction, release builder UI,
 delivery-spec validation, taxonomy sync, tokenized asset URLs, submission flow, webhook+polling
 status lifecycle, rejection/resubmission & takedown, first-class `/dashboard` routing + pricing
 copy. Full stories: [epic-14-music-distribution-releases.md](./epics/epic-14-music-distribution-releases.md).
 
-### Epic 15 — Distribution Royalties & Earnings (~24 pts)
+### Epic 15 — Distribution Royalties & Earnings (24 pts · 14–18 h)
 
 Royalty schema, scheduled ingestion, earnings dashboard (per release/track/DSP/territory), split
 configuration pushed to Too Lost (D3), statements & CSV export, payout status surfacing. Full

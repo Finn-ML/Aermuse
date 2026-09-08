@@ -7,7 +7,7 @@
 | **Epic ID** | EPIC-014 |
 | **Title** | Music Distribution — Releases & Too Lost Delivery |
 | **Priority** | P0 - Critical (for distribution phase) |
-| **Estimated Effort** | 8-10 days (+1 week Sprint 0 spike) |
+| **Estimated Effort** | 33–46 hours (23–32 h build + 10–14 h Sprint 0 spike), AI-assisted delivery |
 | **Dependencies** | EPIC-005 (Billing), EPIC-012 (Tiers), existing distribution module (`/api/distribution/*`) |
 | **Scoping doc** | [music-distribution-scoping.md](../music-distribution-scoping.md) |
 
@@ -65,6 +65,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - API docs: `developer.toolost.com/docs`
 
 **Story Points:** 5
+**Estimated Hours:** 10–14 h (AI-assisted)
 
 ---
 
@@ -87,6 +88,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - Schema deployed via `npm run db:push` per house convention (migrations dir is stale)
 
 **Story Points:** 5
+**Estimated Hours:** 2–3 h (AI-assisted)
 
 ---
 
@@ -105,6 +107,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] `.env.example` updated: `TOOLOST_CLIENT_ID`, `TOOLOST_CLIENT_SECRET`, `TOOLOST_BASE_URL`, `TOOLOST_WEBHOOK_SECRET`
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -122,6 +125,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] `docs/api-contracts.md` updated for the distribution section (currently pre-dates the module)
 
 **Story Points:** 3
+**Estimated Hours:** 1.5–2 h (AI-assisted)
 
 ---
 
@@ -144,6 +148,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - Keep the existing per-track metadata form; it nests under a release
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -160,6 +165,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Upload configs (`audioUpload`, `coverArtUpload`) extended if the spec demands formats we don't accept yet (e.g. FLAC, PNG artwork)
 
 **Story Points:** 3
+**Estimated Hours:** 2–3 h (AI-assisted)
 
 ---
 
@@ -175,6 +181,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Existing rows with now-invalid genre values flagged in readiness (not silently migrated)
 
 **Story Points:** 2
+**Estimated Hours:** 1–1.5 h (AI-assisted)
 
 ---
 
@@ -192,6 +199,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] If A3 lands as direct upload instead: this story swaps to streaming uploads inside the service client (same points)
 
 **Story Points:** 3
+**Estimated Hours:** 1.5–2 h (AI-assisted)
 
 ---
 
@@ -211,6 +219,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Submission UI: pre-flight checklist, confirm dialog, pending state
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -229,6 +238,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Postmark notifications on `live` and `rejected`
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -245,6 +255,7 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Admin visibility: distribution releases + statuses listed in the admin dashboard (read-only table, reuse admin patterns)
 
 **Story Points:** 3
+**Estimated Hours:** 2–3 h (AI-assisted)
 
 ---
 
@@ -261,10 +272,15 @@ Stories marked **⚠ A#** depend on assumptions in the scoping doc's assumption 
 - [ ] Landing-page marketing section (public site) gets a distribution bullet — stretch, behind copy approval
 
 **Story Points:** 2
+**Estimated Hours:** 1–1.5 h (AI-assisted)
 
 ---
 
 ## Total Story Points: 41 (+5 spike = 46)
+
+## Estimated Hours: 33–46 (23–32 build + 10–14 spike)
+
+Hours assume AI-assisted delivery (code generated with Claude Code); they count human time to direct, review, test and integrate each story. Story points remain the relative-size measure for sprint tracking.
 
 ## Definition of Done
 

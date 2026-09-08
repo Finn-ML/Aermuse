@@ -26,8 +26,8 @@ This document outlines the epics and user stories required to complete the Aermu
 | [EPIC-011](./epic-11-visual-effects.md) | Visual Effects & Premium Customization | P1 | 24 | - |
 | [EPIC-012](./epic-12-pricing-tier-restructure.md) | Pricing Tier Restructure (Beta & Alpha) | P0 | 34 | 4-5 days |
 | [EPIC-013](./epic-13-pdf-contract-conversion.md) | PDF Contract Conversion & Proposal Contract Upload | P1 | 31 | 5-7 days |
-| [EPIC-014](./epic-14-music-distribution-releases.md) | Music Distribution — Releases & Too Lost Delivery | P0 | 46 | 8-10 days + spike |
-| [EPIC-015](./epic-15-distribution-royalties.md) | Distribution Royalties & Earnings | P1 | 24 | 5-6 days |
+| [EPIC-014](./epic-14-music-distribution-releases.md) | Music Distribution — Releases & Too Lost Delivery | P0 | 46 | 33–46 h (incl. spike) |
+| [EPIC-015](./epic-15-distribution-royalties.md) | Distribution Royalties & Earnings | P1 | 24 | 14–18 h |
 
 ---
 

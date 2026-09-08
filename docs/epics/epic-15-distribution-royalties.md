@@ -7,7 +7,7 @@
 | **Epic ID** | EPIC-015 |
 | **Title** | Distribution Royalties & Earnings |
 | **Priority** | P1 - High (distribution phase, follows EPIC-014) |
-| **Estimated Effort** | 5-6 days |
+| **Estimated Effort** | 14–18 hours, AI-assisted delivery |
 | **Dependencies** | EPIC-014 (releases live via Too Lost), Decision D3 (payout path, see scoping doc §4) |
 | **Scoping doc** | [music-distribution-scoping.md](../music-distribution-scoping.md) |
 
@@ -61,6 +61,7 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - Raw statement payloads archived to object storage (`royalties/{userId}/{reportId}.json|csv`) for audit/re-ingestion
 
 **Story Points:** 3
+**Estimated Hours:** 1.5–2 h (AI-assisted)
 
 ---
 
@@ -79,6 +80,7 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - [ ] Postmark email to artist when a new statement is ingested ("Your March earnings are in")
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -99,6 +101,7 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - Charting: follow existing analytics dashboard conventions (`client/src/components/` analytics patterns from EPIC-010)
 
 **Story Points:** 5
+**Estimated Hours:** 3.5–4 h (AI-assisted)
 
 ---
 
@@ -117,6 +120,7 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - [ ] **Fallback if A7 fails** (splits not API-configurable): story descopes to display-only split math on the earnings dashboard + explicit "paid out via Too Lost account owner" messaging; payout implications escalate to Decision D3 fallback (Stripe Connect + legal review) as a separate follow-up epic
 
 **Story Points:** 5
+**Estimated Hours:** 3–4 h (AI-assisted)
 
 ---
 
@@ -133,6 +137,7 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - [ ] PDF statement — stretch only, reuse `pdfGenerator.ts` if trivial, else backlog
 
 **Story Points:** 3
+**Estimated Hours:** 1.5–2 h (AI-assisted)
 
 ---
 
@@ -149,10 +154,15 @@ Stories marked **⚠ A6/A7** depend on assumptions verified in the Story 14.1 sp
 - [ ] If the account model (Decision D1) means artists have no Too Lost identity: payout onboarding flow defined with founder before implementation (blocked-by-decision guard)
 
 **Story Points:** 3
+**Estimated Hours:** 1.5–2 h (AI-assisted)
 
 ---
 
 ## Total Story Points: 24
+
+## Estimated Hours: 14–18
+
+Hours assume AI-assisted delivery, as for Epic 14. Cross-cutting QA, documentation and vendor liaison for the phase are estimated separately in the scoping document.
 
 ## Definition of Done
 
