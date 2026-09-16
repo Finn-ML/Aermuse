@@ -1,16 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-
-// Mock @replit/object-storage before importing fileStorage
-vi.mock('@replit/object-storage', () => {
-  const MockClient = function() {
-    return {
-      uploadFromBytes: vi.fn().mockResolvedValue({}),
-      downloadAsBytes: vi.fn().mockResolvedValue({ value: [Buffer.from('test')] }),
-      delete: vi.fn().mockResolvedValue({}),
-    };
-  };
-  return { Client: MockClient };
-});
+import { describe, it, expect } from 'vitest';
 
 import { getContentType } from '../fileStorage';
 
