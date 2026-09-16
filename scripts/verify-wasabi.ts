@@ -11,11 +11,10 @@ try {
   if (inventory.error) throw inventory.error;
   console.log(`Existing objects visible: ${inventory.value.length}`);
   const existing = inventory.value.find(item => !item.name.startsWith('_storage-check/') && item.name !== '.keep');
-  if (existing) {
-    const content = await storage.downloadAsBytes(existing.name);
-    if (content.error) throw content.error;
-    console.log(`Existing file readable: ${content.value[0].length} bytes`);
-  }
+  if (!existing) throw new Error('No migrated application files found at the configured Wasabi bucket/prefix. Do not deploy until the storage destination is reconciled.');
+  const content = await storage.downloadAsBytes(existing.name);
+  if (content.error) throw content.error;
+  console.log(`Existing file readable: ${content.value[0].length} bytes`);
   const upload = await storage.uploadFromBytes(key, payload);
   if (upload.error) throw upload.error;
   uploaded = true;
