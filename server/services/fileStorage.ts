@@ -1,18 +1,12 @@
-import { Client } from '@replit/object-storage';
+import { WasabiStorage } from './wasabiStorage';
 
-// Lazy initialization to avoid startup errors when Object Storage is not configured
-let storage: Client | null = null;
+// Initialize on first use so builds and non-storage tasks do not require credentials.
+let storage: WasabiStorage | null = null;
 
-function getStorage(): Client {
+function getStorage(): WasabiStorage {
   if (!storage) {
-    try {
-      // Use default Replit Object Storage - it auto-configures the bucket
-      storage = new Client();
-      console.log('[STORAGE] Initialized with default Replit Object Storage');
-    } catch (error) {
-      console.error('[STORAGE] Failed to initialize Object Storage:', error);
-      throw new Error('Object Storage is not configured.');
-    }
+    storage = new WasabiStorage();
+    console.log('[STORAGE] Initialized Wasabi object storage');
   }
   return storage;
 }
@@ -50,7 +44,7 @@ export async function downloadContractFile(path: string): Promise<Buffer> {
     throw new Error(`Failed to download file: ${result.error.message}`);
   }
 
-  // result.value is [Buffer] tuple
+  // The storage adapter returns a [Buffer] tuple.
   return result.value![0];
 }
 
@@ -90,7 +84,7 @@ export async function uploadSignedPdf(
 }
 
 export async function getSignedPdfUrl(path: string): Promise<string> {
-  // For Replit Object Storage, we need to serve through our API
+  // Keep existing authenticated API URLs independent of the storage provider.
   return `/api/files/signed/${encodeURIComponent(path)}`;
 }
 
@@ -359,7 +353,7 @@ export async function deleteDistributionFiles(userId: string, trackId: string): 
   const basePath = `distribution/${userId}/${trackId}`;
 
   try {
-    const listResult = await getStorage().list({ prefix: basePath });
+    const listResult = await getStorage().list({ prefix: `${basePath}/` });
     if (!listResult.error && listResult.value) {
       for (const item of listResult.value) {
         await getStorage().delete(item.name);
@@ -879,7 +873,7 @@ export async function deleteArtistVideoFiles(userId: string, videoId: string): P
   const basePath = `videos/${userId}/${videoId}`;
 
   try {
-    const listResult = await getStorage().list({ prefix: basePath });
+    const listResult = await getStorage().list({ prefix: `${basePath}/` });
     if (!listResult.error && listResult.value) {
       for (const item of listResult.value) {
         await getStorage().delete(item.name);
