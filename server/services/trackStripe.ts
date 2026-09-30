@@ -349,6 +349,9 @@ export function constructWebhookEvent(
   payload: string | Buffer,
   signature: string
 ): Stripe.Event {
+  if (!stripeConfig.webhookSecret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET not configured — cannot verify webhook');
+  }
   return stripe.webhooks.constructEvent(
     payload,
     signature,
