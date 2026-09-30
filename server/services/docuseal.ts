@@ -21,6 +21,22 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
 // ============================================
+// URL VALIDATION (SSRF prevention)
+// ============================================
+
+function isAllowedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const blocked = ['localhost', '127.0.0.1', '169.254.169.254', '0.0.0.0'];
+    if (blocked.some(b => parsed.hostname === b)) return false;
+    // Block private IP ranges
+    if (parsed.hostname.startsWith('10.') || parsed.hostname.startsWith('192.168.') || parsed.hostname.startsWith('172.16.')) return false;
+    return true;
+  } catch { return false; }
+}
+
+// ============================================
 // ERROR CLASS
 // ============================================
 
@@ -242,6 +258,9 @@ export class DocuSealService {
                           (docDetails as any).file_url || (docDetails as any).fileUrl;
 
         if (resultUrl) {
+          if (!isAllowedUrl(resultUrl)) {
+            throw new DocuSealServiceError('Blocked URL — potential SSRF attempt', 403);
+          }
           console.log(`[DOCUSEAL] Using result_url for download: ${resultUrl}`);
           const pdfResponse = await fetch(resultUrl, { signal: controller.signal });
 
@@ -292,6 +311,9 @@ export class DocuSealService {
                            jsonResponse.signed_pdf_url || jsonResponse.signedPdfUrl;
 
             if (pdfUrl) {
+              if (!isAllowedUrl(pdfUrl)) {
+                throw new DocuSealServiceError('Blocked URL — potential SSRF attempt', 403);
+              }
               console.log(`[DOCUSEAL] Following PDF URL from JSON response: ${pdfUrl}`);
               const pdfResponse = await fetch(pdfUrl, { signal: controller.signal });
               if (pdfResponse.ok) {
