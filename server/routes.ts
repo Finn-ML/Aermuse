@@ -759,7 +759,7 @@ ${urls}
     }
   });
 
-  app.post("/api/contracts", async (req: Request, res: Response) => {
+  app.post("/api/contracts", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -794,7 +794,7 @@ ${urls}
     }
   });
 
-  app.patch("/api/contracts/:id", async (req: Request, res: Response) => {
+  app.patch("/api/contracts/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -814,7 +814,7 @@ ${urls}
     }
   });
 
-  app.delete("/api/contracts/:id", async (req: Request, res: Response) => {
+  app.delete("/api/contracts/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -939,7 +939,7 @@ ${urls}
   }
 
   // AI Contract Analysis (GPT-4)
-  app.post("/api/contracts/:id/analyze", aiLimiter, async (req: Request, res: Response) => {
+  app.post("/api/contracts/:id/analyze", requireAuth, aiLimiter, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
@@ -1175,7 +1175,7 @@ ${urls}
   });
 
   // Contract File Upload
-  app.post("/api/contracts/upload", upload.single("file"), async (req: Request, res: Response) => {
+  app.post("/api/contracts/upload", requireAuth, upload.single("file"), async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       if (!userId) {
