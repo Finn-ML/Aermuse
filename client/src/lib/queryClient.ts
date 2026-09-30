@@ -1,5 +1,19 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Global fetch interceptor: adds X-Requested-With header to all /api requests for CSRF protection
+const originalFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  if (url.startsWith('/api')) {
+    const headers = new Headers(init?.headers);
+    if (!headers.has('X-Requested-With')) {
+      headers.set('X-Requested-With', 'XMLHttpRequest');
+    }
+    return originalFetch(input, { ...init, headers });
+  }
+  return originalFetch(input, init);
+};
+
 /**
  * Custom error class for API errors with structured data
  */
@@ -52,7 +66,9 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: data
+      ? { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" }
+      : { "X-Requested-With": "XMLHttpRequest" },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -69,6 +85,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
