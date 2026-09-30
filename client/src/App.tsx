@@ -33,6 +33,7 @@ import {
   AdminSettings,
   AdminActivity,
 } from "@/pages/admin";
+import { AdminRoute } from "./components/AdminRoute";
 
 function Router() {
   return (
@@ -55,19 +56,19 @@ function Router() {
       <Route path="/my-purchases" component={MyPurchases} />
       {/* Split verification for collaborators */}
       <Route path="/verify-split/:token" component={SplitVerificationPage} />
-      {/* Admin routes */}
-      <Route path="/admin" component={AdminOverview} />
-      <Route path="/admin/users" component={AdminUsers} />
-      <Route path="/admin/users/:id" component={AdminUsers} />
-      <Route path="/admin/contracts" component={AdminContracts} />
-      <Route path="/admin/contracts/:id" component={AdminContracts} />
-      <Route path="/admin/templates" component={AdminTemplates} />
-      <Route path="/admin/templates/new" component={AdminTemplates} />
-      <Route path="/admin/templates/:id" component={AdminTemplates} />
-      <Route path="/admin/subscriptions" component={AdminSubscriptions} />
-      <Route path="/admin/analytics" component={AdminAnalytics} />
-      <Route path="/admin/settings" component={AdminSettings} />
-      <Route path="/admin/activity" component={AdminActivity} />
+      {/* Admin routes — wrapped in AdminRoute guard */}
+      <Route path="/admin">{() => <AdminRoute><AdminOverview /></AdminRoute>}</Route>
+      <Route path="/admin/users">{() => <AdminRoute><AdminUsers /></AdminRoute>}</Route>
+      <Route path="/admin/users/:id">{(params) => <AdminRoute><AdminUsers {...params} /></AdminRoute>}</Route>
+      <Route path="/admin/contracts">{() => <AdminRoute><AdminContracts /></AdminRoute>}</Route>
+      <Route path="/admin/contracts/:id">{(params) => <AdminRoute><AdminContracts {...params} /></AdminRoute>}</Route>
+      <Route path="/admin/templates">{() => <AdminRoute><AdminTemplates /></AdminRoute>}</Route>
+      <Route path="/admin/templates/new">{() => <AdminRoute><AdminTemplates /></AdminRoute>}</Route>
+      <Route path="/admin/templates/:id">{(params) => <AdminRoute><AdminTemplates {...params} /></AdminRoute>}</Route>
+      <Route path="/admin/subscriptions">{() => <AdminRoute><AdminSubscriptions /></AdminRoute>}</Route>
+      <Route path="/admin/analytics">{() => <AdminRoute><AdminAnalytics /></AdminRoute>}</Route>
+      <Route path="/admin/settings">{() => <AdminRoute><AdminSettings /></AdminRoute>}</Route>
+      <Route path="/admin/activity">{() => <AdminRoute><AdminActivity /></AdminRoute>}</Route>
       {/* Public artist landing pages */}
       <Route path="/artist/:slug" component={ArtistPage} />
       <Route component={NotFound} />
