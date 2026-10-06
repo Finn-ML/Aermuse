@@ -1,8 +1,11 @@
+import { VideoBackground } from '@/components/VideoBackground';
+import { parseCanvasVideo as parseVideoBackground } from '@shared/canvasVideo';
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useSearch, useLocation } from 'wouter';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Loader2, Lock, Play } from 'lucide-react';
+import { LazyImage } from '@/components/LazyImage';
 import { SendProposalButton } from '@/components/landing/SendProposalButton';
 import { SubscribeWidget } from '@/components/mailing-list/SubscribeWidget';
 import { getPlatformIcon, type SocialIcon } from '@/components/landing/SocialIconsEditor';
@@ -30,37 +33,24 @@ const heroVariants = {
   }
 };
 
+// Entrance animations stick to opacity/transform — animating CSS filters
+// (blur) forces expensive repaints and blurry text on low-end devices.
 const itemVariants = {
-  hidden: { opacity: 0, y: 40, filter: 'blur(10px)' },
+  hidden: { opacity: 0, y: 40 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
     transition: { type: 'spring', damping: 25, stiffness: 120 }
   }
 };
 
 const avatarVariants = {
-  hidden: { opacity: 0, scale: 0.8, filter: 'blur(20px)' },
+  hidden: { opacity: 0, scale: 0.8 },
   visible: {
     opacity: 1,
     scale: 1,
-    filter: 'blur(0px)',
     transition: { type: 'spring', damping: 20, stiffness: 100, duration: 0.8 }
   }
-};
-
-const floatingOrbVariants = {
-  animate: (i: number) => ({
-    y: [0, -20, 0],
-    scale: [1, 1.05, 1],
-    transition: {
-      duration: 6 + i * 2,
-      repeat: Infinity,
-      ease: 'easeInOut',
-      delay: i * 0.5
-    }
-  })
 };
 
 const linkCardVariants = {
@@ -134,88 +124,6 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
   }
 }
 
-// Parse video background value JSON
-function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; poster?: string; duration?: number } | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-// Optimized video background component
-// - GPU-composited via object-fit instead of transform hack
-// - Pauses offscreen via IntersectionObserver
-// - Respects prefers-reduced-motion (poster only)
-// - Low fetch priority so page content loads first
-function VideoBackground({ videoData }: { videoData: { webm?: string; mp4?: string; poster?: string } }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [reducedMotion] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-
-  // Pause video when scrolled offscreen
-  useEffect(() => {
-    const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  if (reducedMotion) {
-    return (
-      <div className="fixed inset-0 -z-10">
-        {videoData.poster && (
-          <img
-            src={videoData.poster}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="fixed inset-0 -z-10 overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        // @ts-expect-error -- fetchpriority is valid HTML but missing from React types
-        fetchpriority="low"
-        className="w-full h-full object-cover will-change-transform"
-        poster={videoData.poster || ""}
-      >
-        {videoData.webm && (
-          <source src={videoData.webm} type="video/webm" />
-        )}
-        {videoData.mp4 && (
-          <source src={videoData.mp4} type="video/mp4" />
-        )}
-      </video>
-    </div>
-  );
-}
-
 // Generate background style
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
@@ -253,9 +161,9 @@ function getBackgroundStyle(
 function getOverlayClass(overlay: BackgroundOverlay | string | null | undefined): string {
   switch (overlay) {
     case 'dark':
-      return 'before:absolute before:inset-0 before:bg-black/50 before:pointer-events-none';
+      return 'bg-black/50';
     case 'light':
-      return 'before:absolute before:inset-0 before:bg-white/30 before:pointer-events-none';
+      return 'bg-white/30';
     default:
       return '';
   }
@@ -265,6 +173,10 @@ export default function ArtistPage() {
   const { slug } = useParams<{ slug: string }>();
   const [, setLocation] = useLocation();
   const pageViewIdRef = useRef<string | null>(null);
+  // Skip entrance animations for users who prefer reduced motion — framer
+  // inline animations aren't covered by the CSS media query.
+  const reduceMotion = useReducedMotion();
+  const entranceInitial = reduceMotion ? false : 'hidden';
 
   // Purchase success state
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -671,7 +583,7 @@ export default function ArtistPage() {
 
   return (
     <div
-      className={`min-h-screen relative ${overlayClass} grain-overlay${backgroundType === 'video' ? ' grain-overlay--video' : ''}`}
+      className={`min-h-screen relative grain-overlay${backgroundType === 'video' ? ' grain-overlay--video perf-video-bg' : ''}`}
       style={{
         ...backgroundStyle,
         fontFamily: `"${bodyFont}", system-ui, sans-serif`,
@@ -682,44 +594,44 @@ export default function ArtistPage() {
         <VideoBackground videoData={videoData} />
       )}
 
-      {/* Atmospheric Floating Orbs - Disabled when video background is active to free GPU */}
+      {/* Keep the readability overlay separate from the low-opacity grain. */}
+      {overlayClass && <div aria-hidden="true" className={`absolute inset-0 z-0 pointer-events-none ${overlayClass}`} />}
+
+      {/* Atmospheric Floating Orbs - pure CSS so they animate on the
+          compositor; disabled when video background is active to free GPU */}
       {backgroundType !== 'video' && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          <motion.div
-            custom={0}
-            variants={floatingOrbVariants}
-            animate="animate"
-            className="absolute w-[500px] h-[500px] rounded-full opacity-20"
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div
+            className="orb w-[500px] h-[500px] opacity-20"
             style={{
               background: `radial-gradient(circle, ${accentColor}40 0%, transparent 70%)`,
               top: '-10%',
               right: '-10%',
               filter: 'blur(60px)',
-            }}
+              '--orb-duration': '9s',
+            } as React.CSSProperties}
           />
-          <motion.div
-            custom={1}
-            variants={floatingOrbVariants}
-            animate="animate"
-            className="absolute w-[400px] h-[400px] rounded-full opacity-15"
+          <div
+            className="orb w-[400px] h-[400px] opacity-15"
             style={{
               background: `radial-gradient(circle, ${secondaryColor}30 0%, transparent 70%)`,
               bottom: '10%',
               left: '-5%',
               filter: 'blur(50px)',
-            }}
+              '--orb-duration': '11s',
+              '--orb-delay': '0.5s',
+            } as React.CSSProperties}
           />
-          <motion.div
-            custom={2}
-            variants={floatingOrbVariants}
-            animate="animate"
-            className="absolute w-[300px] h-[300px] rounded-full opacity-10"
+          <div
+            className="orb w-[300px] h-[300px] opacity-10"
             style={{
               background: `radial-gradient(circle, ${primaryColor}50 0%, transparent 70%)`,
               top: '40%',
               right: '20%',
               filter: 'blur(40px)',
-            }}
+              '--orb-duration': '13s',
+              '--orb-delay': '1s',
+            } as React.CSSProperties}
           />
         </div>
       )}
@@ -728,7 +640,7 @@ export default function ArtistPage() {
       <motion.section
         className="relative pt-8 md:pt-12 lg:pt-16 pb-4 md:pb-8 px-4"
         variants={heroVariants}
-        initial="hidden"
+        initial={entranceInitial}
         animate="visible"
       >
         {/* Cover Image (if no custom background set) */}
@@ -758,27 +670,24 @@ export default function ArtistPage() {
               variants={avatarVariants}
               className={`relative ${avatarPosition === 'left' ? 'flex-shrink-0' : ''}`}
             >
-              {/* Glow Ring Effect */}
-              <motion.div
-                className="absolute inset-[-12px] md:inset-[-16px] rounded-full z-0"
+              {/* Glow Ring Effect - CSS keyframes run on the compositor */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-[-12px] md:inset-[-16px] rounded-full z-0 pulse-glow"
                 style={{
                   background: `radial-gradient(circle, ${accentColor}60 0%, transparent 70%)`,
                   filter: 'blur(20px)',
-                }}
-                animate={{
-                  opacity: [0.4, 0.7, 0.4],
-                  scale: [1, 1.05, 1],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
                 }}
               />
               {page.avatarUrl ? (
                 <img
                   src={page.avatarUrl}
                   alt={page.artistName}
+                  width={176}
+                  height={176}
+                  decoding="async"
+                  // @ts-expect-error -- fetchpriority is valid HTML but missing from React types
+                  fetchpriority="high"
                   className="w-28 h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-full border-4 shadow-2xl object-cover relative z-10 transition-all duration-300 hover:scale-105"
                   style={{
                     borderColor: accentColor,
@@ -853,7 +762,7 @@ export default function ArtistPage() {
                       key={icon.id}
                       custom={index}
                       variants={socialIconVariants}
-                      initial="hidden"
+                      initial={entranceInitial}
                       animate="visible"
                       href={icon.url}
                       target="_blank"
@@ -908,8 +817,8 @@ export default function ArtistPage() {
           <div className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
             {(() => {
               const videoLinks = (page.links || []).filter(l => l.type === 'video_embed' && l.enabled && l.videoUrl);
-              const regularLinks = (page.links || []).filter(l => l.type !== 'video_embed' && l.enabled);
-              const headers = (page.links || []).filter(l => l.type === 'header' && l.title?.trim());
+              const regularLinks = (page.links || []).filter(l => l.type !== 'video_embed' && l.type !== 'header' && l.enabled);
+              const headers = (page.links || []).filter(l => l.type === 'header' && l.enabled && l.title?.trim());
 
               return (
                 <>
@@ -950,7 +859,7 @@ export default function ArtistPage() {
                                 key={link.id}
                                 custom={index}
                                 variants={videoEmbedVariants}
-                                initial="hidden"
+                                initial={entranceInitial}
                                 whileInView="visible"
                                 viewport={{ once: true, margin: '-50px' }}
                                 className="flex-shrink-0 w-72 md:w-80 rounded-2xl overflow-hidden glass-card p-3"
@@ -984,6 +893,7 @@ export default function ArtistPage() {
                                     frameBorder="0"
                                     allow="autoplay; encrypted-media"
                                     allowFullScreen
+                                    loading="lazy"
                                     title={link.title}
                                   />
                                 </div>
@@ -1004,7 +914,7 @@ export default function ArtistPage() {
                               key={video.id}
                               custom={index + videoLinks.length}
                               variants={videoEmbedVariants}
-                              initial="hidden"
+                              initial={entranceInitial}
                               whileInView="visible"
                               viewport={{ once: true, margin: '-50px' }}
                               className="flex-shrink-0 w-72 md:w-80 rounded-2xl overflow-hidden glass-card p-3 cursor-pointer group"
@@ -1049,10 +959,15 @@ export default function ArtistPage() {
                                 }}
                               >
                                 {thumbnailUrl ? (
-                                  <img
+                                  <LazyImage
                                     src={thumbnailUrl}
                                     alt={video.title}
                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    fallback={
+                                      <div className="w-full h-full flex items-center justify-center bg-black/20">
+                                        <Play className="w-12 h-12 opacity-40" style={{ color: textColor }} />
+                                      </div>
+                                    }
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-black/20">
@@ -1115,7 +1030,7 @@ export default function ArtistPage() {
                             return (
                               <motion.div
                                 key={link.id}
-                                initial={{ opacity: 0, x: -20 }}
+                                initial={reduceMotion ? false : { opacity: 0, x: -20 }}
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: 0.1, duration: 0.4 }}
@@ -1147,7 +1062,7 @@ export default function ArtistPage() {
                               key={link.id}
                               custom={index}
                               variants={linkCardVariants}
-                              initial="hidden"
+                              initial={entranceInitial}
                               whileInView="visible"
                               viewport={{ once: true, margin: '-30px' }}
                               href={link.url}
@@ -1249,7 +1164,7 @@ export default function ArtistPage() {
       {/* Legacy Social Links (for backwards compatibility) - Enhanced */}
       {(!socialIcons || socialIcons.length === 0) && socialLinks && Object.keys(socialLinks).length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
@@ -1277,7 +1192,7 @@ export default function ArtistPage() {
 
       {/* Enhanced Footer with Glass Pill */}
       <motion.footer
-        initial={{ opacity: 0, y: 20 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5, delay: 0.2 }}

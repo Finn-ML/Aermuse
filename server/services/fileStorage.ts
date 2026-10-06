@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import type { Request, Response } from 'express';
+import { sendMediaFile, type SendMediaOptions } from '../lib/mediaHttp';
+import { mediaDiskCache, MediaCacheCapacityError } from '../lib/mediaDiskCache';
 import { Client } from '@replit/object-storage';
 
 // Lazy initialization to avoid startup errors when Object Storage is not configured
@@ -529,10 +533,11 @@ export async function uploadBackgroundVideo(
   userId: string,
   landingPageId: string,
   buffer: Buffer,
-  format: 'webm' | 'mp4'
+  format: 'webm' | 'mp4',
+  rendition: 'desktop' | 'mobile' = 'desktop'
 ): Promise<UploadResult> {
   const timestamp = Date.now();
-  const path = `landing-pages/${userId}/${landingPageId}/background-video-${timestamp}.${format}`;
+  const path = `landing-pages/${userId}/${landingPageId}/background-video-${rendition}-${timestamp}-${randomUUID()}.${format}`;
 
   const result = await getStorage().uploadFromBytes(path, buffer);
   if (result.error) {
@@ -887,5 +892,27 @@ export async function deleteArtistVideoFiles(userId: string, videoId: string): P
     }
   } catch {
     // Ignore errors
+  }
+}
+
+/** Authorized callers resolve the storage key before invoking this helper. */
+export async function sendStoredMedia(req: Request, res: Response, key: string, options: SendMediaOptions) {
+  try {
+    return await mediaDiskCache.withFile(key, () => getStorage().downloadAsStream(key),
+      file => sendMediaFile(req, res, file, { ...options, etagKey: key }));
+  } catch (error) {
+    if (error instanceof MediaCacheCapacityError) {
+      res.set('Retry-After', '5').status(503).json({ error: 'Media temporarily unavailable; please retry' });
+      return { servedFromStart: false };
+    }
+    const requestError = typeof (error as any)?.getRequestError === 'function'
+      ? (error as any).getRequestError() : error;
+    if ((requestError as any)?.statusCode === 404 || isNotFoundError(requestError) || (requestError as any)?.code === 'ENOENT') {
+      throw new StorageError(`File not found: ${key}`, 'NOT_FOUND');
+    }
+    if ([429, 500, 502, 503, 504].includes((requestError as any)?.statusCode) || isRetryableStorageError(requestError) || (error as any)?.name === 'AbortError') {
+      throw new StorageError('Storage temporarily unavailable', 'SERVICE_UNAVAILABLE', true);
+    }
+    throw error;
   }
 }

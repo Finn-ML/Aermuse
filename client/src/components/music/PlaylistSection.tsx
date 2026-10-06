@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Music, ShoppingCart, X, Loader2 } from 'lucide-react';
 import { SpinningDiscPlayer, type Track } from './SpinningDiscPlayer';
 import { useAudioPlayer, formatTime, formatPrice } from '@/hooks/useAudioPlayer';
+import { LazyImage } from '@/components/LazyImage';
 
 interface PlaylistSectionProps {
   artistSlug: string;
@@ -57,10 +58,18 @@ function PlaylistItem({
         }}
       >
         {coverArtUrl ? (
-          <img
+          <LazyImage
             src={coverArtUrl}
             alt={track.title}
             className="w-full h-full object-cover"
+            fallback={
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{ backgroundColor: `${primaryColor}30` }}
+              >
+                <Music className="w-5 h-5" style={{ color: textColor }} />
+              </div>
+            }
           />
         ) : (
           <div

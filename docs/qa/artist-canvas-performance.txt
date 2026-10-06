@@ -1,0 +1,64 @@
+Artist page and canvas performance validation — 2026-10-06
+
+Scope
+- Includes the reviewed artist-page performance/theme branch (8d0e450, a88ee88).
+- All canvas formats, including WebM, are normalized to silent, <=8-second,
+  30fps clips. Desktop fits 1920x1080; mobile fits 1280x720, swapping bounds
+  for portrait input. Both VP9/WebM and H.264/MP4 are generated, plus JPEG.
+- Every rendition is capped at 3500 KiB. Oversized/invalid output is rejected
+  before the page manifest is updated. Inputs are limited to 100 MiB.
+- Mobile screens, Save-Data, and reported slow connections select mobile media.
+  Reduced motion uses the poster. Blocked autoplay retries on a gesture.
+  Source errors fall through to the next codec; final failure keeps the poster.
+- Canvas storage reads stream into a process-local, 512 MiB disk cache with
+  200 MiB maximum entries and 15-minute TTL. Concurrent requests coalesce.
+  Active readers pin files. Failed downloads are removed. Range responses
+  are capped at 4 MiB; plain GET and HEAD use correct whole-object semantics.
+- Merch retains its image until the preview plays and prices use theme text
+  color. Readability overlays are separate from the low-opacity grain layer.
+  LazyImage resets on source changes and composes event callbacks.
+
+Validation
+- Real FFmpeg/ffprobe tests: 4K/60fps MP4, MOV, WebM; all four renditions,
+  frame rate, dimensions, codec, pixel format, no audio, size and duration;
+  portrait and nonzero trimming; oversized and invalid inputs.
+- Real HTTP tests: Safari's bytes=0-1 probe, subsequent chunks, full GET,
+  HEAD, suffix/invalid ranges, ETag/304, weak If-Range behavior.
+- Cache tests: >48 MiB sources, concurrent/repeated requests, eviction,
+  pinned readers, TTL, interrupted and oversized downloads, client failure.
+- Mocked SDK boundary tests: complete manifests, unique rendition paths,
+  failed uploads, streamed 404 and 503 errors.
+- Isolated local PostgreSQL and filesystem storage adapter: direct WebM
+  upload and chunked upload both persisted all renditions; duplicate chunks
+  did not inflate the count; 2-second trim produced a 6-second clip; invalid
+  size rejected; posters returned image/jpeg; missing media returned 404.
+- Three range requests for a 60,531,644-byte legacy source opened one upstream
+  storage stream, confirmed using the local adapter's log.
+- Browser QA: desktop 1080p, 390px mobile 720p, Save-Data 720p, reduced-motion
+  poster, broken WebM -> MP4, both sources broken -> poster, blocked autoplay
+  -> gesture recovery, and 100,000 bytes/sec +150ms throttled media playback.
+- Native macOS Safari played the H.264 rendition at 1920x1080, readyState 4,
+  paused=false, visible opacity 1, with its poster loaded.
+- All 94 targeted performance/theme/canvas tests passed. Build passed. The pre-existing 25 failing tests (plus one test-suite import
+  failure) and 17 TypeScript errors match the baseline; no new failures.
+
+Stress fixture (synthetic moving test pattern, 4K/30fps, 8s, ~60 Mbps)
+Input             60,531,644 bytes
+Desktop WebM       2,599,458 bytes
+Desktop MP4        2,112,496 bytes
+Mobile WebM        1,173,842 bytes
+Mobile MP4           723,351 bytes
+JPEG poster           37,377 bytes
+Processing time       8.26 seconds on the local development machine
+These are fixture results, not a benchmark for every uploaded video.
+
+Rollout limits
+- Existing manifests remain supported; existing uploads are not automatically
+  re-encoded. Re-uploading generates the new desktop/mobile variants.
+- The SDK lacks range-download options, so a cold cache entry downloads fully
+  before serving. The cache budget is per server process, not distributed.
+- Live Replit storage/proxy behavior and physical iOS devices were not tested.
+  Production deployment is separate from this merge and should smoke-test a
+  real canvas upload and ranged playback. No QA adapters/data are shipped.
+- An open Wasabi migration PR changes fileStorage.ts; reconcile its storage
+  adapter with sendStoredMedia if that migration is merged later.

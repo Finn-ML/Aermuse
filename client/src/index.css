@@ -228,6 +228,65 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================
+   MEDIA LOADING (lazy images)
+   ============================================ */
+
+/* Skeleton shimmer shown while an image loads. Parent must be
+   position:relative with its box reserved (aspect-ratio / fixed size). */
+.media-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.05) 60%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+/* Fade images in once decoded instead of popping.
+   Keeps transform in the transition so hover scaling still eases. */
+.media-fade {
+  opacity: 0;
+  transition: opacity 0.35s ease, transform 0.3s ease;
+}
+
+.media-fade.is-loaded {
+  opacity: 1;
+}
+
+/* ============================================
+   ATMOSPHERIC ORBS (compositor-only animation)
+   Static blur, transform-only keyframes: the blurred layer is rasterized
+   once and drifted on the GPU, so scrolling stays smooth on mobile.
+   ============================================ */
+
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: orb-drift var(--orb-duration, 8s) ease-in-out var(--orb-delay, 0s) infinite;
+  will-change: transform;
+}
+
+@keyframes orb-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -20px, 0) scale(1.05); }
+}
+
+/* Avatar glow ring pulse (opacity/transform only) */
+.pulse-glow {
+  animation: glow-pulse-subtle 4s ease-in-out infinite;
+}
+
 /* Grain texture overlay for cinematic depth */
 .grain-overlay::before {
   content: '';
@@ -259,6 +318,15 @@
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* When a video background is playing, backdrop blur has to re-filter the
+   moving video every frame — swap glass for a translucent tint instead. */
+.perf-video-bg .glass-card,
+.perf-video-bg .glass-card-dark {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(12, 12, 18, 0.55);
 }
 
 /* Shine sweep effect for cards */

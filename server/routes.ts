@@ -7,6 +7,9 @@ import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
+import { storeCanvasVideo } from './services/canvasStorage';
+import { sendStoredMedia } from './services/fileStorage';
+import { sendMediaBuffer, mediaCache } from "./lib/mediaHttp";
 import { validatePassword } from "@shared/passwordValidation";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
 import { sendPasswordResetEmail, sendVerificationEmail, sendAccountDeletionEmail, sendProposalNotificationEmail, sendPurchaseReceiptEmail, sendTrackSoldNotificationEmail, sendVideoPurchaseReceiptEmail, sendVideoSoldNotificationEmail } from "./services/postmark";
@@ -17,9 +20,9 @@ import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
-import { processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
+import { CANVAS_MAX_INPUT_BYTES, processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { stripe } from "./services/stripe";
@@ -1888,11 +1891,14 @@ ${urls}
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
-      const buffer = await downloadBackgroundImage(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadBackgroundImage(filePath));
 
-      res.set('Content-Type', getImageContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getImageContentType(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+        ranged: false,
+      });
     } catch (error) {
       console.error("Background image download error:", error);
       res.status(404).json({ error: "Image not found" });
@@ -1937,6 +1943,7 @@ ${urls}
     chunks: Buffer[];
     totalChunks: number;
     receivedChunks: number;
+    receivedBytes: number;
     fileName: string;
     fileFormat: string;
     createdAt: Date;
@@ -2023,48 +2030,24 @@ ${urls}
       console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
       const conversionStart = Date.now();
 
-      // Process video - convert to webm + poster frame (no MP4 fallback needed)
-      const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
-        generateFallback: false,
+      // Normalize every input and generate desktop/mobile plus H.264 fallbacks.
+      const processed = await processCanvasVideo(file.buffer, inputFormat, {
+        generateFallback: true,
         quality: 'high'
       });
 
+      const { webm, mp4 } = processed;
       const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
       const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
       const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
       console.log(`[VIDEO] Conversion complete in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB, duration=${webm.duration}s (user ${userId})`);
 
-      // Upload WebM (primary format)
       const uploadStart = Date.now();
-      const webmResult = await uploadBackgroundVideo(userId, landingPage.id, webm.buffer, 'webm');
-      const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
-      console.log(`[VIDEO] WebM uploaded to storage (user ${userId})`);
-
-      // Upload MP4 fallback
-      let mp4Url: string | undefined;
-      if (mp4) {
-        const mp4Result = await uploadBackgroundVideo(userId, landingPage.id, mp4.buffer, 'mp4');
-        mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
-        console.log(`[VIDEO] MP4 fallback uploaded to storage (user ${userId})`);
-      }
-
-      // Upload poster frame for instant visual feedback
-      let posterUrl: string | undefined;
-      if (poster) {
-        const posterResult = await uploadBackgroundVideoPoster(userId, landingPage.id, poster);
-        posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
-        console.log(`[VIDEO] Poster frame uploaded to storage (user ${userId})`);
-      }
-
+      const manifest = await storeCanvasVideo(userId, landingPage.id, processed);
+      const webmUrl = manifest.webm!;
+      const mp4Url = manifest.mp4;
       const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
-
-      // Store URLs in backgroundValue as JSON
-      const backgroundVideoData = JSON.stringify({
-        webm: webmUrl,
-        mp4: mp4Url,
-        poster: posterUrl,
-        duration: webm.duration
-      });
+      const backgroundVideoData = JSON.stringify(manifest);
 
       // Update landing page with video background
       await storage.updateLandingPage(landingPage.id, {
@@ -2102,11 +2085,11 @@ ${urls}
       }
 
       const { totalChunks, fileName, fileSize } = req.body;
-      if (!totalChunks || !fileName) {
-        return res.status(400).json({ error: "Missing required fields" });
+      if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 100 || typeof fileName !== 'string' || !fileName || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > CANVAS_MAX_INPUT_BYTES) {
+        return res.status(400).json({ error: "Invalid upload: maximum 100 MiB and 100 chunks" });
       }
 
-      const fileFormat = fileName.split('.').pop()?.toLowerCase();
+      const fileFormat = fileName.split('.').pop()?.toLowerCase() || '';
       const validFormats = ['mp4', 'webm', 'mov'];
       if (!validFormats.includes(fileFormat)) {
         return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
@@ -2121,6 +2104,7 @@ ${urls}
         chunks: new Array(totalChunks).fill(null),
         totalChunks,
         receivedChunks: 0,
+        receivedBytes: 0,
         fileName,
         fileFormat,
         createdAt: new Date(),
@@ -2164,8 +2148,15 @@ ${urls}
       }
 
       const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      const previous = upload.chunks[chunkIndex];
+      const receivedBytes = upload.receivedBytes - (previous?.length || 0) + chunkBuffer.length;
+      if (receivedBytes > CANVAS_MAX_INPUT_BYTES) {
+        bgVideoChunkedUploads.delete(uploadId);
+        return res.status(413).json({ error: 'Canvas upload exceeds 100 MiB' });
+      }
       upload.chunks[chunkIndex] = chunkBuffer;
-      upload.receivedChunks++;
+      upload.receivedBytes = receivedBytes;
+      if (!previous) upload.receivedChunks++;
 
       console.log(`[VIDEO] Chunk ${chunkIndex + 1}/${upload.totalChunks} received for ${uploadId} (${chunkBuffer.length} bytes)`);
 
@@ -2254,8 +2245,8 @@ ${urls}
           job.percent = 0;
 
           const conversionStart = Date.now();
-          const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
-            generateFallback: false, // WebM VP9 is supported in all modern browsers
+          const processed = await processCanvasVideo(completeBuffer, inputFormat, {
+            generateFallback: true,
             quality: 'high',
             startTime: trimStartTime,
             onProgress: (_phase, pct) => {
@@ -2265,6 +2256,7 @@ ${urls}
             },
           });
 
+          const { webm, mp4 } = processed;
           const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
           const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
           const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
@@ -2273,34 +2265,12 @@ ${urls}
           job.progress = 'Uploading to storage...';
           job.percent = 100;
 
-          // Upload WebM
           const uploadStart = Date.now();
-          const webmResult = await uploadBackgroundVideo(userId, upload.landingPageId, webm.buffer, 'webm');
-          const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
-
-          // Upload MP4 fallback
-          let mp4Url: string | undefined;
-          if (mp4) {
-            const mp4Result = await uploadBackgroundVideo(userId, upload.landingPageId, mp4.buffer, 'mp4');
-            mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
-          }
-
-          // Upload poster frame
-          let posterUrl: string | undefined;
-          if (poster) {
-            const posterResult = await uploadBackgroundVideoPoster(userId, upload.landingPageId, poster);
-            posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
-          }
-
+          const manifest = await storeCanvasVideo(userId, upload.landingPageId, processed);
+          const webmUrl = manifest.webm!;
+          const mp4Url = manifest.mp4;
           const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
-
-          // Update landing page
-          const backgroundVideoData = JSON.stringify({
-            webm: webmUrl,
-            mp4: mp4Url,
-            poster: posterUrl,
-            duration: webm.duration
-          });
+          const backgroundVideoData = JSON.stringify(manifest);
 
           await storage.updateLandingPage(upload.landingPageId, {
             backgroundType: 'video',
@@ -2357,7 +2327,8 @@ ${urls}
     }
   });
 
-  // Serve background videos
+  // Serve background videos (range-aware: Safari requires real 206 responses,
+  // and the reverse proxy truncates bodies larger than one chunk)
   app.get("/api/landing-page/background-video/:path(*)", async (req: Request, res: Response) => {
     try {
       const filePath = decodeURIComponent(req.params.path);
@@ -2365,12 +2336,12 @@ ${urls}
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'webm';
 
-      const buffer = await downloadBackgroundVideo(filePath);
-
-      res.set('Content-Type', getVideoContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-      res.set('Accept-Ranges', 'bytes'); // Support range requests for video seeking
-      res.send(buffer);
+      await sendStoredMedia(req, res, filePath, {
+        contentType: ['jpg', 'jpeg', 'png', 'webp'].includes(extension) ? getImageContentType(extension) : getVideoContentType(extension),
+        ranged: !['jpg', 'jpeg', 'png', 'webp'].includes(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+      });
     } catch (error) {
       // Handle different error types appropriately
       if (error instanceof StorageError) {
@@ -2474,11 +2445,14 @@ ${urls}
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
-      const buffer = await downloadAvatarImage(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadAvatarImage(filePath));
 
-      res.set('Content-Type', getImageContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getImageContentType(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+        ranged: false,
+      });
     } catch (error) {
       console.error("Avatar download error:", error);
       res.status(404).json({ error: "Avatar not found" });
@@ -3279,6 +3253,7 @@ ${urls}
       const fileFormat = (track.fileFormat || 'mp3') as 'mp3' | 'wav';
       const preview = await generatePreview(originalBuffer, fileFormat, 30, previewStartSeconds);
       const previewUpload = await uploadTrackPreview(userId, track.id, preview.buffer, fileFormat);
+      mediaCache.invalidate(previewUpload.path); // preview path is stable; drop stale bytes
 
       const updatedTrack = await storage.updateTrack(req.params.id, {
         previewFilePath: previewUpload.path,
@@ -3317,6 +3292,7 @@ ${urls}
       // Delete files from storage
       try {
         await deleteTrackFiles(userId, track.id);
+        mediaCache.invalidate(`tracks/${userId}/${track.id}`);
       } catch (err) {
         console.warn("[TRACKS] Failed to delete track files:", err);
       }
@@ -3381,11 +3357,14 @@ ${urls}
       const filePath = decodeURIComponent(req.params.path);
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
-      const buffer = await downloadTrackFile(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadTrackFile(filePath));
 
-      res.set('Content-Type', getImageContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000');
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getImageContentType(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+        ranged: false,
+      });
     } catch (error) {
       console.error("Cover art download error:", error);
       res.status(404).json({ error: "Cover art not found" });
@@ -3408,15 +3387,18 @@ ${urls}
 
       // Use preview if available, otherwise serve original
       const filePath = track.previewFilePath || track.originalFilePath;
-      const buffer = await downloadTrackFile(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadTrackFile(filePath));
 
-      // Increment play count
-      await storage.incrementTrackPlayCount(track.id);
+      const { servedFromStart } = sendMediaBuffer(req, res, buffer, {
+        contentType: getAudioContentType(track.fileFormat),
+        cacheControl: 'public, max-age=3600',
+        etagKey: filePath,
+      });
 
-      res.set('Content-Type', getAudioContentType(track.fileFormat));
-      res.set('Content-Length', buffer.length.toString());
-      res.set('Accept-Ranges', 'bytes');
-      res.send(buffer);
+      // Count a play once per playback (the first chunk), not once per range request
+      if (servedFromStart) {
+        storage.incrementTrackPlayCount(track.id).catch(() => {});
+      }
     } catch (error) {
       console.error("Preview stream error:", error);
       res.status(500).json({ error: "Failed to stream preview" });
@@ -3443,16 +3425,21 @@ ${urls}
       }
 
       // Stream the full original file
-      const buffer = await downloadTrackFile(track.originalFilePath);
+      const buffer = await mediaCache.get(track.originalFilePath, () =>
+        downloadTrackFile(track.originalFilePath)
+      );
 
-      // Increment play count
-      await storage.incrementTrackPlayCount(track.id);
-
-      res.set('Content-Type', getAudioContentType(track.fileFormat));
-      res.set('Content-Length', buffer.length.toString());
       res.set('Content-Disposition', 'inline');
-      res.set('Accept-Ranges', 'bytes');
-      res.send(buffer);
+      const { servedFromStart } = sendMediaBuffer(req, res, buffer, {
+        contentType: getAudioContentType(track.fileFormat),
+        cacheControl: 'public, max-age=3600',
+        etagKey: track.originalFilePath,
+      });
+
+      // Count a play once per playback (the first chunk), not once per range request
+      if (servedFromStart) {
+        storage.incrementTrackPlayCount(track.id).catch(() => {});
+      }
     } catch (error) {
       console.error("Full track stream error:", error);
       res.status(500).json({ error: "Failed to stream track" });
@@ -4411,6 +4398,7 @@ ${urls}
       // Delete files from storage
       try {
         await deleteArtistVideoFiles(userId, video.id);
+        mediaCache.invalidate(`videos/${userId}/${video.id}`);
       } catch (err) {
         console.warn("[VIDEOS] Failed to delete video files:", err);
       }
@@ -4444,6 +4432,7 @@ ${urls}
 
       const extension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
       const result = await uploadArtistVideoThumbnail(userId, video.id, file.buffer, extension);
+      mediaCache.invalidate(result.path); // thumbnail path is stable; drop stale bytes
 
       const url = `/api/videos/${video.id}/thumbnail/${encodeURIComponent(result.path)}`;
       await storage.updateArtistVideo(video.id, { thumbnailPath: result.path });
@@ -4461,11 +4450,14 @@ ${urls}
       const filePath = decodeURIComponent(req.params.path);
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
 
-      const buffer = await downloadArtistVideoFile(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadArtistVideoFile(filePath));
 
-      res.set('Content-Type', getImageContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000');
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getImageContentType(extension),
+        cacheControl: 'public, max-age=31536000',
+        etagKey: filePath,
+        ranged: false,
+      });
     } catch (error) {
       console.error("Video thumbnail download error:", error);
       res.status(404).json({ error: "Thumbnail not found" });
@@ -4496,40 +4488,22 @@ ${urls}
 
       let buffer: Buffer;
       try {
-        buffer = await downloadArtistVideoFile(filePath);
+        buffer = await mediaCache.get(filePath, () => downloadArtistVideoFile(filePath));
       } catch (downloadError: any) {
         console.error(`[VIDEO PREVIEW] Failed to download: ${filePath}`, downloadError?.message || downloadError);
         return res.status(404).json({ error: "Video file not found in storage" });
       }
 
-      // Increment view count (non-blocking)
-      storage.incrementVideoViewCount(video.id).catch(() => {});
+      const { servedFromStart } = sendMediaBuffer(req, res, buffer, {
+        contentType: getVideoContentType(video.fileFormat),
+        cacheControl: 'public, max-age=3600',
+        etagKey: filePath,
+      });
 
-      const contentType = getVideoContentType(video.fileFormat);
-      const total = buffer.length;
-
-      // Always respond with 206 Partial Content capped at 4MB to stay under
-      // Replit's reverse proxy response size limit
-      const MAX_CHUNK = 4 * 1024 * 1024;
-      const range = req.headers.range;
-      const start = range
-        ? parseInt(range.replace(/bytes=/, '').split('-')[0], 10)
-        : 0;
-      const requestedEnd = range
-        ? range.replace(/bytes=/, '').split('-')[1]
-        : '';
-      const end = requestedEnd
-        ? Math.min(parseInt(requestedEnd, 10), start + MAX_CHUNK - 1, total - 1)
-        : Math.min(start + MAX_CHUNK - 1, total - 1);
-      const chunkSize = end - start + 1;
-
-      res.status(206);
-      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
-      res.set('Content-Length', chunkSize.toString());
-      res.set('Content-Type', contentType);
-      res.set('Accept-Ranges', 'bytes');
-      res.set('Cache-Control', 'public, max-age=3600');
-      res.send(buffer.subarray(start, end + 1));
+      // Count a view once per playback (the first chunk), not once per range request
+      if (servedFromStart) {
+        storage.incrementVideoViewCount(video.id).catch(() => {});
+      }
     } catch (error: any) {
       console.error("[VIDEO PREVIEW] Stream error:", error?.message || error);
       res.status(500).json({ error: "Failed to stream preview" });
@@ -4570,37 +4544,19 @@ ${urls}
 
       let buffer: Buffer;
       try {
-        buffer = await downloadArtistVideoFile(video.originalFilePath);
+        buffer = await mediaCache.get(video.originalFilePath, () =>
+          downloadArtistVideoFile(video.originalFilePath!)
+        );
       } catch (downloadError: any) {
         console.error(`[VIDEO STREAM] Failed to download: ${video.originalFilePath}`, downloadError?.message);
         return res.status(404).json({ error: "Video file not found in storage" });
       }
 
-      const contentType = getVideoContentType(video.fileFormat);
-      const total = buffer.length;
-
-      // Always respond with 206 Partial Content capped at 4MB to stay under
-      // Replit's reverse proxy response size limit
-      const MAX_CHUNK = 4 * 1024 * 1024;
-      const range = req.headers.range;
-      const start = range
-        ? parseInt(range.replace(/bytes=/, '').split('-')[0], 10)
-        : 0;
-      const requestedEnd = range
-        ? range.replace(/bytes=/, '').split('-')[1]
-        : '';
-      const end = requestedEnd
-        ? Math.min(parseInt(requestedEnd, 10), start + MAX_CHUNK - 1, total - 1)
-        : Math.min(start + MAX_CHUNK - 1, total - 1);
-      const chunkSize = end - start + 1;
-
-      res.status(206);
-      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
-      res.set('Content-Length', chunkSize.toString());
-      res.set('Content-Type', contentType);
-      res.set('Accept-Ranges', 'bytes');
-      res.set('Cache-Control', 'public, max-age=3600');
-      res.send(buffer.subarray(start, end + 1));
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getVideoContentType(video.fileFormat),
+        cacheControl: video.isPaywalled ? 'private, max-age=3600' : 'public, max-age=3600',
+        etagKey: video.originalFilePath,
+      });
     } catch (error: any) {
       console.error("[VIDEO STREAM] Error:", error?.message || error);
       res.status(500).json({ error: "Failed to stream video" });
@@ -9157,11 +9113,14 @@ Sent at: ${new Date().toISOString()}
     try {
       const filePath = decodeURIComponent(req.params.path);
       const extension = filePath.split('.').pop()?.toLowerCase() || 'jpg';
-      const buffer = await downloadMerchImage(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadMerchImage(filePath));
 
-      res.set('Content-Type', getImageContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000');
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getImageContentType(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+        ranged: false,
+      });
     } catch (error) {
       console.error("Merch image download error:", error);
       res.status(404).json({ error: "Image not found" });
@@ -9422,11 +9381,13 @@ Sent at: ${new Date().toISOString()}
     try {
       const filePath = decodeURIComponent(req.params.path);
       const extension = filePath.split('.').pop()?.toLowerCase() || 'mp4';
-      const buffer = await downloadMerchPreviewVideo(filePath);
+      const buffer = await mediaCache.get(filePath, () => downloadMerchPreviewVideo(filePath));
 
-      res.set('Content-Type', getVideoContentType(extension));
-      res.set('Cache-Control', 'public, max-age=31536000');
-      res.send(buffer);
+      sendMediaBuffer(req, res, buffer, {
+        contentType: getVideoContentType(extension),
+        cacheControl: 'public, max-age=31536000, immutable', // timestamped path
+        etagKey: filePath,
+      });
     } catch (error) {
       console.error("Merch preview video download error:", error);
       res.status(404).json({ error: "Video not found" });

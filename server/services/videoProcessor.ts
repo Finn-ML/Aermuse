@@ -68,7 +68,7 @@ export async function getVideoMetadata(inputPath: string): Promise<VideoMetadata
         const format = metadata.format;
         const videoStream = metadata.streams.find(s => s.codec_type === 'video');
 
-        const duration = Math.round(format.duration || 0);
+        const duration = Number(format.duration) || 0;
         const width = videoStream?.width || 0;
         const height = videoStream?.height || 0;
         const formatName = format.format_name || 'unknown';
@@ -367,98 +367,106 @@ export async function convertToMp4(
 /**
  * Process video for canvas-style background.
  * Writes input to temp file for seekable FFmpeg access, then converts
- * to WebM (primary) and optionally generates MP4 fallback + poster.
+ * to desktop/mobile WebM and MP4, plus a required poster.
  */
+export interface CanvasVideoResult {
+  webm: VideoProcessResult;
+  mp4: VideoProcessResult;
+  mobile: { webm: VideoProcessResult; mp4: VideoProcessResult };
+  poster: Buffer;
+}
+
+// Each rendition must fit below the hosting proxy's ~4 MiB response limit.
+export const CANVAS_MAX_BYTES = 3500 * 1024;
+export const CANVAS_MAX_INPUT_BYTES = 100 * 1024 * 1024;
+
+/** Always normalize on the server, including browser-recorded WebM. */
 export async function processCanvasVideo(
   inputBuffer: Buffer,
   inputFormat: 'mp4' | 'mov' | 'webm',
   options: {
+    // Retained for existing callers; compatibility renditions are now mandatory.
     generateFallback?: boolean;
     quality?: 'low' | 'medium' | 'high';
-    startTime?: number; // Trim start time in seconds
+    startTime?: number;
     onProgress?: (phase: string, percent: number) => void;
   } = {}
-): Promise<{
-  webm: VideoProcessResult;
-  mp4?: VideoProcessResult;
-  poster?: Buffer;
-}> {
-  const { generateFallback = true, quality = 'medium' } = options;
-  const sizeMB = (inputBuffer.length / (1024 * 1024)).toFixed(1);
-
-  console.log(`[VIDEO] Processing canvas video (format: ${inputFormat}, size: ${sizeMB}MB, fallback: ${generateFallback})`);
-
-  // Write to temp file so FFmpeg can seek (critical for MP4/MOV moov atom)
-  const tempPath = await writeToTempFile(inputBuffer, inputFormat);
-  console.log(`[VIDEO] Written to temp file: ${tempPath}`);
-
-  try {
-    const canvasOptions = {
-      quality,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      startTime: options.startTime,
-    };
-
-    let webm: VideoProcessResult;
-    let mp4: VideoProcessResult | undefined;
-
-    // If input is already WebM (e.g. from client-side MediaRecorder capture),
-    // skip redundant re-encoding and use the input directly as the WebM output
-    const startTime = options.startTime || 0;
-    if (inputFormat === 'webm' && startTime === 0) {
-      console.log(`[VIDEO] Input is already WebM, skipping re-encode`);
-      options.onProgress?.('webm', 100);
-
-      // Probe for duration (WebM from MediaRecorder may lack it)
-      let duration = 8;
-      try {
-        const meta = await getVideoMetadata(tempPath);
-        if (meta.duration > 0) duration = Math.min(meta.duration, 8);
-      } catch {
-        // Use default
-      }
-
-      webm = {
-        buffer: inputBuffer,
-        format: 'webm',
-        duration,
-      };
-    } else {
-      // Non-WebM input: convert to WebM
-      options.onProgress?.('webm', 0);
-      webm = await convertToWebM(tempPath, {
-        ...canvasOptions,
-        onProgress: (pct) => options.onProgress?.('webm', pct),
-      });
-    }
-
-    if (generateFallback) {
-      options.onProgress?.('mp4', 0);
-      mp4 = await convertToMp4(tempPath, {
-        ...canvasOptions,
-        onProgress: (pct) => options.onProgress?.('mp4', pct),
-      });
-    }
-
-    // Generate poster frame from the clip start point
-    let poster: Buffer | undefined;
-    try {
-      poster = await generatePosterFrame(tempPath, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        startTime: options.startTime,
-      });
-    } catch (err) {
-      console.warn('[VIDEO] Poster generation failed, continuing without poster:', err);
-    }
-
-    return { webm, mp4, poster };
-  } finally {
-    // Always clean up temp file
-    await cleanupTempFile(tempPath);
-    console.log(`[VIDEO] Temp file cleaned up: ${tempPath}`);
+): Promise<CanvasVideoResult> {
+  if (!inputBuffer.length || inputBuffer.length > CANVAS_MAX_INPUT_BYTES) {
+    throw new Error('Canvas input must be between 1 byte and 100 MiB');
   }
+  const startTime = options.startTime ?? 0;
+  if (!Number.isFinite(startTime) || startTime < 0) throw new Error('Invalid canvas start time');
+  const inputPath = await writeToTempFile(inputBuffer, inputFormat);
+  try {
+    // Probe errors are real validation errors, not permission to bypass limits.
+    const metadata = await getVideoMetadata(inputPath);
+    if (!(metadata.width > 0 && metadata.height > 0)) throw new Error('No video stream');
+    if (metadata.duration > 0 && startTime >= metadata.duration) throw new Error('Start time is past the video');
+    const duration = metadata.duration > 0 ? Math.min(8, metadata.duration - startTime) : 8;
+    const portrait = metadata.height > metadata.width;
+    const outputs: VideoProcessResult[] = [];
+    for (const [index, spec] of Array.from([
+      { format: 'webm', long: 1920, short: 1080, rate: 2800 },
+      { format: 'mp4', long: 1920, short: 1080, rate: 2800 },
+      { format: 'webm', long: 1280, short: 720, rate: 1200 },
+      { format: 'mp4', long: 1280, short: 720, rate: 1200 },
+    ].entries())) {
+      outputs.push(await encodeCanvas(inputPath, {
+        format: spec.format as 'webm' | 'mp4',
+        width: portrait ? spec.short : spec.long, height: portrait ? spec.long : spec.short,
+        rate: spec.rate, startTime, duration,
+        onProgress: pct => options.onProgress?.('encoding', (index * 100 + pct) / 4),
+      }));
+    }
+    // A poster is required so decode/autoplay failures never reveal an empty canvas.
+    const poster = await generatePosterFrame(inputPath, { maxWidth: 1280, maxHeight: 1280, startTime });
+    if (poster.length < 2 || poster[0] !== 0xff || poster[1] !== 0xd8) throw new Error('Canvas poster generation failed');
+    return { webm: outputs[0], mp4: outputs[1], mobile: { webm: outputs[2], mp4: outputs[3] }, poster };
+  } finally { await cleanupTempFile(inputPath); }
+}
+
+async function encodeCanvas(inputPath: string, options: {
+  format: 'webm' | 'mp4'; width: number; height: number; rate: number;
+  startTime: number; duration: number; onProgress: (pct: number) => void;
+}): Promise<VideoProcessResult> {
+  const { readFile, rm } = await import('fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'canvas-'));
+  const output = join(dir, `video.${options.format}`);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const command = ffmpeg(inputPath)
+        .setStartTime(options.startTime).setDuration(options.duration)
+        .videoFilters([
+          `scale='min(${options.width},iw)':'min(${options.height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2`,
+          'setsar=1', 'fps=30',
+        ])
+        .noAudio().addOutputOption('-pix_fmt', 'yuv420p')
+        .addOutputOption('-b:v', `${options.rate}k`)
+        .addOutputOption('-maxrate', `${options.rate}k`)
+        .addOutputOption('-bufsize', `${options.rate}k`)
+        .addOutputOption('-threads', '2');
+      if (options.format === 'webm') {
+        command.videoCodec('libvpx-vp9').addOutputOption('-crf', '23')
+          .addOutputOption('-deadline', 'realtime').addOutputOption('-cpu-used', '6')
+          .addOutputOption('-row-mt', '1');
+      } else {
+        command.videoCodec('libx264').addOutputOption('-crf', '23')
+          .addOutputOption('-preset', 'fast').addOutputOption('-profile:v', 'main')
+          .addOutputOption('-movflags', '+faststart');
+      }
+      const timeout = setTimeout(() => { command.kill('SIGKILL'); reject(new Error('Canvas encoding timed out')); }, FFMPEG_TIMEOUT_MS);
+      command.on('error', err => { clearTimeout(timeout); reject(err); })
+        .on('end', () => { clearTimeout(timeout); resolve(); })
+        .on('progress', p => options.onProgress(Math.max(0, Math.min(100, p.percent || 0))))
+        .save(output);
+    });
+    const buffer = await readFile(output);
+    if (buffer.length < 1024 || buffer.length > CANVAS_MAX_BYTES) {
+      throw new Error('Canvas rendition exceeds the delivery size limit');
+    }
+    return { buffer, format: options.format, duration: options.duration };
+  } finally { await rm(dir, { recursive: true, force: true }); }
 }
 
 /**
