@@ -1,3 +1,5 @@
+import { VideoBackground } from '@/components/VideoBackground';
+import { parseCanvasVideo as parseVideoBackground } from '@shared/canvasVideo';
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useSearch, useLocation } from 'wouter';
@@ -122,148 +124,6 @@ function getButtonClasses(buttonStyle: ButtonStyle | string | null | undefined):
   }
 }
 
-// Parse video background value JSON
-function parseVideoBackground(value: string | null | undefined): { webm?: string; mp4?: string; poster?: string; duration?: number } | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-// Optimized video background component (Spotify Canvas style)
-// - Poster renders immediately underneath; video crossfades in once decodable
-//   (no black flash while the video buffers)
-// - Autoplay rejection (iOS Low Power Mode, data saver) falls back to the
-//   poster and retries on the first tap and on tab re-focus
-// - If every source fails to load, the poster stays — never a black screen
-// - Pauses offscreen via IntersectionObserver
-// - Respects prefers-reduced-motion (poster only)
-function VideoBackground({ videoData }: { videoData: { webm?: string; mp4?: string; poster?: string } }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [videoReady, setVideoReady] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
-  const [reducedMotion] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-
-  const sources = [
-    videoData.webm && { src: videoData.webm, type: 'video/webm' },
-    videoData.mp4 && { src: videoData.mp4, type: 'video/mp4' },
-  ].filter(Boolean) as { src: string; type: string }[];
-
-  const showVideo = !reducedMotion && !videoFailed && sources.length > 0;
-
-  // Play/pause lifecycle: pause offscreen, retry blocked autoplay on gesture
-  useEffect(() => {
-    if (!showVideo) return;
-    const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container) return;
-
-    let gestureCleanup: (() => void) | null = null;
-
-    const tryPlay = () => {
-      const attempt = video.play();
-      if (!attempt) return;
-      attempt.catch(() => {
-        if (gestureCleanup) return;
-        // Autoplay blocked — wait for the first interaction, then start
-        const onGesture = () => {
-          video.play().catch(() => {});
-          gestureCleanup?.();
-          gestureCleanup = null;
-        };
-        window.addEventListener('pointerdown', onGesture, { passive: true });
-        window.addEventListener('touchstart', onGesture, { passive: true });
-        gestureCleanup = () => {
-          window.removeEventListener('pointerdown', onGesture);
-          window.removeEventListener('touchstart', onGesture);
-        };
-      });
-    };
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          tryPlay();
-        } else {
-          video.pause();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(container);
-
-    // Browsers pause muted background videos on tab switch; resume on return
-    const onVisibilityChange = () => {
-      if (!document.hidden) tryPlay();
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      gestureCleanup?.();
-    };
-  }, [showVideo]);
-
-  // When every <source> fails the error surfaces on the last one
-  const handleSourceError = (index: number) => {
-    if (index === sources.length - 1) {
-      setVideoFailed(true);
-    }
-  };
-
-  return (
-    <div ref={containerRef} className="fixed inset-0 -z-10 overflow-hidden bg-black">
-      {videoData.poster && (
-        <img
-          src={videoData.poster}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      )}
-      {showVideo && (
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          // @ts-expect-error -- fetchpriority is valid HTML but missing from React types
-          fetchpriority="low"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-            videoReady ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoadedData={() => setVideoReady(true)}
-          onError={() => {
-            // Errors after a source was selected (network/decode mid-stream)
-            const media = videoRef.current;
-            if (media?.error && media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-              setVideoFailed(true);
-            }
-          }}
-        >
-          {sources.map((source, index) => (
-            <source
-              key={source.src}
-              src={source.src}
-              type={source.type}
-              onError={() => handleSourceError(index)}
-            />
-          ))}
-        </video>
-      )}
-    </div>
-  );
-}
-
 // Generate background style
 function getBackgroundStyle(
   backgroundType: BackgroundType | string | null | undefined,
@@ -301,9 +161,9 @@ function getBackgroundStyle(
 function getOverlayClass(overlay: BackgroundOverlay | string | null | undefined): string {
   switch (overlay) {
     case 'dark':
-      return 'before:absolute before:inset-0 before:bg-black/50 before:pointer-events-none';
+      return 'bg-black/50';
     case 'light':
-      return 'before:absolute before:inset-0 before:bg-white/30 before:pointer-events-none';
+      return 'bg-white/30';
     default:
       return '';
   }
@@ -723,7 +583,7 @@ export default function ArtistPage() {
 
   return (
     <div
-      className={`min-h-screen relative ${overlayClass} grain-overlay${backgroundType === 'video' ? ' grain-overlay--video perf-video-bg' : ''}`}
+      className={`min-h-screen relative grain-overlay${backgroundType === 'video' ? ' grain-overlay--video perf-video-bg' : ''}`}
       style={{
         ...backgroundStyle,
         fontFamily: `"${bodyFont}", system-ui, sans-serif`,
@@ -733,6 +593,9 @@ export default function ArtistPage() {
       {backgroundType === 'video' && videoData && (
         <VideoBackground videoData={videoData} />
       )}
+
+      {/* Keep the readability overlay separate from the low-opacity grain. */}
+      {overlayClass && <div aria-hidden="true" className={`absolute inset-0 z-0 pointer-events-none ${overlayClass}`} />}
 
       {/* Atmospheric Floating Orbs - pure CSS so they animate on the
           compositor; disabled when video background is active to free GPU */}

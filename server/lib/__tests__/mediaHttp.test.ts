@@ -9,12 +9,8 @@ describe("resolveRange", () => {
     expect(resolveRange(undefined, 1000)).toEqual({ kind: "full" });
   });
 
-  it("chunks large bodies even without a Range header (reverse proxy limit)", () => {
-    expect(resolveRange(undefined, 10 * MB)).toEqual({
-      kind: "partial",
-      start: 0,
-      end: DEFAULT_MAX_CHUNK_BYTES - 1,
-    });
+  it("serves a full representation without Range, including large files", () => {
+    expect(resolveRange(undefined, 10 * MB)).toEqual({ kind: "full" });
   });
 
   it("honors an open-ended range (Safari's first probe is bytes=0-1)", () => {

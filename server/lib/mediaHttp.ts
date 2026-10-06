@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { createHash } from "crypto";
+import { createReadStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 
 /**
  * HTTP media serving helpers.
@@ -7,9 +9,9 @@ import { createHash } from "crypto";
  * Replit's reverse proxy truncates large response bodies (~4MB), and Safari
  * refuses to play <video>/<audio> from servers that advertise
  * `Accept-Ranges: bytes` but answer Range requests with a full 200 body.
- * Every media route therefore goes through sendMediaBuffer, which implements
- * real single-range semantics (206/416), caps each response body below the
- * proxy limit, and answers conditional requests with 304.
+ * Media responses honor single ranges (206/416), cap requested chunks and
+ * answer conditional requests with 304. Ordinary GET/HEAD responses describe
+ * the whole object; normalized canvases fit below the proxy limit.
  */
 
 export const DEFAULT_MAX_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -22,8 +24,7 @@ export type RangeResolution =
 /**
  * Resolve a request's Range header against a body of totalSize bytes.
  *
- * - No/malformed/multi-range header: serve from byte 0 (chunked to
- *   maxChunkBytes when the body is larger than one chunk).
+ * - No/malformed/multi-range header: serve the entire representation (200).
  * - Valid single range: clamp to the body and to maxChunkBytes.
  * - Range entirely past the end: unsatisfiable (416).
  */
@@ -32,10 +33,7 @@ export function resolveRange(
   totalSize: number,
   maxChunkBytes: number = DEFAULT_MAX_CHUNK_BYTES
 ): RangeResolution {
-  const noRangeResult = (): RangeResolution =>
-    totalSize <= maxChunkBytes
-      ? { kind: "full" }
-      : { kind: "partial", start: 0, end: maxChunkBytes - 1 };
+  const noRangeResult = (): RangeResolution => ({ kind: "full" });
 
   if (!rangeHeader) return noRangeResult();
 
@@ -92,67 +90,55 @@ export interface SendMediaOptions {
 
 /**
  * Send a media buffer with correct conditional and range semantics.
- * Returns the byte offset served from (0 for full responses) so callers can
- * count plays/views only once per playback rather than once per chunk.
+ * Reports whether a response body starts at byte zero; this is not a unique
+ * playback identifier. HEAD and 304 responses must not increment play counts.
  */
-export function sendMediaBuffer(
-  req: Request,
-  res: Response,
-  buffer: Buffer,
-  options: SendMediaOptions
-): { servedFromStart: boolean } {
-  const {
-    contentType,
-    cacheControl,
-    etagKey,
-    maxChunkBytes = DEFAULT_MAX_CHUNK_BYTES,
-    ranged = true,
-  } = options;
-
-  const etag = etagKey ? weakEtag(etagKey, buffer.length) : undefined;
-
-  res.set("Content-Type", contentType);
-  res.set("Cache-Control", cacheControl);
+function prepareMedia(req: Request, res: Response, size: number, options: SendMediaOptions) {
+  const { contentType, cacheControl, etagKey, maxChunkBytes = DEFAULT_MAX_CHUNK_BYTES, ranged = true } = options;
+  const etag = etagKey ? weakEtag(etagKey, size) : undefined;
+  res.set("Content-Type", contentType).set("Cache-Control", cacheControl);
   if (etag) res.set("ETag", etag);
-
-  const rangeHeader = ranged ? (req.headers.range as string | undefined) : undefined;
-
-  // Conditional GET: reply 304 for non-range revalidations.
-  if (etag && !rangeHeader) {
-    const ifNoneMatch = req.headers["if-none-match"];
-    if (ifNoneMatch && ifNoneMatch.split(",").some((t) => t.trim() === etag)) {
-      res.status(304).end();
-      return { servedFromStart: true };
-    }
+  if (ranged) res.set("Accept-Ranges", "bytes");
+  const matches = req.headers['if-none-match'];
+  if (etag && matches && matches.split(',').some(t => t.trim() === '*' || t.trim().replace(/^W\//, '') === etag.replace(/^W\//, ''))) {
+    res.status(304).end();
+    return null;
   }
-
-  if (!ranged) {
-    res.set("Content-Length", buffer.length.toString());
-    res.status(200).end(buffer);
-    return { servedFromStart: true };
+  // Range applies to GET only. Weak validators cannot satisfy If-Range.
+  const range = ranged && req.method !== 'HEAD' && !req.headers['if-range'] ? req.headers.range : undefined;
+  const resolution = resolveRange(range, size, maxChunkBytes);
+  if (resolution.kind === 'unsatisfiable') {
+    res.status(416).set('Content-Range', `bytes */${size}`).end();
+    return null;
   }
+  const partial = resolution.kind === 'partial';
+  const start = partial ? resolution.start : 0;
+  const end = partial ? resolution.end : size - 1;
+  res.status(partial ? 206 : 200).set('Content-Length', String(end - start + 1));
+  if (partial) res.set('Content-Range', `bytes ${start}-${end}/${size}`);
+  if (req.method === 'HEAD' || size === 0) { res.end(); return null; }
+  return { start, end };
+}
 
-  res.set("Accept-Ranges", "bytes");
+export function sendMediaBuffer(req: Request, res: Response, buffer: Buffer, options: SendMediaOptions): { servedFromStart: boolean } {
+  const range = prepareMedia(req, res, buffer.length, options);
+  if (!range) return { servedFromStart: false };
+  res.end(buffer.subarray(range.start, range.end + 1));
+  return { servedFromStart: range.start === 0 };
+}
 
-  const resolution = resolveRange(rangeHeader, buffer.length, maxChunkBytes);
-
-  if (resolution.kind === "unsatisfiable") {
-    res.status(416).set("Content-Range", `bytes */${buffer.length}`).end();
+/** Stream from a pinned disk-cache entry; never allocate the full object in RAM. */
+export async function sendMediaFile(req: Request, res: Response, file: { path: string; size: number }, options: SendMediaOptions): Promise<{ servedFromStart: boolean }> {
+  const range = prepareMedia(req, res, file.size, options);
+  if (!range) return { servedFromStart: false };
+  try {
+    await pipeline(createReadStream(file.path, range), res);
+  } catch (error) {
+    // A disconnected client is normal; release its cache lease without a second response.
+    if (!res.destroyed) throw error;
     return { servedFromStart: false };
   }
-
-  if (resolution.kind === "full") {
-    res.set("Content-Length", buffer.length.toString());
-    res.status(200).end(buffer);
-    return { servedFromStart: true };
-  }
-
-  const { start, end } = resolution;
-  res.status(206);
-  res.set("Content-Range", `bytes ${start}-${end}/${buffer.length}`);
-  res.set("Content-Length", (end - start + 1).toString());
-  res.end(buffer.subarray(start, end + 1));
-  return { servedFromStart: start === 0 };
+  return { servedFromStart: range.start === 0 };
 }
 
 // ============================================

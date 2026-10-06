@@ -7,6 +7,8 @@ import { validateTemplateStructure } from "./services/templateValidation";
 import type { TemplateFormData, TemplateField, OptionalClause, TemplateContent } from "@shared/types/templates";
 import { z } from "zod";
 import { hashPassword, comparePassword, generateSecureToken } from "./lib/auth";
+import { storeCanvasVideo } from './services/canvasStorage';
+import { sendStoredMedia } from './services/fileStorage';
 import { sendMediaBuffer, mediaCache } from "./lib/mediaHttp";
 import { validatePassword } from "@shared/passwordValidation";
 import { authLimiter, aiLimiter } from "./middleware/rateLimit";
@@ -18,9 +20,9 @@ import { canAccessFeature } from "@shared/constants/tiers";
 import type { SubscriptionTier } from "@shared/schema";
 import multer from "multer";
 import { upload, verifyFileType, imageUpload, backgroundImageUpload, audioUpload, verifyAudioType, coverArtUpload, proposalContractUpload, videoUpload, verifyVideoType } from "./middleware/upload";
-import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, uploadBackgroundVideo, uploadBackgroundVideoPoster, downloadBackgroundVideo, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
+import { uploadContractFile, downloadContractFile, getContentType, uploadSignedPdf, uploadBackgroundImage, downloadBackgroundImage, getImageContentType, uploadAvatarImage, downloadAvatarImage, uploadTrackAudio, uploadTrackPreview, uploadTrackCover, downloadTrackFile, deleteTrackFiles, getAudioContentType, uploadProposalContract, downloadProposalContract, deleteBackgroundVideoFiles, getVideoContentType, StorageError, uploadArtistVideo, uploadArtistVideoPreview, uploadArtistVideoThumbnail, downloadArtistVideoFile, downloadArtistVideoToFile, deleteArtistVideoFiles, uploadMerchImage, downloadMerchImage, deleteMerchImage, uploadMerchPreviewVideo, downloadMerchPreviewVideo, deleteMerchPreviewVideo, uploadDistributionAudio, uploadDistributionPreview, uploadDistributionCover, deleteDistributionFiles } from "./services/fileStorage";
 import { getAudioMetadata, generatePreview } from "./services/audioProcessor";
-import { processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
+import { CANVAS_MAX_INPUT_BYTES, processCanvasVideo, getVideoMetadata, convertToMp4 } from "./services/videoProcessor";
 import { createTrackProduct, updateTrackPrice as updateTrackPriceStripe, archiveTrackProduct, createTrackCheckoutSession, getCheckoutSession as getCheckoutSessionStripe, extractTrackPurchaseDetails, createSplitTransfers, createVideoCheckoutSession, extractVideoPurchaseDetails } from "./services/trackStripe";
 import { createConnectAccount, createAccountLink, getAccountStatus, createLoginLink, isAccountReady, connectConfig, calculatePlatformFee } from "./services/stripeConnect";
 import { stripe } from "./services/stripe";
@@ -1941,6 +1943,7 @@ ${urls}
     chunks: Buffer[];
     totalChunks: number;
     receivedChunks: number;
+    receivedBytes: number;
     fileName: string;
     fileFormat: string;
     createdAt: Date;
@@ -2027,48 +2030,24 @@ ${urls}
       console.log(`[VIDEO] Verified format: ${inputFormat}, starting FFmpeg conversion (user ${userId}, ${sizeMB}MB)`);
       const conversionStart = Date.now();
 
-      // Process video - convert to webm + poster frame (no MP4 fallback needed)
-      const { webm, mp4, poster } = await processCanvasVideo(file.buffer, inputFormat, {
-        generateFallback: false,
+      // Normalize every input and generate desktop/mobile plus H.264 fallbacks.
+      const processed = await processCanvasVideo(file.buffer, inputFormat, {
+        generateFallback: true,
         quality: 'high'
       });
 
+      const { webm, mp4 } = processed;
       const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
       const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
       const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
       console.log(`[VIDEO] Conversion complete in ${conversionTime}s: webm=${webmSizeMB}MB, mp4=${mp4SizeMB}MB, duration=${webm.duration}s (user ${userId})`);
 
-      // Upload WebM (primary format)
       const uploadStart = Date.now();
-      const webmResult = await uploadBackgroundVideo(userId, landingPage.id, webm.buffer, 'webm');
-      const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
-      console.log(`[VIDEO] WebM uploaded to storage (user ${userId})`);
-
-      // Upload MP4 fallback
-      let mp4Url: string | undefined;
-      if (mp4) {
-        const mp4Result = await uploadBackgroundVideo(userId, landingPage.id, mp4.buffer, 'mp4');
-        mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
-        console.log(`[VIDEO] MP4 fallback uploaded to storage (user ${userId})`);
-      }
-
-      // Upload poster frame for instant visual feedback
-      let posterUrl: string | undefined;
-      if (poster) {
-        const posterResult = await uploadBackgroundVideoPoster(userId, landingPage.id, poster);
-        posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
-        console.log(`[VIDEO] Poster frame uploaded to storage (user ${userId})`);
-      }
-
+      const manifest = await storeCanvasVideo(userId, landingPage.id, processed);
+      const webmUrl = manifest.webm!;
+      const mp4Url = manifest.mp4;
       const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
-
-      // Store URLs in backgroundValue as JSON
-      const backgroundVideoData = JSON.stringify({
-        webm: webmUrl,
-        mp4: mp4Url,
-        poster: posterUrl,
-        duration: webm.duration
-      });
+      const backgroundVideoData = JSON.stringify(manifest);
 
       // Update landing page with video background
       await storage.updateLandingPage(landingPage.id, {
@@ -2106,11 +2085,11 @@ ${urls}
       }
 
       const { totalChunks, fileName, fileSize } = req.body;
-      if (!totalChunks || !fileName) {
-        return res.status(400).json({ error: "Missing required fields" });
+      if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 100 || typeof fileName !== 'string' || !fileName || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > CANVAS_MAX_INPUT_BYTES) {
+        return res.status(400).json({ error: "Invalid upload: maximum 100 MiB and 100 chunks" });
       }
 
-      const fileFormat = fileName.split('.').pop()?.toLowerCase();
+      const fileFormat = fileName.split('.').pop()?.toLowerCase() || '';
       const validFormats = ['mp4', 'webm', 'mov'];
       if (!validFormats.includes(fileFormat)) {
         return res.status(400).json({ error: `Invalid file format. Accepted: ${validFormats.join(', ')}` });
@@ -2125,6 +2104,7 @@ ${urls}
         chunks: new Array(totalChunks).fill(null),
         totalChunks,
         receivedChunks: 0,
+        receivedBytes: 0,
         fileName,
         fileFormat,
         createdAt: new Date(),
@@ -2168,8 +2148,15 @@ ${urls}
       }
 
       const chunkBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      const previous = upload.chunks[chunkIndex];
+      const receivedBytes = upload.receivedBytes - (previous?.length || 0) + chunkBuffer.length;
+      if (receivedBytes > CANVAS_MAX_INPUT_BYTES) {
+        bgVideoChunkedUploads.delete(uploadId);
+        return res.status(413).json({ error: 'Canvas upload exceeds 100 MiB' });
+      }
       upload.chunks[chunkIndex] = chunkBuffer;
-      upload.receivedChunks++;
+      upload.receivedBytes = receivedBytes;
+      if (!previous) upload.receivedChunks++;
 
       console.log(`[VIDEO] Chunk ${chunkIndex + 1}/${upload.totalChunks} received for ${uploadId} (${chunkBuffer.length} bytes)`);
 
@@ -2258,8 +2245,8 @@ ${urls}
           job.percent = 0;
 
           const conversionStart = Date.now();
-          const { webm, mp4, poster } = await processCanvasVideo(completeBuffer, inputFormat, {
-            generateFallback: false, // WebM VP9 is supported in all modern browsers
+          const processed = await processCanvasVideo(completeBuffer, inputFormat, {
+            generateFallback: true,
             quality: 'high',
             startTime: trimStartTime,
             onProgress: (_phase, pct) => {
@@ -2269,6 +2256,7 @@ ${urls}
             },
           });
 
+          const { webm, mp4 } = processed;
           const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(1);
           const webmSizeMB = (webm.buffer.length / (1024 * 1024)).toFixed(2);
           const mp4SizeMB = mp4 ? (mp4.buffer.length / (1024 * 1024)).toFixed(2) : 'n/a';
@@ -2277,34 +2265,12 @@ ${urls}
           job.progress = 'Uploading to storage...';
           job.percent = 100;
 
-          // Upload WebM
           const uploadStart = Date.now();
-          const webmResult = await uploadBackgroundVideo(userId, upload.landingPageId, webm.buffer, 'webm');
-          const webmUrl = `/api/landing-page/background-video/${encodeURIComponent(webmResult.path)}`;
-
-          // Upload MP4 fallback
-          let mp4Url: string | undefined;
-          if (mp4) {
-            const mp4Result = await uploadBackgroundVideo(userId, upload.landingPageId, mp4.buffer, 'mp4');
-            mp4Url = `/api/landing-page/background-video/${encodeURIComponent(mp4Result.path)}`;
-          }
-
-          // Upload poster frame
-          let posterUrl: string | undefined;
-          if (poster) {
-            const posterResult = await uploadBackgroundVideoPoster(userId, upload.landingPageId, poster);
-            posterUrl = `/api/landing-page/background-video/${encodeURIComponent(posterResult.path)}`;
-          }
-
+          const manifest = await storeCanvasVideo(userId, upload.landingPageId, processed);
+          const webmUrl = manifest.webm!;
+          const mp4Url = manifest.mp4;
           const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(1);
-
-          // Update landing page
-          const backgroundVideoData = JSON.stringify({
-            webm: webmUrl,
-            mp4: mp4Url,
-            poster: posterUrl,
-            duration: webm.duration
-          });
+          const backgroundVideoData = JSON.stringify(manifest);
 
           await storage.updateLandingPage(upload.landingPageId, {
             backgroundType: 'video',
@@ -2370,10 +2336,9 @@ ${urls}
       // Extract extension for content type
       const extension = filePath.split('.').pop()?.toLowerCase() || 'webm';
 
-      const buffer = await mediaCache.get(filePath, () => downloadBackgroundVideo(filePath));
-
-      sendMediaBuffer(req, res, buffer, {
-        contentType: getVideoContentType(extension),
+      await sendStoredMedia(req, res, filePath, {
+        contentType: ['jpg', 'jpeg', 'png', 'webp'].includes(extension) ? getImageContentType(extension) : getVideoContentType(extension),
+        ranged: !['jpg', 'jpeg', 'png', 'webp'].includes(extension),
         cacheControl: 'public, max-age=31536000, immutable', // timestamped path
         etagKey: filePath,
       });

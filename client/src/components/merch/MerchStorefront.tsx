@@ -50,6 +50,8 @@ function ProductCard({
   // Only mount (and download) the preview video after the first hover —
   // preloading every product's video competes with images while scrolling.
   const [videoActivated, setVideoActivated] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  useEffect(() => setVideoReady(false), [previewVideo]);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -89,7 +91,7 @@ function ProductCard({
       >
         {firstImage ? (
           <div className={`w-full h-full transition-opacity duration-300 ${
-            isHovered && previewVideo ? 'opacity-0' : 'opacity-100'
+            isHovered && previewVideo && videoReady ? 'opacity-0' : 'opacity-100'
           }`}>
             <LazyImage
               src={firstImage}
@@ -107,7 +109,7 @@ function ProductCard({
           </div>
         ) : (
           <div className={`w-full h-full flex items-center justify-center transition-opacity duration-300 ${
-            isHovered && previewVideo ? 'opacity-0' : 'opacity-100'
+            isHovered && previewVideo && videoReady ? 'opacity-0' : 'opacity-100'
           }`}>
             <Package
               className="w-12 h-12 opacity-30"
@@ -121,13 +123,15 @@ function ProductCard({
             ref={videoRef}
             src={previewVideo}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-              isHovered ? 'opacity-100' : 'opacity-0'
+              isHovered && videoReady ? 'opacity-100' : 'opacity-0'
             }`}
             muted
             loop
             playsInline
             autoPlay
-            preload="auto"
+            onPlaying={() => setVideoReady(true)}
+            onError={() => setVideoReady(false)}
+            preload="metadata"
           />
         )}
 
@@ -155,7 +159,7 @@ function ProductCard({
         </h3>
         <p
           className="text-sm mt-1 font-medium"
-          style={{ color: primaryColor }}
+          style={{ color: textColor }}
         >
           {`\u00A3${(product.basePrice / 100).toFixed(2)}`}
         </p>

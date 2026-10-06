@@ -22,13 +22,19 @@ interface LazyImageProps extends ImgHTMLAttributes<HTMLImageElement> {
  * The parent element is expected to be position:relative and to reserve the
  * image's box (aspect-ratio or fixed size), so nothing shifts while loading.
  */
-export function LazyImage({
+export function LazyImage(props: LazyImageProps) {
+  return <ImageState key={props.src} {...props} />;
+}
+
+function ImageState({
   src,
   alt,
   eager = false,
   fallback = null,
   noSkeleton = false,
   className = '',
+  onLoad,
+  onError,
   ...rest
 }: LazyImageProps) {
   const [loaded, setLoaded] = useState(false);
@@ -50,8 +56,8 @@ export function LazyImage({
         fetchpriority={eager ? 'high' : 'auto'}
         draggable={false}
         className={`${className} ${eager ? '' : `media-fade ${loaded ? 'is-loaded' : ''}`}`.trim()}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        onLoad={(event) => { setLoaded(true); onLoad?.(event); }}
+        onError={(event) => { setFailed(true); onError?.(event); }}
         {...rest}
       />
     </>
